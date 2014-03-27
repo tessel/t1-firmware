@@ -77,7 +77,6 @@ static int l_hw_spi_initialize(lua_State* L)
 	uint8_t cpha = (uint8_t)lua_tonumber(L, ARG1 + 4);
 	uint8_t framemode = (uint8_t)lua_tonumber(L, ARG1 + 5);
 	hw_spi_initialize(port, clockspeed, spimode, cpol, cpha, framemode);
-	TM_DEBUG("spi_initialize port: %ld", port);
 	return 0;
 }
 
@@ -104,7 +103,6 @@ static int l_hw_spi_transfer_async(lua_State* L)
 
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-
 	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
 	memset(rxbuf, 0, buf_len);
 	size_t buf_read = 0;
@@ -346,7 +344,6 @@ static int l_hw_uart_initialize(lua_State* L)
 	UART_DATABIT_Type databits = (UART_DATABIT_Type)lua_tonumber(L, ARG1 + 2);
 	UART_PARITY_Type parity = (UART_PARITY_Type)lua_tonumber(L, ARG1 + 3);
 	UART_STOPBIT_Type stopbits = (UART_STOPBIT_Type)lua_tonumber(L, ARG1 + 4);
-	TM_DEBUG("Initializing UART...");
 	hw_uart_initialize(port, baudrate, databits, parity, stopbits);
 	return 0;
 }

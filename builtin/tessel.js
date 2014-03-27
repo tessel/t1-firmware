@@ -902,7 +902,7 @@ SPI.prototype.transfer = function (txbuf, unused_rxbuf, fn)
   var self = this;
   setImmediate(function() {
     // TODO: this needs to change to callback
-    var rxbuf = hw.spi_transfer_async(txbuf, unused_rxbuf);
+    var rxbuf = hw.spi_transfer_async(self.port, txbuf, unused_rxbuf);
     fn && fn(null, rxbuf);
   });
 }
@@ -912,7 +912,7 @@ SPI.prototype.send = function (txbuf, fn)
 {
   var self = this;
   setImmediate(function() {
-    hw.spi_send_async(txbuf);
+    hw.spi_send_async(self.port, txbuf);
     fn && fn(null);
   });
 };
@@ -927,7 +927,7 @@ SPI.prototype.receive = function (buf_len, unused_rxbuf, fn)
 
   var self = this;
   setImmediate(function() {
-    var rxbuf = hw.spi_receive_async(buf_len, unused_rxbuf);
+    var rxbuf = hw.spi_receive_async(self.port, buf_len, unused_rxbuf);
     fn && fn(null, rxbuf);
   });
 };
