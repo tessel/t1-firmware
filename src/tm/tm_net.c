@@ -13,6 +13,7 @@
 
 int hw_net__inuse_start ();
 int hw_net__inuse_stop ();
+
 #define CC3000_START hw_net__inuse_start();
 #define CC3000_END hw_net__inuse_stop();
 
@@ -136,7 +137,6 @@ int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip
 	CC3000_END;
 	return sent;
 }
-
 
 tm_socket_t tm_tcp_open ()
 {

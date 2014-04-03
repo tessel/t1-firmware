@@ -1,5 +1,6 @@
 #include "usb/tessel_usb.h"
 #include "tessel.h"
+#include "hw.h"
 
 void handle_device_control_setup() {
 	switch (usb_setup.bRequest) {
@@ -23,8 +24,16 @@ void handle_device_control_setup() {
 		case REQ_WIFI:
 			if ((usb_setup.bmRequestType & USB_IN) == USB_IN) {
 				usb_ep0_out();
-				ep0_buf_in[0] = 0x55;
-				return usb_ep0_in(1);
+
+				hw_net_get_curr_ip(ep0_buf_in);
+				return usb_ep0_in(4);
+			}
+		case REQ_CC:
+			if ((usb_setup.bmRequestType & USB_IN) == USB_IN) {
+				usb_ep0_out();
+
+				hw_net_get_cc_ver(ep0_buf_in);
+				return usb_ep0_in(2);
 			}
 			break;
 	}

@@ -17,3 +17,4 @@ void handle_device_control_setup();
 #define REQ_KILL 0x10
 #define REQ_STACK_TRACE 0x11
 #define REQ_WIFI 0x20
+#define REQ_CC 0x21

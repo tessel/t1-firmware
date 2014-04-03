@@ -37,6 +37,8 @@ int hw_net_is_connected (void);
 int hw_net_has_ip (void);
 void hw_net_block_until_dhcp (void);
 int hw_net_block_until_dhcp_wait(int waitLength);
+void hw_net_get_curr_ip(uint8_t * buff);
+void hw_net_get_cc_ver(uint8_t * buff);
 
 uint32_t hw_net_defaultgateway ();
 uint32_t hw_net_dnsserver ();
