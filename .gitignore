@@ -1,0 +1,11 @@
+*.o
+*.hex
+*.dump
+*.elf
+*.map
+*.d
+.cproject
+*.bin
+.DS_Store
+node_modules
+out

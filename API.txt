@@ -1,0 +1,52 @@
+# SPI
+
+SPI master connections to slave devices.
+
+int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat)
+Enable SPI port with initialized settings. bitorder: `HW_LSB` or `HW_MSB`. cpol: `HW_LOW` or `HW_HIGH`. cpha: `HW_FIRST` or `HW_SECOND`.
+
+int hw_spi_enable (size_t port)
+Enable SPI port.
+
+int hw_spi_disable (size_t port)
+Disable SPI port.
+
+int hw_spi_transfer (size_t port, uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+Send and receive data from SPI slave synchronously.
+
+int hw_spi_send (size_t port, uint8_t *txbuf, size_t buf_len)
+Send data to SPI slave synchronously.
+
+int hw_spi_receive (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+Receive data from SPI slave synchronously.
+
+int hw_spi_transfer_async (tm_loop_t loop, tm_callback_t callback, size_t port, uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+Send and receive data from SPI slave synchronously.
+
+int hw_spi_send_async (tm_loop_t loop, tm_callback_t callback, size_t port, uint8_t *txbuf, size_t buf_len, size_t* buf_read)
+Send data to SPI slave synchronously.
+
+int hw_spi_receive_async (tm_loop_t loop, tm_callback_t callback, size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+Receive data from SPI slave synchronously.
+
+## SPI Slave
+
+Slave functionality. hw_spi_slave_buffer_set, hw_spi_slave_buffer_get
+
+int hw_spi_slave_enable ()
+
+int hw_spi_slave_disable ()
+
+int hw_spi_slave_receive () ...
+
+int hw_spi_slave_transfer () ...
+
+int hw_spi_slave_send () ...
+
+
+# PWM
+
+Pulse-width modulation.
+
+int hw_pwm_enable (size_t pin, hw_pwm_t mode, uint32_t period, uint32_t pulsewidth)
+Enables PWM for a pin.

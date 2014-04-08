@@ -1,0 +1,11 @@
+{
+  "name": "tessel-firmware",
+  "scripts": {
+    "test": "tap -e 'tessel-node -q' test/*.js",
+    "install": "true"
+  },
+  "dependencies": {
+    "colony": "git+https://tmTestUser:tmTestUser1@github.com/tessel/colony.git#master"
+  },
+  "private": true
+}

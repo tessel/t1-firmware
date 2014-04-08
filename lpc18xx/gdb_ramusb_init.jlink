@@ -1,0 +1,37 @@
+#*************************************************
+# gdb_ram_init.jlink
+# NXP MCU SW Application Team
+# 
+# Connect to J-Link and debug application for 
+# LPC18xx based on Cortex-M3 core in RAM Mode
+#
+#*************************************************
+
+# Connect to the J-Link gdb server
+target remote localhost:2331
+
+
+#monitor interface swd
+monitor interface jtag
+
+# Set JTAG Speed
+monitor speed auto
+
+# Reset target
+monitor reset 0
+
+# Clear all hardware breakpoint pending
+monitor clrbp
+
+# Load Image to RAM
+load
+
+# Initializing PC and stack pointer
+monitor reg r13 = (0x20000000)
+monitor reg pc = (0x20000004)
+
+monitor speed 2000
+
+# Read back to check expected value
+monitor reg r13
+monitor reg pc

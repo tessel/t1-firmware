@@ -1,0 +1,422 @@
+RELEASE CMSIS for REV A 20121211
+1/ Updated SPIFI library
+2/ Bug fix to USBDEV_ROM example
+
+RELEASE CMSIS for REV A 20120831
+1/ Removed I2c_TouchLEDs example.
+2/ Added I2c_MasterSlave example with 5 modes: polling/interrupt master, polling/interrupt slave and communicate with UDA1380.
+3/ Updated on I2C Driver: use only one handle state function for both polling and interrupt, add some function for the new I2C example.
+4/ Removed I2C_Master example.
+5/ Fixed issue on USBDEV/Usb_Cdc example: now can send file from the virtual COM to the real COM and vice versa.
+6/ Updated on DFUSec example:
+	- Added an extra 4 bytes (1 word) to each DFU programming buffer to prevent possible overflow from USB driver;
+	- Added extra space to the DFU bulk OUT buffer for SPI FLASH mode to prevent buffer overrun corruption.
+7/ Changed SPIFI documentation from early (2011) ROM documentation to more refined API documentation.
+
+RELEASE CMSIS for REV A 20120731
+1/ Updated on LCD/Lcd_Demo/EWARM/ldscript_exflash_iar.icf file: EMC init code should be flashed within 16KB of the external flash and code 
+should be copied to internal SRAM at initialization.
+2/ Added DFUSec programming API examples for SPI FLASH, internal FLASH, and emulated memory
+3/ Updated USBDEV/Usb_MassStorage example to run on external NOR Flash and QuadSPI Flash (SPIFI) and increase the max packet size in 
+the HS descriptors to 512.
+4/ Updated on USBDEV_ROM\Usb_Composite example: 
+	- Added CDC device
+	- Updated to the latest USB ROM driver support files 
+5/ Added I2C bit banging example. Two GPIOs operate as I2C master in order to control the I2C devices on the 7 inch display module 
+(pins 13/14 on the LCD connector of the Hitex A4 board).
+6/ Corrected and updated SCU pin mode definitions.
+
+RELEASE CMSIS for REV A 20120531
+1/ Updated all IAR project files: modify the paths linking to .board and .mac files (to compatible with the new updates on Flash Utility folder)
+2/ Updated LCD_Demo example:	
+	- add .icf file for running from external flash with IAR project
+	- update Lcd_Demo.c and TSC2046.c
+3/ Updated all *.uvproj and *.uvopt files: support loading and debugging in Hitex Flash Mode with the new flash loader and ini-script
+4/ Updated RTC Driver - function RTC_CalibConfig(): Don't subtract 1 from calibration value
+5/ Updated SSP driver and Ssp_Slave example: Use 2 bytes instead of 1 byte for 9-bit transfer
+6/ Upgraded IAR support for BootFast
+7/ Added DAC/Dac_Dma example: Configure P4_4 as DAC AOUT pin, using DMA to transfer data
+8/ Updated BOOTFAST example: Add INTERNAL_FLASH #define, modify the abstract
+
+RELEASE CMSIS for REV A 20120428
+1/ Modified the paths of IAR flash loader files (.board and .flash) and updated all IAR project files to use the new paths linking to .mac and .board files
+2/ Updated all ADC examples to run on the new board A4
+3/ Updated USBDEV_ROM/Usb_MassStorage example to compatible with the separated SDIO Driver
+4/ Updated LCD Driver and LCD_Demo example to support 3.2" EA 320x240 LCD and Touch Screen (TSC2046 controller)
+5/ Updated ADC Driver in ADC_DeInit() ADC_ChannelCmd() functions to solve problem when de-initializing the ADC
+6/ Updated LCD Terminal to run on the new board A4
+7/ Update abstract files to support IAR projects
+8/ Updated BOOTFAST Blinky and SPIFI_Lcd to support Internal Flash (LPC1857)
+9/ Added SPIFI_Lcd example
+10/ Added driver for LPC1857/LPC4357 internal flash
+
+RELEASE: LPC1800CMSIS_20120417
+1/ Added IAR port of BOOTFAST example (high-speed mode from SPIFI or external Flash)
+2/ New version of SPIFI library supports large SPIFI >= 256 Mb and does not use memset/memcpy
+
+RELEASE CMSIS for REV A 20120331
+01/ Updated legalese on source, header and abstract files
+02/ Separated SDIO driver into SDIF and SDMMC components
+03/ Updated correct setting for Deep Sleep: replace the value in line "#define PWR_SLEEP_MODE_DEEP_SLEEP 0x3F00AA" with 0x3000AA
+04/ Updated CGU Set PLL0 function
+05/ Updated GPIO driver for external interrupt
+06/ Added Gpio_Input example to configure GPIO to read the state of a particular pin
+07/ Added Gpio_ExtInt example to use GPIO as source of an external interrupt
+08/ Added OTP_API example
+09/ Updated LPC18xx.h: Corrected the define for the number of priority bits (must be 3 and not 4)
+10/ Fixed minor bugs in I2S driver
+11/ Updated makesection and makefile to compile and run GNU projects on Linux:
+	- Use / instead of \ in folder paths.
+	- Move TOOL_PATH definition to "makeconfig" file.
+	- Correct the EXDIR path in USB_Hid makefile
+12/ Updated to run on the new board (Hitex LPC1850EVA-A4):
+	- Updated the new .FLM file for Keil projects
+	- I2S: example can play sound in a loop
+	- ATIMER, Cortex-M3, EMC, GPDMA, GPIO, NVIC, UART, SSP: using USART0 instead of UART1, update abstract files and comments
+	- EMAC: updated the correct configuration for ACD pin (PF.9 - ADC1 channel 2) and all Ethernet pins; use USART0 instead of UART1
+	- SCT: using RGB led output signals, updated .fzm file, added red state diagram
+	- GPIO_LedBlinky example: change RGB LED color every second
+13/ Updated .chm file and Examples Description.
+14/ RTC: fixed bugs in:
+	- lpc18xx_rtc.c: RTC_CntIncrIntConfig(), RTC_AlarmIntConfig(): checking disble bit
+	- Rtc_Alarm: EVRT_IRQHandler() clear event pending before serving RTC interrupt routine
+	
+RELEASE CMSIS for REV A 20120131
+1./ Updated IAR projects: added SPIFI targets
+2./ Fix format issue in SD card reader example(USBDEV_ROM/MassStorage)
+3./ Updated copyright header for source, header and abstract files
+
+RELEASE CMSIS for REV A 20111230
+1/ added LCD Term.h, lpc18xx_aes_otp.h, lpc18xx_sdio driver, lpc_sdmmc.h, AES_test example, CGU_measureFreq example, I2C_TouchLEDs example, sdio_readwrite SPIFI_ReadWrite example
+2/ Updated CGU driver to support setting flexible output freq for PLL0 USB and Audio
+3/ Updated CAN driver to support 2 independent CANs
+4/ Updated GPDMA, GPIO, PWR, LCD, I2S, scu drivers for buid issues
+5/ Updated ATIMER_WIC example to use new EVENT Router IRQ macro
+6/ Updated all Keil init files to use fixed load address
+7/ Updated USB_cdc, massStorage, all usb Rom examples
+
+RELEASE CMSIS for REV A 20111209
+1/ New LPC18xx.h header file. Changes GPIO structure.
+2/ Addition of lpc18xx_emc.c and lpc18xx_emc.h to configure memory on Hitex board.
+3/ Addition of spifi_rom_api.h, spifi_drv_M3.lib and SPIFI_ROM_support.doc SPIFI driver package
+4/ Updated SPIFI programming driver for Keil MDK which uses the SPIFI lib
+5/ New BOOTFAST example shows how to boot from external flash or QSPI and ramp to 180 MHz
+
+RELEASE CMSIS for REV A 20111130
+1./ lpc18xx_lcd.h LCD_CFG_type add member pcd, lpc18xx_lcd.c add init pcd in LCD_Init function
+2./ protect MAX and MIN macro in lpc_types.h
+3./ Add getPC function to ARM,GNU, IAR startup_lpc18xx.s
+4./ Add VTOR init in SystemInit function
+5./ Change All ADC examples to use ADC port 0
+6./ These example: CortexM3_Mpu, Pwr_DeepPowerDown, Timer_FreqMeasure, SCT_SimpleMatch and all USBDEV_ROM examples Keil project was adjusted
+7./ SDRAM example and LCD example was changed not to use uint64_t in NS2CLK function
+8./ Nvic_VectorTableRelocation.c
+removed: 
+#if __RAM_MODE__//Run in RAM mode
+  memcpy((void *)VTOR_OFFSET, (const void *)0x10000000, 256*4);
+#else
+  memcpy((void *)VTOR_OFFSET, (const void *)0x1C000000, 256*4);
+#endif
+
+added:
+memcpy((void *)VTOR_OFFSET, (const void *)(getPC()& 0xFF000000), 256*4);
+9./ Pwr_PowerDown change method for testing this feature
+
+
+RELEASE CMSIS for REV A 20111028
+1./ Add GNU support
+2./ Addition of new Keil flash drivers for eFlash and SPIFI
+3./ Change of Keil projects to support eFlash and SPIFI operation
+
+PRE-RELEASE CMSIS for REV A 20111011
+1/ PowerDown Example IAR issue fixed
+2/ Upgraded CMSIS to version 2.10
+3/ Upgraded Core header to Rev A
+4/ lpc18xx_can.h remove all bitrates from 8Mhz, add bitrates from 12Mhz
+	/** Bitrate: 100K */
+	#define CAN_BITRATE100K12MHZ           0x00004509
+	/** Bitrate: 125K */
+	#define CAN_BITRATE125K12MHZ           0x00004507
+	/** Bitrate: 250K */
+	#define CAN_BITRATE250K12MHZ           0x00004503
+	/** Bitrate: 500K */
+	#define CAN_BITRATE500K12MHZ            0x00004501
+	/** Bitrate: 1000K */
+	#define CAN_BITRATE1000K12MHZ          0x00004500
+5./ lpc18xx_cgu.* add PLL audio clock, modify alloc connect table and CGU_Entity_ControlReg_Offset
+6./ lpc18xx_evrt.h
+	add EVRT_SRC_SDIO
+7./ lpc18xx_i2s.h separate LPC_I2S0 and LPC_I2S1
+8./ lpc18xx_scu.h
+	redefine, add pin modes and add pin functions 4->7
+9./ debug_frmwrk.c
+	changed pin mode for UART RXD0 and UART RXD1
+10./ lpc_can.c replace LPC_CAN by LPC_CAN0
+11./ lpc18xx_i2c.* replace i2c pin configurations
+12./ lpc18xx_ssp.c down default clock speed to 100kHz
+13./ Examples\CCAN\CCan_SimpleTxRx\CCan_SimpleTxRx.c change RD pin mode to enable input buffer
+14./ Examples\EMAC\Emac_EasyWeb\emac.c
+		replace MII and RMII pin setting by source from CodeBundle
+15./ Examples\EMC\Emc_Sdram\SDRAM_Init.c and Examples\EMC\Emc_NorFlash\SST39VF320.c
+		replace EMC pin setting to be compatible with Rev A
+16./ Examples\I2S\I2s_Audio\I2s_Audio.c
+		replace I2S pin setting to be compatible with Rev A
+		replace I2S to I2S0
+17./ Examples\LCD\Lcd_Demo\IS42S16400D.c
+		replace EMC pin setting to be compatible with Rev A
+18./ Examples\SSP\All SSP examples: replace SSP pin setting to be compatible with Rev A
+19./ Timer_Capture and Timer_FreqMeasure: replace Capture input pin setting to be compatible with Rev A
+20./ Examples\UART\All UART examples: replace UART pin setting to be compatible with Rev A
+21./ Examples\USBDEV\USB_*\usbhw.c
+		replace USB pin setting to be compatible with Rev A
+		correct clock in Init function
+
+RELEASE: LPC1800CMSIS_20110829
+1./ Add GNU Support
+modify pasting in can.c to be compatible with GCC
+
+RELEASE: LPC1800CMSIS_20110729
+1./ IAR flash support is moved to Tools folder
+2./ ADC.h fixed macro ADC_CR_BITACC
+3./ I2S.h fixed comment
+	from #endif /* LPC17XX_SSP_H_ */
+	to #endif /* LPC18XX_I2S_H_ */
+4./ ADC.c fix ADC_Init Clock by rounding clk div value
+5./ i2s.c fixed some comment
+6./ EMC Nor Flash renamed file  flash programing function
+7./ SDRAM can run at MAX EMC Speed
+8./ Removed flash programing support for LHF00L28
+
+RELEASE: LPC1800CMSIS_20110627
+1./ Fix abstract
+2./ Fix I2S FreqConfig mistake
+3./ Add DFU Driver and App
+
+
+RELEASE: LPC1800CMSIS_20110613
+1./ Add DSP Document
+2./ Speed Up External FLash Mode
+3./ Add IAR Flash Support
+4./ Fix GPDMA Flash transfer issue in IAR
+5./ Set default taget is EXFLASH(Keil only)
+
+************************************************************************************************************************************************
+RELEASE: LPC1800CMSIS_20110603
+1./ Add DSP_lib into Core folder
+2./ Update core_cmFunc.h and core_cmInstr.h for solving conflict with IAR EWARM version 6.20 or later
+3./ add IAR startup file and IAR support files in Core\DeviceSupport\NXP\LPC18xx
+4./ Modify SystemInit function to support RAM mode
+	#if (__RAM_MODE__)
+    	SCB->VTOR = 0x10000000;
+	#endif
+5./ Modify CCU1 and CCU2 struct in LPC18xx.h
+6./ Fix bug in uart_set_divisors function
+7./ Change UART clock source from XTAL to PLL1 in uart driver
+8./ Fix RTC bugs
+9./ Modify lpc18xx_GPDMA.c to support IAR compiler
+10./ Modify lpc18xx_cgu.c to support IAR compiler
+11./ Update lpc_types.h to support IAR compiler
+12./ Fix bugs in I2S driver
+13./ Remove Warnings
+14./ Change new header, add more comments
+15./ Standalize example, project, output names
+16./ Support IAR EWARM (RAM mode)
+17./ SUpport Hitex Board as default
+18./ Modify hardware configuration in abstract files
+19./ Set default Target to RAM mode
+
+************************************************************************************************************************************************
+RELEASE: LPC1800CMSIS_20110514
+1./ Change all Keil example projects from device Cortex M3 to LPC1850
+2./ change all examples to support Hitex board only
+3./ Verify all project option
+4./ separated CGU and PWR into 2 independent drivers
+
+************************************************************************************************************************************************
+RELEASE: LPC1800CMSIS_20110421
+1./ Add CAN driver:
+	Drivers/include/lpc18xx_can.h
+	Drivers/source/lpc18xx_can.c
+
+2./ Add CAN example for simple Transceiver
+	Examples\C_CAN\simpleTxRx
+
+3./ Add 4 USB Rom examples:
+	USB_DFU
+	USB_HID
+	USB_MassStorage
+	USB_Composite
+
+4./ Enable _printf function
+	debug_frmwrk.h:
+		uncomment _printf function declaration
+	debug_frmwrk.c:
+		uncomment _printf function
+
+************************************************************************************************************************************************
+RELEASE: LPC1800CMSIS_20110401
+
+1./ Change all Keil example proiects from device NXP LPC1768 to ARM Cortex-M3
+
+2./ Fix bug in I2C driver (customer feedback)
+	Problem description: 
+		I2C_MasterTransferData() is not able to 
+		(1) Send, 
+		(2) doing a repeated Start and 
+		(3) starting to receive with one function call. 
+		Problem is that the repeated start is not generated, but a retransmission of the 
+		last word is startet. 
+	Solve: change 
+		I2Cx->I2CONCLR = I2C_I2CONCLR_SIC; 
+		I2Cx->I2CONSET = I2C_I2CONSET_STA; 
+	to 
+		I2Cx->I2CONSET = I2C_I2CONSET_STA; 
+		I2Cx->I2CONCLR = I2C_I2CONCLR_SIC; 
+		in function I2C_Start ()
+
+3./ lpc18xx_timer.c:
+	Function TIM_ClearIntPending():
+		Change TIMx->IR |= TIM_IR_CLR(IntFlag);
+		To     TIMx->IR = TIM_IR_CLR(IntFlag);
+	Function TIM_ClearIntCapturePending():
+		Change TIMx->IR |= (1<<(4+IntFlag));
+		To     TIMx->IR = (1<<(4+IntFlag));
+	Function TIM_GetCaptureValue(): 
+		Add return 0;
+
+4./ EMC - Nor Flash: remove example build target for FLASH mode as it only can run in RAM mode.
+
+5./ SCT: update Fizzim tool to version 1.1
+
+6./ Tools:
+	Update Flash burning for LHF00L28 and SST39X320X
+
+************************************************************************************************************************************************
+
+RELEASE: LPC1800CMSIS_20110324
+
+1./ Current support hardwares:
+	- NXP LPC1800 Evaluation board through definition 'BOARD_NXP_EA'
+	- Hitex LPC1800 Board through definition 'BOARD_HITEX_LPC1800'
+    Some examples can run on LPC1800 Evaluation board, some can run on Hitex board...Please refer to abstract.txt
+
+2./ Addin new flash support under Tools/Flash/SST39X320X
+
+3./ lpc18xx_evrt.c:
+	Change EVRTx->SET_EN |= (1<<(uint8_t)EVRT_Src);
+	To     EVRTx->SET_EN = (1<<(uint8_t)EVRT_Src);
+	Purpose: prevent clearing other set bits as writing '0' has no effect
+
+4./ Fix ATIMER_WIC example:
+	- Configure 32KHZ osc in lpc18xx_atimer.c
+	- Call the configuration function in atimer_wic.c
+
+5./ Fix RTC_Alarm example:
+	- Configure 32KHZ osc in lpc18xx_rtc.c
+	- Update Rtc_Alarm.c
+
+6./ Add in PWR_PowerDown example
+
+7./ Add in PWR_DeepPowerDown example
+
+8./ All example in PWR are modified to wait for '1' sent from PC's COM port to start
+
+9./ Fix LCD Logic4.3 example to run on Hitex LPC1800 Board
+
+10./ Add in GPDMA Flash_2_Ram_Test example
+
+11./ EMC EXT_SDRAM example: join IS42S16400D.c and MT48LC4M32B2.c into SDRAM_Init.c
+
+12./ lpc18xx_i2s.c: update I2S_FreqConfig() function
+
+************************************************************************************************************************************************
+
+RELEASE: LPC1800CMSIS_20110311
+
+1./ This package is compliant to CMSIS 2.0
+
+2./ Add in 'Tools' folder which contains neccessary material for building project, examples like flash burning,..
+
+3./ Examples are given in Keil uVision 4 project
+
+4./ Current support hardwares:
+	- NXP LPC1800 Evaluation board through definition 'BOARD_NXP_EA'
+
+5./ Examples can run:
+	- RAM (debug) mode
+	- ROM (Flash, stand alone) mode
+		+ External Nor Flash. Flash Part supporting:
+			1) LHF00L28
+
+6./ Each example folder has an 'abstract.txt' file, this is where user can start
+
+7./ Below is list of drivers and examples:
+	- ADC (lpc18xx_adc):
+		+ ADC_Interrupt
+		+ ADC_Polling
+		+ ADC_Burst
+		+ ADC_Dma
+	- ATIMER (lpc18xx_atimer):
+		+ ATIMER_interrupt
+	- PWR (lpc18xx_clkpwr):
+		+ CLKPWR_Sleep
+		+ CLKPWR_DeepSleep
+	- DAC (lpc18xx_dac):
+		+ DAC_WaveGenerator
+		+ DAC_Dma
+	- EMAC (lpc18xx_emac):
+		+ EMAC_EasyWeb
+	- EMC (no driver):
+		+ EXT_SDRAM
+		+ NOR_FLASH
+	- GPDMA (lpc18xx_gpdma):
+		+ GPDMA_Ram2Ram
+		+ GPDMA_LinkList
+	- GPIO (lpc18xx_gpio):
+		+ GPIO_LedBlinky
+	- I2C (lpc18xx_i2c):
+		+ I2C_Master
+	- I2S (lpc18xx_i2s):
+		+ I2S_Audio
+	- LCD (lpc18xx_lcd)
+	- MCPWM (lpc18xx_mcpwm):
+		+ MCPWM_Simple
+	- SCU (lpc18xx_scu)
+	- QEI (lpc18xx_qei):
+		+ QEI_Velo
+	- RIT (lpc18xx_rit):
+		+ RIT_Interrupt
+	- RTC (lpc18xx_rtc):
+		+ RTC_Calib
+		+ RTC_Alarm
+	- SSP (lpc18xx_ssp):
+		+ SSP_SPI
+		+ SSP_Microwire
+		+ SSP_TI
+	- TIMER (lpc18xx_timer):
+		+ TIMER_Capture
+		+ TIMER_MatchInterrupt
+		+ TIMER_FreqMeasure
+	- UART (lpc18xx_uart):
+		+ UART_Autobaud
+		+ UART_Dma
+		+ UART_Interrupt
+		+ UART_Polling
+		+ UART_RS485
+	- SCT(LPC18xx_SCT):
+		+ SCT_Capture
+		+ SCT_Match
+	- WWDT (lpc18xx_wwdt):
+		+ WWDT_Interrupt
+	- CORTEXM3 (no driver):
+		+ CORTEXM3_BitBanding
+		+ CORTEXM3_MPU
+		+ CORTEXM3_PriviledgeMode
+	- USBDEV (no driver):
+		+ USBDEV_VirtualCOM
+		+ USBDEV_MassStorage
+	- NVIC (no driver):
+		+ NVIC_Priority
+		+ NVIC_VecRelocation
+	- EVRT (lpc18xx_evrt)
+		
