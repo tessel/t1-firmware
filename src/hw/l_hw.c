@@ -438,9 +438,16 @@ static int l_hw_interrupts_remaining(lua_State* L)
 static int l_hw_interrupt_watch(lua_State* L)
 {
 	int pin = (int)lua_tonumber(L, ARG1);
-	int interruptID = (int)lua_tonumber(L, ARG1 + 1);
+	int interrupt_index = (int)lua_tonumber(L, ARG1 + 1);
 	int flag = (int)lua_tonumber(L, ARG1 + 2);
-	lua_pushnumber(L, hw_interrupt_watch(pin, flag, interruptID));
+	lua_pushnumber(L, hw_interrupt_watch(pin, flag, interrupt_index));
+	return 1;
+}
+
+static int l_hw_interrupt_unwatch(lua_State* L)
+{
+	int interrupt_index = (int)lua_tonumber(L, ARG1);
+	lua_pushnumber(L, hw_interrupt_unwatch(interrupt_index));
 	return 1;
 }
 
@@ -618,6 +625,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		// external gpio interrupts
 		{ "interrupts_remaining", l_hw_interrupts_remaining },
 		{ "interrupt_watch", l_hw_interrupt_watch },
+		{ "interrupt_unwatch", l_hw_interrupt_unwatch },
 		{ "interrupt_assignment_query", l_hw_interrupt_assignment_query },
 		{ "acquire_available_interrupt", l_hw_acquire_available_interrupt },
 

@@ -173,7 +173,10 @@ void hw_wait_us (int us);
 
 enum {
 	TM_INTERRUPT_MODE_RISING = 0,
-	TM_INTERRUPT_MODE_FALLING = 1
+	TM_INTERRUPT_MODE_FALLING = 1,
+	TM_INTERRUPT_MODE_HIGH = 2,
+	TM_INTERRUPT_MODE_LOW = 3,
+	TM_INTERRUPT_MODE_CHANGE = 4
 };
 
 extern void initialize_GPIO_interrupts(void);
@@ -183,7 +186,8 @@ void hw_interrupt_callback_attach (int n, void (*callback)(int, int));
 void hw_interrupt_callback_detach (int n);
 
 int hw_interrupts_available (void);
-int hw_interrupt_watch (int ulPin, int flag, int interruptID);
+int hw_interrupt_watch (int ulPin, int mode, int interruptID);
+int hw_interrupt_unwatch(int interrupt_index);
 int hw_interrupt_acquire (void);
 int hw_interrupt_assignment_query (int pin);
 

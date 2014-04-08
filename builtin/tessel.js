@@ -6,6 +6,14 @@ var hw = process.binding('hw');
 
 var tessel_version = process.versions.tessel_board;
 
+var _interruptModes = {
+  0 : "rise",
+  1 : "fall",
+  2 : "high",
+  3 : "low",
+  4 : "change"
+};
+
 process.send = function (msg) {
   hw.usb_send('M'.charCodeAt(0), JSON.stringify(a));
 }
@@ -245,8 +253,10 @@ AnalogPin.prototype.read = function (next) {
 // Event for GPIO interrupts
 process.on('interrupt', function (interruptData) { 
   // Grab the interrupt generating message
-  var index = parseInt(interruptData.interruptID, 10);
-  var mode = interruptData.mode;
+  var index = parseInt(interruptData.interrupt, 10);
+  var mode = _interruptModes[interruptData.mode];
+  var state = parseInt(interruptData.state, 10);
+  var time = parseInt(interruptData.time, 10);
 
   // Grab corresponding pin
   var assigned = board.interrupts[index];
@@ -255,16 +265,33 @@ process.on('interrupt', function (interruptData) {
   if (assigned) {
 
     // Check if there are callbacks assigned for this mode or "change"
-    var callbacks = assigned.modes[mode].callbacks.concat(assigned.modes["change"].callbacks);
+    var callbacks = assigned.modes[mode].callbacks;
 
+    // If this is a rise or fall event, call change callbacks as well
+    if (mode === "change") {
+
+      if (state === 1) {
+        callbacks.concat(assigned.modes['rise'].callbacks);
+        assigned.pin.emit('change', null, time, 'low');
+        assigned.pin.emit('rise', null, time, 'rise');
+      } 
+      else {
+        callbacks.concat(assigned.modes['low'].callbacks);
+        assigned.pin.emit('change', null, time, 'low');
+        assigned.pin.emit('low', null, time, 'low');
+      }
+    }
+    else {
+
+    }
     // If there are, call them
     for (var i = 0; i < callbacks.length; i++) {
-      callbacks[i].bind(assigned.pin, null, mode)();
+      callbacks[i].bind(assigned.pin, null, time, mode)();
     }
-
-    // Emit the event
-    assigned.pin.emit(mode, mode);
-    assigned.pin.emit("change", mode);
+        // If it's a high or low event, clear that interrupt (should only happen once)
+    if (mode == 'high' || mode == 'low') {
+      assigned.pin.cancelWatch();
+    }
   }
 });
 
@@ -276,46 +303,48 @@ process.on('uartReceive', function(receiveData) {
   });
 });
 
-Pin.prototype.watch = function(triggerMode, callback) {
+Pin.prototype.watch = function(mode, callback) {
 
   // Make sure trigger mode is valid
-  triggerMode = triggerMode.toLowerCase();
-  if (triggerMode != "rise" && triggerMode != "fall" && triggerMode != "change") {
-    return callback && callback.bind(this, new Error("Invalid trigger: ", triggerMode))();
+  mode = mode.toLowerCase();
+  if (interruptModeForType(mode) == -1) {
+    return callback && callback.bind(this, new Error("Invalid trigger: " + mode))();
   }
-  
   
   // Check if this pin already has an interrupt associated with it
   var interrupt = hw.interrupt_assignment_query(this.pin);
-  
+
   // If it does not have an assignment
   if (interrupt === -1) {
 
-    // And there are not interrupts available
-    if (!hw.interrupts_remaining()) {
-      console.log("There are no interrupts remaining...");
+    // Attempt to acquire next available
+    interrupt = hw.acquire_available_interrupt();
+
+    if (interrupt === -1) {
+      console.warn("There are no interrupts remaining...");
       // Throw an angry Error
       return callback && callback(new Error("All GPIO Interrupts are already assigned."));
     }
 
-    // If there are, acquire one
-    interrupt = hw.acquire_available_interrupt();
   }
 
-  // Make sure it's an input?
-  this.input();
-
   // Assign this pin with this trigger mode to the interrupt
-  return this.assignInterrupt(triggerMode, interrupt, callback);
+  return this.assignInterrupt(mode, interrupt, callback);
+}
+
+function interruptModeForType(triggerMode) {
+  for (var mode in _interruptModes) {
+    if (_interruptModes[mode] === triggerMode) {
+      return mode;
+    }
+  }
+  return -1;
 }
 
 Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
   
-  // Assign pin to interrupt
-  var triggerFlag = getTriggerModeBitFlag(triggerMode);
-
   // Start watching pin for edges
-  var success = hw.interrupt_watch(this.pin, interrupt, triggerFlag);
+  var success = hw.interrupt_watch(this.pin, interrupt, interruptModeForType(triggerMode));
 
   // If there was no error
   if (success != -1) {
@@ -328,7 +357,7 @@ Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
     if (assignment) {
 
       // If the watch is being removed
-      if (triggerFlag == 0) {
+      if (triggerFlag == -1) {
 
         // Just remove the entity
         delete board.interrupts[interrupt];
@@ -341,9 +370,9 @@ Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
     }
     // If not, assign with new data structure
     else {
-
       // Create the object
       assignment = new InterruptAssignment(this, triggerMode, callback);
+
       // Shove it into the data structure
       board.interrupts[interrupt] = assignment;
     }
@@ -355,6 +384,7 @@ Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
     callback && callback.bind(this, new Error("Unable to wait for interrupts on pin"))();
     return -1;
   }
+
   return 1;
 }
 
@@ -367,6 +397,8 @@ function InterruptAssignment(pin, mode, callback) {
   this.modes["rise"] = {listeners : 0, callbacks : []};
   this.modes["fall"] = {listeners : 0, callbacks : []};
   this.modes["change"] = {listeners : 0, callbacks : []};
+  this.modes["high"] = {listeners : 0, callbacks : []};
+  this.modes["low"] = {listeners : 0, callbacks : []};
 
   // Increment number of listeners
   this.modes[mode].listeners = 1;
@@ -392,36 +424,6 @@ InterruptAssignment.prototype.addModeListener = function(mode, callback) {
   }
 }
 
-InterruptAssignment.prototype.removeAllModeListeners = function(mode) {
-  // Grab the mode object
-  var modeObj = this.modes[mode];
-
-  // remove listeners
-  modeObj.listeners = 0;
-
-  modeObj.callbacks = [];
-}
-
-InterruptAssignment.prototype.totalListeners = function() {
-  var num = 0;
-  for (var mode in this.modes) {
-    num+= this.modes[mode].listeners;
-  }
-  return num;
-}
-
-function getTriggerModeBitFlag(triggerMode) {
-  var flag = 0;
-
-  triggerMode = triggerMode.toLowerCase();
-
-  if (triggerMode === "rise") flag = 1;
-  else if (triggerMode === "fall") flag = 2;
-  else if (triggerMode === "change") flag = 3;
-
-  return flag;
-}
-
 Pin.prototype.cancelWatch = function(mode, callback){
 
   if (!mode) {
@@ -437,29 +439,11 @@ Pin.prototype.cancelWatch = function(mode, callback){
     var assignment = board.interrupts[interruptID];
 
     if (assignment) {
-
-      var newTriggerFlag;
             
-      // If this was the only listener
-      if (assignment.totalListeners() == 1) {
-        // Delete the whole object
-        delete board.interrupts[interruptID];
+      delete board.interrupts[interruptID];
 
-        newTriggerFlag = 0;
-
-      } else {
-        // Delete the old mode callbacks if they exists
-        assignment.removeAllModeListeners(mode);
-
-        // Generate new trigger flag
-        for (var mode in assignment.modes) {
-          if (assignment.modes[mode].listeners) {
-            newTriggerFlag |= getTriggerModeBitFlag(mode);
-          }
-        }
-      } 
-      // Re-initialize
-      var success = hw.interrupt_watch(this.pin, interruptID, triggerFlag);
+      // Watch with a -1 flag to tell it to stop watching
+      var success = hw.interrupt_unwatch(this.pin, interruptID, -1);
 
       // If it went well
       if (success) {
@@ -1160,7 +1144,6 @@ function Tessel() {
 util.inherits(Tessel, EventEmitter);
 
 var board = module.exports = new Tessel();
-
 
 // TM 2014-01-30 new API >>>
 for (var key in board.ports) {
