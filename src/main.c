@@ -502,7 +502,6 @@ _ramfunc void SysTick_Handler (void)
  * Main body of Tessel OS
  */
 
-lua_State* L = NULL;
 jmp_buf L_jmp;
 int luaExitCode = 0;
 
@@ -513,8 +512,8 @@ volatile event_ringbuf system_event_queue = {0, 0, {{0}}};
 void safe_sethook(lua_Hook func, int mask, int count) {
 	unsigned primask = __get_PRIMASK(); // Interrupt status
 	__disable_irq();
-	if (L != NULL) {
-		lua_sethook(L, func, mask, count);
+	if (tm_lua_state != NULL) {
+		lua_sethook(tm_lua_state, func, mask, count);
 	}
 	__set_PRIMASK(primask); // Restore interrupt status
 }
@@ -546,7 +545,7 @@ void main_body_interrupt_hook (unsigned data)
 
 void main_body_interrupt ()
 {
-	if (L != NULL) {
+	if (tm_lua_state != NULL) {
 		enqueue_system_event(main_body_interrupt_hook, 0);
 	}
 }
@@ -559,6 +558,7 @@ static int main_body_os_exit (lua_State *L)
 }
 
 void script_msg_queue (char *type, void* data, size_t size) {
+	lua_State* L = tm_lua_state;
 	// Get preload table.
 	lua_getglobal(L, "_colony_ipc");
 	if (lua_isnil(L, -1)) {
@@ -580,7 +580,8 @@ void script_msg_queue (char *type, void* data, size_t size) {
 void debugstack(unsigned _)
 {
 	(void) _;
-	if (L == 0) {
+	lua_State* L = tm_lua_state;
+	if (tm_lua_state == 0) {
 		hw_send_usb_msg('k', NULL, 0);
 		return;
 	}
@@ -727,12 +728,15 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			// Open runtime.
 #if COLONY_STATE_CACHE
 			TM_DEBUG("Initializing cachable runtime...");
-			colony_runtime_arena_open(&L, runtime_arena, RUNTIME_ARENA_SIZE, COLONY_PRELOAD_ON_INIT);
+			colony_runtime_arena_open(runtime_arena, RUNTIME_ARENA_SIZE, COLONY_PRELOAD_ON_INIT);
 #else
 			TM_DEBUG("Initializing runtime...");
-			assert(L == NULL);
-			colony_runtime_open(&L);
+			assert(tm_lua_state == NULL);
+			colony_runtime_open();
 #endif
+
+			lua_State* L = tm_lua_state;
+
 			// Get preload table.
 			lua_getglobal(L, "package");
 			lua_getfield(L, -1, "preload");
@@ -794,10 +798,10 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			TM_COMMAND('S', "1");
 			TM_LOG("Running script...");
 			TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
-			ret = colony_runtime_run(&L, argv[1], argv, 2);
+			ret = colony_runtime_run(argv[1], argv, 2);
 		}
 #if !COLONY_STATE_CACHE
-		colony_runtime_close(&L);
+		colony_runtime_close();
 #endif
 		tm_fs_destroy(tm_fs_root);
 		tm_fs_root = NULL;
