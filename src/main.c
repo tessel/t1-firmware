@@ -560,20 +560,13 @@ static int main_body_os_exit (lua_State *L)
 void script_msg_queue (char *type, void* data, size_t size) {
 	lua_State* L = tm_lua_state;
 	// Get preload table.
-	lua_getglobal(L, "_colony_ipc");
+	lua_getglobal(L, "_colony_emit");
 	if (lua_isnil(L, -1)) {
 		lua_pop(L, 1);
 	} else {
-		size_t idx = lua_objlen(L, -1) + 1;
-
-		lua_createtable(L, 2, 2);
 		lua_pushstring(L, type);
-		lua_rawseti(L, -2, 1);
 		lua_pushlstring(L, data, size);
-		lua_rawseti(L, -2, 2);
-
-		lua_rawseti(L, -2, idx);
-		lua_pop(L, 1);
+		tm_checked_call(L, 2);
 	}
 }
 

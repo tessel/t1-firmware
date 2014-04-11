@@ -7,9 +7,14 @@
 #include "tessel.h"
 
 void msg_out_rearm_ep(void);
-void msg_in_event(unsigned);
-void msg_out_event(unsigned);
-void msg_cleanup_event(unsigned);
+void msg_in_handler(tm_event* event);
+void msg_out_handler(tm_event* event);
+void msg_cleanup_handler(tm_event* event);
+
+tm_event msg_in_event = TM_EVENT_INIT(msg_in_handler);
+tm_event msg_out_event = TM_EVENT_INIT(msg_out_handler);
+tm_event msg_cleanup_event = TM_EVENT_INIT(msg_cleanup_handler);
+
 bool usb_msg_connected = 0;
 
 void usb_msg_init(uint16_t altsetting) {
@@ -21,7 +26,7 @@ void usb_msg_init(uint16_t altsetting) {
 	} else {
 		usb_set_stall_ep(msg_in_ep);
 		usb_set_stall_ep(msg_out_ep);
-		enqueue_system_event(msg_cleanup_event, usb_msg_connected);
+		tm_event_trigger(&msg_cleanup_event);
 	}
 }
 
@@ -61,7 +66,7 @@ void msg_in_start_ep(void) {
 		msg_in_pos += remaining;
 	} else {
 		// Notify completion
-		enqueue_system_event(msg_in_event, 0);
+		tm_event_trigger(&msg_in_event);
 	}
 }
 
@@ -122,7 +127,7 @@ void handle_msg_completion() {
 		if (msg_out_buf == 0) {
 			if (received >= msg_header_size) {
 				msg_out_pos = received - msg_header_size;
-				enqueue_system_event(msg_out_event, 0);
+				tm_event_trigger(&msg_out_event);
 			} else {
 				TM_DEBUG("Invalid short packet on msg_out endpoint");
 				msg_out_rearm_ep();
@@ -130,7 +135,7 @@ void handle_msg_completion() {
 		} else {
 			msg_out_pos += received;
 			if (received < msg_max_blocksize || msg_out_pos > msg_out_length) {
-				enqueue_system_event(msg_out_event, 0);
+				tm_event_trigger(&msg_out_event);
 			} else {
 				msg_out_start_ep();
 			}
@@ -138,8 +143,8 @@ void handle_msg_completion() {
 	}
 }
 
-void msg_cleanup_event(unsigned _) {
-	(void) _;
+void msg_cleanup_handler(tm_event* event) {
+	(void) event;
 	if (msg_out_buf) {
 		free(msg_out_buf);
 	}
@@ -155,8 +160,8 @@ void msg_cleanup_event(unsigned _) {
 	msg_in_pos = 0;
 }
 
-void msg_out_event(unsigned _) {
-	(void) _;
+void msg_out_handler(tm_event* event) {
+	(void) event;
 	if (msg_out_buf == 0) {
 		memcpy(&msg_out_length, msg_out_initial, 4);
 		msg_out_buf = malloc(msg_out_length);
@@ -194,8 +199,8 @@ void msg_out_event(unsigned _) {
 	msg_out_rearm_ep();
 }
 
-void msg_in_event(unsigned _) {
-	(void) _;
+void msg_in_handler(tm_event* event) {
+	(void) event;
 
 	msg_in_pos = 0;
 	message_list_item* item = in_head;
