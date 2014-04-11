@@ -10,6 +10,8 @@ extern "C" {
 #endif
 
 #include "lpc18xx_timer.h"
+#include "tm.h"
+
 
 void tm_uptime_init()
 {
@@ -40,6 +42,11 @@ void tm_uptime_init()
 uint32_t tm_uptime_micro ()
 {
         return LPC_TIMER1->TC;
+}
+
+void hw_timer_update_interrupt()
+{
+
 }
 
 #ifdef __cplusplus

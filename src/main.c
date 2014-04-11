@@ -635,6 +635,7 @@ void main_body (void)
 				wifi_ssid[0] = 0;
 			}
 			pop_event(&system_event_queue);
+			tm_event_process();
 			continue;
 		}
 
@@ -658,6 +659,9 @@ void* runtime_cache = NULL;
 size_t runtime_cache_len = 0;
 void* runtime_arena = NULL;
 #endif
+
+void tm_events_lock() { __disable_irq(); }
+void tm_events_unlock() { __enable_irq(); }
 
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)
 {
@@ -799,6 +803,12 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			TM_LOG("Running script...");
 			TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
 			ret = colony_runtime_run(argv[1], argv, 2);
+
+			while (tm_events_active()) {
+				tm_event_trigger(&tm_timer_event);
+				tm_event_process();
+				pop_event(&system_event_queue);
+			}
 		}
 #if !COLONY_STATE_CACHE
 		colony_runtime_close();
