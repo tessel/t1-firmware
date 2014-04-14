@@ -69,24 +69,29 @@ tm_fs_ent* tm_fs_root;
 volatile int validirqcount = 0;
 volatile int netconnected = 0;
 
+volatile uint8_t CC3K_EVENT_ENABLED = 0;
 volatile uint8_t CC3K_IRQ_FLAG = 0;
+
+uint8_t get_cc3k_irq_flag () {
+	// volatile uint8_t read = !hw_digital_read(CC3K_IRQ);
+	// (void) read;
+	return CC3K_IRQ_FLAG;
+}
+
+void set_cc3k_irq_flag (uint8_t value) {
+	CC3K_IRQ_FLAG = value;
+	hw_digital_write(CC3K_ERR_LED, value);
+}
 
 void SPI_IRQ_CALLBACK_EVENT (unsigned no)
 {
 	(void) no;
+	CC3K_EVENT_ENABLED = 0;
+	hw_digital_write(CC3K_ERR_LED, 0);
 	if (CC3K_IRQ_FLAG) {
-		hw_digital_write(CC3K_ERR_LED, 0);
 		CC3K_IRQ_FLAG = 0;
 		SPI_IRQ();
 	}
-}
-
-void set_cc3k_irq_flag (uint8_t val) {
-	CC3K_IRQ_FLAG = val;
-}
-
-uint8_t get_cc3k_irq_flag () {
-	return CC3K_IRQ_FLAG;
 }
 
 void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
@@ -94,10 +99,13 @@ void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
 	validirqcount++;
 	if (GPIO_GetIntStatus(0))
 	{
-		CC3K_IRQ_FLAG = 1;
 		hw_digital_write(CC3K_ERR_LED, 1);
+		CC3K_IRQ_FLAG = 1;
+    	if (!CC3K_EVENT_ENABLED) {
+    		CC3K_EVENT_ENABLED = 1;
+			enqueue_system_event(SPI_IRQ_CALLBACK_EVENT, 0);
+		}
 		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, 0);
-		enqueue_system_event(SPI_IRQ_CALLBACK_EVENT, 0);
 	}
 }
 

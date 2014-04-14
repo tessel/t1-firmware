@@ -22,7 +22,6 @@ uint8_t get_cc3k_irq_flag ();
 void CC_BLOCKS () {
 	// bad CC! you probably are waiting for a SPI call.
 	if (get_cc3k_irq_flag()) {
-		hw_digital_write(CC3K_ERR_LED, 0);
 		set_cc3k_irq_flag(0);
 		SPI_IRQ();
 	}

@@ -144,7 +144,10 @@ tm_socket_t tm_tcp_open ()
 	CC3000_START;
 
 	int ulSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, SOCK_ON, 4); // TODO this is duplicated in tm_tcp_listen
+	uint16_t wAccept = SOCK_ON;
+	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, &wAccept, sizeof(wAccept)); // TODO this is duplicated in tm_tcp_listen
+	uint16_t wRecvTimeout = 0;
+	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &wRecvTimeout, sizeof(wRecvTimeout));
 	CC3000_END;
 	return ulSocket;
 }
