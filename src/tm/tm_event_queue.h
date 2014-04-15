@@ -2,7 +2,7 @@
 #include <stdbool.h>
 typedef void (*event_callback)(unsigned data);
 
-#define RING_BUF_SIZE 1024
+#define RING_BUF_SIZE 64
 
 typedef struct {
 	event_callback callback;
