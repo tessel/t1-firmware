@@ -249,6 +249,14 @@ void hw_net_initialize (void)
 	wlan_set_event_mask(HCI_EVNT_WLAN_KEEPALIVE|HCI_EVNT_WLAN_UNSOL_INIT|HCI_EVNT_WLAN_ASYNC_PING_REPORT);
 //	TM_COMMAND('w',"done setting event mask\n");
 
+ 	unsigned long aucDHCP = 14400;
+	unsigned long aucARP = 3600;
+	unsigned long aucKeepalive = 10;
+	unsigned long aucInactivity = 20;
+	if (netapp_timeout_values(&aucDHCP, &aucARP, &aucKeepalive, &aucInactivity) != 0) {
+		TM_DEBUG("Error setting inactivity timeout!");
+	}
+
 	unsigned char version[2];
 	if (!nvmem_read_sp_version(version)) {
 		TM_DEBUG("CC3000 firmware version: %d.%d", version[0], version[1]);
