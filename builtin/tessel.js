@@ -15,7 +15,7 @@ var _interruptModes = {
 };
 
 process.send = function (msg) {
-  hw.usb_send('M'.charCodeAt(0), JSON.stringify(a));
+  hw.usb_send('M'.charCodeAt(0), JSON.stringify(msg));
 }
 
 
