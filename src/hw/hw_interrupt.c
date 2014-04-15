@@ -157,9 +157,8 @@ int hw_interrupt_acquire (void)
 }
 
 int hw_interrupt_unwatch(int interrupt_index) {
-
 	// If the interrupt ID was valid
-	if (interrupt_index != NO_ASSIGNMENT) {
+	if (interrupt_index >= 0 && interrupt_index < MAX_INT) {
 		// Detatch it so it's not called anymore
 		detatchGPIOInterruptN(interrupts[interrupt_index].interrupt_id);
 
@@ -175,8 +174,12 @@ int hw_interrupt_unwatch(int interrupt_index) {
 
 int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 {
+	if (!hw_valid_pin(pin)) {
+		return -1;
+	}
+
 	// If the interrupt ID was valid
-	if (interrupt_index != NO_ASSIGNMENT) {
+	if (interrupt_index >= 0 && interrupt_index < MAX_INT) {
 
 		// Assign the pin to the interrupt
 		interrupts[interrupt_index].pin = pin;

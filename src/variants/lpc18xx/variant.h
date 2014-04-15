@@ -138,6 +138,10 @@ enum PinLabel{
 	BTN1
 };
 
+static inline int hw_valid_pin(int pin) {
+	return pin >= 0 && pin <= BTN1;
+}
+
 #ifdef __cplusplus
 }
 #endif
