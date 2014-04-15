@@ -282,7 +282,7 @@ process.on('interrupt', function (interruptData) {
       }
     }
     else {
-
+      assigned.pin.emit(mode)
     }
     // If there are, call them
     for (var i = 0; i < callbacks.length; i++) {
