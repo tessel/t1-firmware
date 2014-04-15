@@ -20,7 +20,7 @@
 void (* gpio0_callback)(int, int, int);
 void (* gpio2_callback)(int, int, int);
 
-#define MAX_INT 5
+#define NUM_INTERRUPTS 5
 #define NO_ASSIGNMENT -1
 
 typedef struct {
@@ -76,7 +76,7 @@ static void detatchGPIOInterruptN (uint8_t interrupt_id) {
 // When push is cancelled and board is reset, reset all interrupts and num available
 void initialize_GPIO_interrupts() {
 
-	for (int i = 0; i < MAX_INT; i++) {
+	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 		// Detatch any interrupts
 		detatchGPIOInterruptN(interrupts[i].interrupt_id);
 
@@ -91,7 +91,7 @@ int hw_interrupts_available (void)
 {
 	int available = 0;
 	// Grab the next available interrupt index
-	for (int i = 0; i < MAX_INT; i++) {
+	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 		// If this pin isn't assigned
 		if (interrupts[i].pin == NO_ASSIGNMENT) {
 			// Increment num available
@@ -105,7 +105,7 @@ int hw_interrupts_available (void)
 int hw_interrupt_index_helper (int interrupt_id)
 {
 	// Iterate through possible interrupts
-	for (int i = 0; i < MAX_INT; i++) {
+	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 
 		// If an assignment equals the query
 		if (interrupts[i].interrupt_id == interrupt_id) {
@@ -123,7 +123,7 @@ int hw_interrupt_index_helper (int interrupt_id)
 int hw_interrupt_assignment_query (int pin)
 {
 	// Interate through pin assignments
-	for (int i = 0; i < MAX_INT; i++) {
+	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 
 		// If this assignment is for this pin
 		if (interrupts[i].pin == pin) {
@@ -143,7 +143,7 @@ int hw_interrupt_acquire (void)
 	if (hw_interrupts_available()) {
 
 		// Grab the next available interrupt index
-		for (int i = 0; i < MAX_INT; i++) {
+		for (int i = 0; i < NUM_INTERRUPTS; i++) {
 
 			// If the pin is not assisgned, we'll use this one
 			if (interrupts[i].pin == NO_ASSIGNMENT) {
@@ -158,7 +158,7 @@ int hw_interrupt_acquire (void)
 
 int hw_interrupt_unwatch(int interrupt_index) {
 	// If the interrupt ID was valid
-	if (interrupt_index >= 0 && interrupt_index < MAX_INT) {
+	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 		// Detatch it so it's not called anymore
 		detatchGPIOInterruptN(interrupts[interrupt_index].interrupt_id);
 
@@ -179,7 +179,7 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 	}
 
 	// If the interrupt ID was valid
-	if (interrupt_index >= 0 && interrupt_index < MAX_INT) {
+	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 
 		// Assign the pin to the interrupt
 		interrupts[interrupt_index].pin = pin;
