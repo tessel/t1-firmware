@@ -443,7 +443,7 @@ Pin.prototype.cancelWatch = function(mode, callback){
       delete board.interrupts[interruptID];
 
       // Watch with a -1 flag to tell it to stop watching
-      var success = hw.interrupt_unwatch(this.pin, interruptID, -1);
+      var success = hw.interrupt_unwatch(interruptID);
 
       // If it went well
       if (success) {
