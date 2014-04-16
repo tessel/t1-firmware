@@ -94,10 +94,18 @@ void SPI_IRQ_CALLBACK_EVENT (unsigned no)
 	}
 }
 
-void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
+void set_cc3k_irq_flag (uint8_t val) {
+	CC3K_IRQ_FLAG = val;
+}
+
+uint8_t get_cc3k_irq_flag () {
+	return CC3K_IRQ_FLAG;
+}
+
+void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 {
 	validirqcount++;
-	if (GPIO_GetIntStatus(0))
+	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
 	{
 		// hw_digital_write(CC3K_ERR_LED, 1);
 		CC3K_IRQ_FLAG = 1;
@@ -105,7 +113,7 @@ void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
     		CC3K_EVENT_ENABLED = 1;
 			enqueue_system_event(SPI_IRQ_CALLBACK_EVENT, 0);
 		}
-		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, 0);
+		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
 	}
 }
 

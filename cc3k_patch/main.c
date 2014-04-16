@@ -36,14 +36,14 @@ uint8_t get_cc3k_irq_flag () {
 	return CC3K_IRQ_FLAG;
 }
 
-void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
+void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 {
 	validirqcount++;
-	if (GPIO_GetIntStatus(0))
+	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
 	{
 		CC3K_IRQ_FLAG = 1;
 		hw_digital_write(CC3K_ERR_LED, 1);
-		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, 0);
+		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
 		enqueue_system_event(SPI_IRQ_CALLBACK_EVENT, 0);
 	}
 }
@@ -83,7 +83,7 @@ int main (void){
 	hw_digital_write(CC3K_SW_EN, 0);
 	// hw_digital_input(CC3K_IRQ);
 
-	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
+	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 	NVIC_SetPriority(PIN_INT1_IRQn, ((0x03<<3)|0x02));
 	NVIC_EnableIRQ(PIN_INT1_IRQn);
 

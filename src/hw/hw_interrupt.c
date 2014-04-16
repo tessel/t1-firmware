@@ -18,7 +18,6 @@
  * Callbacks
  */
 
-#define NUM_INTERRUPTS 5
 #define NO_ASSIGNMENT -1
 
 typedef struct {
@@ -32,11 +31,13 @@ typedef struct {
 static void interrupt_callback(tm_event* event);
 
 GPIO_Interrupt interrupts[] = {	
+	{TM_EVENT_INIT(interrupt_callback), 0, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 1, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
 	{TM_EVENT_INIT(interrupt_callback), 2, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 3, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
 	{TM_EVENT_INIT(interrupt_callback), 4, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
 	{TM_EVENT_INIT(interrupt_callback), 5, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
 	{TM_EVENT_INIT(interrupt_callback), 6, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 7, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT}
 };
 
 // When push is cancelled and board is reset, reset all interrupts and num available
@@ -246,9 +247,36 @@ void place_awaiting_interrupt(int interrupt_id)
 	tm_event_trigger(&interrupt->event);
 }
 
+void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
+{
+	uint8_t interrupt_id = 0;
+	if (GPIO_GetIntStatus(interrupt_id))
+	{
+		place_awaiting_interrupt(interrupt_id);
+	}
+}
+
+void __attribute__ ((interrupt)) GPIO1_IRQHandler(void)
+{
+	uint8_t interrupt_id = 1;
+	if (GPIO_GetIntStatus(interrupt_id))
+	{
+		place_awaiting_interrupt(interrupt_id);
+	}
+}
+
 void __attribute__ ((interrupt)) GPIO2_IRQHandler(void)
 {
 	uint8_t interrupt_id = 2;
+	if (GPIO_GetIntStatus(interrupt_id))
+	{
+		place_awaiting_interrupt(interrupt_id);
+	}
+}
+
+void __attribute__ ((interrupt)) GPIO3_IRQHandler(void)
+{
+	uint8_t interrupt_id = 3;
 	if (GPIO_GetIntStatus(interrupt_id))
 	{
 		place_awaiting_interrupt(interrupt_id);
@@ -274,14 +302,6 @@ void __attribute__ ((interrupt)) GPIO5_IRQHandler(void)
 void __attribute__ ((interrupt)) GPIO6_IRQHandler(void)
 {
 	uint8_t interrupt_id = 6;
-	if (GPIO_GetIntStatus(interrupt_id))
-	{
-		place_awaiting_interrupt(interrupt_id);
-	}
-}
-void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
-{
-	uint8_t interrupt_id = 7;
 	if (GPIO_GetIntStatus(interrupt_id))
 	{
 		place_awaiting_interrupt(interrupt_id);

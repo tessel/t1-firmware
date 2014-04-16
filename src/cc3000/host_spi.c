@@ -667,7 +667,7 @@ long ReadWlanInterruptPin(void)
 
 void WlanInterruptEnable()
 {
-	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
+	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 }
 
 

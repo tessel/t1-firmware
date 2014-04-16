@@ -173,8 +173,11 @@ void hw_wait_us (int us);
 
 // interrupts
 
-#define TM_INTERRUPT_COUNT 8
-#define MAX_GPIO_INT 5
+// Available for use in JS
+#define NUM_INTERRUPTS 7
+
+// ID reserved for CC3K
+#define CC3K_GPIO_INTERRUPT 7
 
 enum {
 	TM_INTERRUPT_MODE_RISING = 0,
