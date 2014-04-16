@@ -670,8 +670,8 @@ long ReadWlanInterruptPin(void)
 void WlanInterruptEnable()
 {
 
-	hw_interrupt_listen(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING); //Attaches Pin 2 to interrupt 1
 	hw_interrupt_callback_attach(0, SPI_IRQCallback);
+	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 }
 
 

@@ -40,45 +40,13 @@ GPIO_Interrupt interrupts[] = {
 
 uint32_t hw_uptime_micro ();
 
-static void attachGPIOInterruptN (uint8_t PIN_INT_PORT, uint8_t PIN_INT_BIT, uint8_t PIN_INT_MUX_PORT, uint8_t PIN_INT_MUX_PIN, uint8_t PIN_INT_MODE, uint8_t PIN_INT_NUM, uint8_t INT_ID)
-{
-	/* Clear IRQ in case it existed already */
-	NVIC_DisableIRQ(INT_ID);
-
-	/* Configure pin function */
-	scu_pinmux(PIN_INT_MUX_PORT, PIN_INT_MUX_PIN, (MD_PLN|MD_EZI), FUNC0);
-
-	/* Set direction for GPIO port */
-	GPIO_SetDir(PIN_INT_PORT,(1<<PIN_INT_BIT), 0);
-
-	/* preemption = 1, sub-priority = 1 */
-	NVIC_SetPriority(INT_ID, ((0x02<<3)|0x02));
-
-	/* Configure GPIO interrupt */
-	GPIO_IntCmd(PIN_INT_NUM,PIN_INT_PORT,PIN_INT_BIT, PIN_INT_MODE);
-
-	// Clear any pre-existing interrupts requests so it doesn't fire immediately
-	GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, PIN_INT_NUM);
-	GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, PIN_INT_NUM);
-	GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, PIN_INT_NUM);
-	GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, PIN_INT_NUM);
-
-	/* Enable interrupt for Pin Interrupt */
-	NVIC_EnableIRQ(INT_ID);
-}
-
-static void detatchGPIOInterruptN (uint8_t interrupt_id) {
-
-	// Not sure if there is anything else I need to do at the moment...
-	NVIC_DisableIRQ(PIN_INT0_IRQn + interrupt_id);
-}
 
 // When push is cancelled and board is reset, reset all interrupts and num available
 void initialize_GPIO_interrupts() {
 
 	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 		// Detatch any interrupts
-		detatchGPIOInterruptN(interrupts[i].interrupt_id);
+		hw_interrupt_disable(interrupts[i].interrupt_id);
 
 		// Remove any assignments that may have been left over. 
 		interrupts[i].pin = NO_ASSIGNMENT;
@@ -160,7 +128,7 @@ int hw_interrupt_unwatch(int interrupt_index) {
 	// If the interrupt ID was valid
 	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 		// Detatch it so it's not called anymore
-		detatchGPIOInterruptN(interrupts[interrupt_index].interrupt_id);
+		hw_interrupt_disable(interrupts[interrupt_index].interrupt_id);
 
 		// Indicate in data structure that it's a free spot
 		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
@@ -187,26 +155,26 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 		if (mode == TM_INTERRUPT_MODE_RISING) {
 			// Attach the rising interrupt to the pin
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_RISING;
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
 		}
 		// If this is a falling interrupt
 		else if (mode == TM_INTERRUPT_MODE_FALLING) {
 			// Attach the falling interrupt to the pin
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_FALLING;
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
 		}
 		else if (mode == TM_INTERRUPT_MODE_HIGH) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_HIGH;
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_HIGH);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_HIGH);
 		}
 		else if (mode == TM_INTERRUPT_MODE_LOW) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_LOW;
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_LOW);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_LOW);
 		}
 		else if (mode == TM_INTERRUPT_MODE_CHANGE) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_CHANGE;
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
-			hw_interrupt_listen(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
+			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
 		}
 		// Return success
 		return 1;
@@ -257,13 +225,13 @@ void place_awaiting_interrupt(int interrupt_id) {
 	if (interrupt.mode == TM_INTERRUPT_MODE_LOW) {
 		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
 		LPC_GPIO_PIN_INT->CIENF |= (1<<interrupt_id);
-		detatchGPIOInterruptN(interrupt_id);
+		hw_interrupt_disable(interrupt_id);
 	}
 	else if (interrupt.mode == TM_INTERRUPT_MODE_HIGH){
 
 		GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
 		LPC_GPIO_PIN_INT->SIENF |= (1<<interrupt_id);
-		detatchGPIOInterruptN(interrupt_id);
+		hw_interrupt_disable(interrupt_id);
 	}
 
 	else if ((interrupt.mode == TM_INTERRUPT_MODE_RISING) ||
@@ -327,11 +295,6 @@ void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 
 // SHIT IT'S THE OLD INTERNAL INTERRUPT STUFF...
 
-void hw_interrupt_listen (int index, int ulPin, int mode)
-{
-		assert(index >= 0 && index < 8);
-		attachGPIOInterruptN(g_APinDescription[ulPin].portNum, g_APinDescription[ulPin].bitNum, g_APinDescription[ulPin].port, g_APinDescription[ulPin].pin, mode, index, PIN_INT0_IRQn + index);
-}
 
 
 void hw_interrupt_callback_attach (int n, void (*callback)(int, int))

@@ -6,6 +6,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <variant.h>
 #include <lpc18xx_gpio.h>
 #include "hw.h"
@@ -78,6 +79,37 @@ uint8_t hw_digital_read ( size_t ulPin )
 	uint32_t res = GPIO_ReadValue(g_APinDescription[ulPin].portNum);
 	return (res & (1<<g_APinDescription[ulPin].bitNum)) != 0 ? 1 : 0;
 }
+
+void hw_interrupt_enable(int index, int ulPin, int mode)
+{
+	assert(index >= 0 && index < 8);
+	
+	unsigned portNum = g_APinDescription[ulPin].portNum;
+	unsigned bitNum = g_APinDescription[ulPin].bitNum;
+	unsigned int_id = PIN_INT0_IRQn + index;
+
+	/* Clear IRQ in case it existed already */
+	NVIC_DisableIRQ(int_id);
+
+	hw_digital_input(ulPin);
+
+	/* Configure GPIO interrupt */
+	GPIO_IntCmd(index, portNum, bitNum, mode);
+
+	// Clear any pre-existing interrupts requests so it doesn't fire immediately
+	GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, index);
+	GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, index);
+	GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, index);
+	GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, index);
+
+	/* Enable interrupt for Pin Interrupt */
+	NVIC_EnableIRQ(int_id);
+}
+
+void hw_interrupt_disable(int index) {
+	NVIC_DisableIRQ(PIN_INT0_IRQn + index);
+}
+
 
 
 #ifdef __cplusplus

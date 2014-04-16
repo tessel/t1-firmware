@@ -144,7 +144,7 @@ void TM_NET_INT_INIT ()
 	// Add GPIO Interrupt #2
 //	 attachGPIOInterrupt0(0, 7, 0x2, 7, MODE_FALLING);
 //	attachGPIOInterrupt0(0, 12, 0x1, 17, MODE_FALLING); // P3.1 : GPIO5_8,
-	hw_interrupt_listen(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
+	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 //	attachGPIOInterrupt0(2, 2, 0x4, 2, MODE_FALLING);
 
 	// Add GPIO Interrupt #1 as a horrible workaround for NVIC
@@ -154,7 +154,7 @@ void TM_NET_INT_INIT ()
 }
 
 void TM_SMARTCONFIG_INT_INIT() {
-  hw_interrupt_listen(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
+  hw_interrupt_enable(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
 
   // Add GPIO Interrupt #2 as a horrible workaround for NVIC
   NVIC_SetPriority(PIN_INT3_IRQn, ((0x03<<3)|0x02)); // TODO: is this the wrong priority?

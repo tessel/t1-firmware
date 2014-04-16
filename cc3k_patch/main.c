@@ -109,11 +109,11 @@ int main (void){
 	hw_digital_write(CC3K_SW_EN, 0);
 	// hw_digital_input(CC3K_IRQ);
 
-	hw_interrupt_listen(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
+	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 	NVIC_SetPriority(PIN_INT1_IRQn, ((0x03<<3)|0x02));
 	NVIC_EnableIRQ(PIN_INT1_IRQn);
 
-	hw_interrupt_listen(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
+	hw_interrupt_enable(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
   	NVIC_SetPriority(PIN_INT3_IRQn, ((0x03<<3)|0x02)); // TODO: is this the wrong priority?
   	NVIC_EnableIRQ(PIN_INT3_IRQn);
 
