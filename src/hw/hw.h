@@ -185,9 +185,6 @@ enum {
 };
 
 extern void initialize_GPIO_interrupts(void);
-extern void (* gpio0_callback)(int, int, int);
-void hw_interrupt_callback_attach (int n, void (*callback)(int, int));
-void hw_interrupt_callback_detach (int n);
 
 // Low-level pin interrupt setup
 void hw_interrupt_enable(int index, int ulPin, int mode);

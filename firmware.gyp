@@ -580,7 +580,6 @@
         
 
         'src/hw/hw_digital.c',
-        'src/hw/hw_interrupt.c',
         'src/hw/hw_wait.c',
         'src/hw/hw_spi.c',
 

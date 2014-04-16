@@ -607,7 +607,6 @@ void SpiPauseSpi(void)
 	// }
 
 	set_cc3k_irq_flag(0);
-	hw_interrupt_callback_detach(0);	//Detaches Pin 3 from interrupt 1
 }
 
 void SpiResumeSpi(void)
@@ -617,7 +616,6 @@ void SpiResumeSpi(void)
 	// 	TM_DEBUG("SpiResumeSpi");
 	// }
 
-	hw_interrupt_callback_attach(0, SPI_IRQCallback); //Attaches Pin 2 to interrupt 1
 	if (get_cc3k_irq_flag()) {
 		SPI_IRQ();
 	}
@@ -669,15 +667,13 @@ long ReadWlanInterruptPin(void)
 
 void WlanInterruptEnable()
 {
-
-	hw_interrupt_callback_attach(0, SPI_IRQCallback);
 	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 }
 
 
 void WlanInterruptDisable()
 {
-	hw_interrupt_callback_detach(0);	//Detaches Pin 3 from interrupt 1
+
 }
 // int STATE = 0;
 

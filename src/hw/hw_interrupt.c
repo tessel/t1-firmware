@@ -17,9 +17,6 @@
  * Callbacks
  */
 
-void (* gpio0_callback)(int, int, int);
-void (* gpio2_callback)(int, int, int);
-
 #define NUM_INTERRUPTS 5
 #define NO_ASSIGNMENT -1
 
@@ -291,23 +288,4 @@ void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 	{
 		place_awaiting_interrupt(interrupt_id);
 	}
-}
-
-// SHIT IT'S THE OLD INTERNAL INTERRUPT STUFF...
-
-
-
-void hw_interrupt_callback_attach (int n, void (*callback)(int, int))
-{
-	if (n == 2) {
-		gpio2_callback = (volatile void*) callback;
-	} else {
-		gpio0_callback = (volatile void*) callback;
-	}
-}
-
-void hw_interrupt_callback_detach (int n)
-{
-	(void) n; // TODO
-	gpio0_callback = NULL;
 }
