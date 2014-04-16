@@ -22,7 +22,6 @@
 
 typedef struct {
 	tm_event event;
-	int interrupt_id;
 	int pin;
 	int mode;
 	int state;
@@ -31,13 +30,13 @@ typedef struct {
 static void interrupt_callback(tm_event* event);
 
 GPIO_Interrupt interrupts[] = {	
-	{TM_EVENT_INIT(interrupt_callback), 0, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 1, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 2, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 3, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 4, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 5, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), 6, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
 };
 
 // When push is cancelled and board is reset, reset all interrupts and num available
@@ -45,7 +44,7 @@ void initialize_GPIO_interrupts() {
 
 	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 		// Detatch any interrupts
-		hw_interrupt_disable(interrupts[i].interrupt_id);
+		hw_interrupt_disable(i);
 
 		// Remove any assignments that may have been left over. 
 		interrupts[i].pin = NO_ASSIGNMENT;
@@ -67,23 +66,6 @@ int hw_interrupts_available (void)
 	}
 
 	return available;
-}
-
-int hw_interrupt_index_helper (int interrupt_id)
-{
-	// Iterate through possible interrupts
-	for (int i = 0; i < NUM_INTERRUPTS; i++) {
-
-		// If an assignment equals the query
-		if (interrupts[i].interrupt_id == interrupt_id) {
-
-			// Return the index
-			return i;
-		}
-	}
-
-	// If there are no matches, return failure code
-	return NO_ASSIGNMENT;
 }
 
 // Check which pin an interrupt is assigned to (-1 if none)
@@ -127,7 +109,7 @@ int hw_interrupt_unwatch(int interrupt_index) {
 	// If the interrupt ID was valid
 	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 		// Detatch it so it's not called anymore
-		hw_interrupt_disable(interrupts[interrupt_index].interrupt_id);
+		hw_interrupt_disable(interrupt_index);
 
 		// Indicate in data structure that it's a free spot
 		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
@@ -154,26 +136,26 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 		if (mode == TM_INTERRUPT_MODE_RISING) {
 			// Attach the rising interrupt to the pin
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_RISING;
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_RISING);
 		}
 		// If this is a falling interrupt
 		else if (mode == TM_INTERRUPT_MODE_FALLING) {
 			// Attach the falling interrupt to the pin
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_FALLING;
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_FALLING);
 		}
 		else if (mode == TM_INTERRUPT_MODE_HIGH) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_HIGH;
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_HIGH);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_HIGH);
 		}
 		else if (mode == TM_INTERRUPT_MODE_LOW) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_LOW;
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_LOW);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_LOW);
 		}
 		else if (mode == TM_INTERRUPT_MODE_CHANGE) {
 			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_CHANGE;
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_RISING);
-			hw_interrupt_enable(interrupts[interrupt_index].interrupt_id, pin, TM_INTERRUPT_MODE_FALLING);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_RISING);
+			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_FALLING);
 		}
 		// Return success
 		return 1;
@@ -187,7 +169,7 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 void interrupt_callback(tm_event* event)
 {
 	GPIO_Interrupt* interrupt = (GPIO_Interrupt*) event;
-	int interrupt_index = hw_interrupt_index_helper(interrupt->interrupt_id);
+	int interrupt_index = interrupt - interrupts;
 
 	char emitMessage[100];
 
@@ -216,7 +198,7 @@ void interrupt_callback(tm_event* event)
 
 void place_awaiting_interrupt(int interrupt_id)
 {
-	GPIO_Interrupt* interrupt = &interrupts[hw_interrupt_index_helper(interrupt_id)];
+	GPIO_Interrupt* interrupt = &interrupts[interrupt_id];
 
 	if (interrupt->mode == TM_INTERRUPT_MODE_LOW) {
 		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
