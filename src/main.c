@@ -109,57 +109,13 @@ void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
 	}
 }
 
-
-void __attribute__ ((interrupt)) GPIO1_IRQHandler(void)
-{
-	SPI_IRQ();
-}
-
-void smart_config_task ();
-
-/**
- * Smartconfig Button
- */
-
-void __attribute__ ((interrupt)) GPIO3_IRQHandler(void)
-{
-  if (GPIO_GetIntStatus(3))
-  {
-    if (smartconfig_process == 0) {
-      smartconfig_process = 1;
-      //tm_task_interruptall(tm_task_default_loop(), smart_config_task);
-      smart_config_task();
-    }
-    GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, 3);
-    GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, 3);
-  }
-}
-
 void TM_NET_INT_INIT ()
 {
 	// Turn SW low
 	hw_digital_output(CC3K_SW_EN);
 	hw_digital_write(CC3K_SW_EN, 0);
 
-	// Add GPIO Interrupt #2
-//	 attachGPIOInterrupt0(0, 7, 0x2, 7, MODE_FALLING);
-//	attachGPIOInterrupt0(0, 12, 0x1, 17, MODE_FALLING); // P3.1 : GPIO5_8,
-	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
-//	attachGPIOInterrupt0(2, 2, 0x4, 2, MODE_FALLING);
-
-	// Add GPIO Interrupt #1 as a horrible workaround for NVIC
-	NVIC_SetPriority(PIN_INT1_IRQn, ((0x03<<3)|0x02));
-	/* Enable interrupt for Pin Interrupt */
-	NVIC_EnableIRQ(PIN_INT1_IRQn);
-}
-
-void TM_SMARTCONFIG_INT_INIT() {
-  hw_interrupt_enable(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
-
-  // Add GPIO Interrupt #2 as a horrible workaround for NVIC
-  NVIC_SetPriority(PIN_INT3_IRQn, ((0x03<<3)|0x02)); // TODO: is this the wrong priority?
-  /* Enable interrupt for Pin Interrupt */
-  NVIC_EnableIRQ(PIN_INT3_IRQn);
+	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 }
 
 /*----------------------------------------------------------------------------

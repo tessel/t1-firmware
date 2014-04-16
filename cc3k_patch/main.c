@@ -48,32 +48,6 @@ void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
 	}
 }
 
-
-void __attribute__ ((interrupt)) GPIO1_IRQHandler(void)
-{
-	SPI_IRQ();
-}
-
-void smart_config_task ();
-
-/**
- * Smartconfig Button
- */
-
-void __attribute__ ((interrupt)) GPIO3_IRQHandler(void)
-{
-  if (GPIO_GetIntStatus(3))
-  {
-    // if (smartconfig_process == 0) {
-    //   smartconfig_process = 1;
-    //   smart_config_task();
-    // }
-    GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, 3);
-    GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, 3);
-  }
-}
-
-
 // stub so that hw_interrupt compiles
 void script_msg_queue (char *type, void* data, size_t size) {
 	
@@ -112,10 +86,6 @@ int main (void){
 	hw_interrupt_enable(0, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 	NVIC_SetPriority(PIN_INT1_IRQn, ((0x03<<3)|0x02));
 	NVIC_EnableIRQ(PIN_INT1_IRQn);
-
-	hw_interrupt_enable(3, CC3K_CONFIG, TM_INTERRUPT_MODE_FALLING);
-  	NVIC_SetPriority(PIN_INT3_IRQn, ((0x03<<3)|0x02)); // TODO: is this the wrong priority?
-  	NVIC_EnableIRQ(PIN_INT3_IRQn);
 
 	// wait a while
 	hw_wait_ms(500);
