@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "tm.h"
 #include "hw.h"
 #include "tessel.h"
 #include "assert.h"
@@ -21,22 +22,22 @@
 #define NO_ASSIGNMENT -1
 
 typedef struct {
+	tm_event event;
 	int interrupt_id;
 	int pin;
 	int mode;
 	int state;
 } GPIO_Interrupt;
 
+static void interrupt_callback(tm_event* event);
+
 GPIO_Interrupt interrupts[] = {	
-																{2, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-																{4, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-																{5, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-																{6, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
-																{7, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT}
-															};
-
-uint32_t hw_uptime_micro ();
-
+	{TM_EVENT_INIT(interrupt_callback), 2, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 4, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 5, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 6, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), 7, NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT}
+};
 
 // When push is cancelled and board is reset, reset all interrupts and num available
 void initialize_GPIO_interrupts() {
@@ -182,26 +183,23 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 }
 
 
-void emit_interrupt_event(int interrupt_id, int rise, int fall)
+void interrupt_callback(tm_event* event)
 {
-	// TODO use these
-	(void) rise;
-	(void) fall;
-	int interrupt_index = hw_interrupt_index_helper(interrupt_id);
-	GPIO_Interrupt interrupt = interrupts[interrupt_index];
+	GPIO_Interrupt* interrupt = (GPIO_Interrupt*) event;
+	int interrupt_index = hw_interrupt_index_helper(interrupt->interrupt_id);
 
 	char emitMessage[100];
 
-	sprintf(emitMessage, "{\"pin\":\"%d\",", interrupt.pin);
+	sprintf(emitMessage, "{\"pin\":\"%d\",", interrupt->pin);
 	char end = strlen(emitMessage);
 
 	sprintf(emitMessage+end, "\"interrupt\":\"%d\",", interrupt_index);
 	end = strlen(emitMessage);
 
-	sprintf(emitMessage+end, "\"mode\":\"%d\",", interrupt.mode);
+	sprintf(emitMessage+end, "\"mode\":\"%d\",", interrupt->mode);
 	end = strlen(emitMessage);
 
-	sprintf(emitMessage+end, "\"state\": \"%d\",", interrupt.state);
+	sprintf(emitMessage+end, "\"state\": \"%d\",", interrupt->state);
 	end = strlen(emitMessage);
 
 	// Can't return time until we refactor CC3k Interrupt code
@@ -215,37 +213,37 @@ void emit_interrupt_event(int interrupt_id, int rise, int fall)
 
 
 
-void place_awaiting_interrupt(int interrupt_id) {
+void place_awaiting_interrupt(int interrupt_id)
+{
+	GPIO_Interrupt* interrupt = &interrupts[hw_interrupt_index_helper(interrupt_id)];
 
-	GPIO_Interrupt interrupt = interrupts[hw_interrupt_index_helper(interrupt_id)];
-
-	if (interrupt.mode == TM_INTERRUPT_MODE_LOW) {
+	if (interrupt->mode == TM_INTERRUPT_MODE_LOW) {
 		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
 		LPC_GPIO_PIN_INT->CIENF |= (1<<interrupt_id);
 		hw_interrupt_disable(interrupt_id);
 	}
-	else if (interrupt.mode == TM_INTERRUPT_MODE_HIGH){
+	else if (interrupt->mode == TM_INTERRUPT_MODE_HIGH){
 
 		GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
 		LPC_GPIO_PIN_INT->SIENF |= (1<<interrupt_id);
 		hw_interrupt_disable(interrupt_id);
 	}
 
-	else if ((interrupt.mode == TM_INTERRUPT_MODE_RISING) ||
-		 (interrupt.mode == TM_INTERRUPT_MODE_CHANGE)) {
+	else if ((interrupt->mode == TM_INTERRUPT_MODE_RISING) ||
+		 (interrupt->mode == TM_INTERRUPT_MODE_CHANGE)) {
 
 		GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, interrupt_id);
-		interrupt.state = 1;
+		interrupt->state = 1;
 	}
 	// If we're falling 
-	else if ((interrupt.mode == TM_INTERRUPT_MODE_FALLING) ||
-		 (interrupt.mode == TM_INTERRUPT_MODE_CHANGE)) {
+	else if ((interrupt->mode == TM_INTERRUPT_MODE_FALLING) ||
+		 (interrupt->mode == TM_INTERRUPT_MODE_CHANGE)) {
 
 		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, interrupt_id);
-		interrupt.state = 0;
+		interrupt->state = 0;
 	} 
 
-	enqueue_system_event((void (*)(unsigned)) emit_interrupt_event, interrupt_id);
+	tm_event_trigger(&interrupt->event);
 }
 
 void __attribute__ ((interrupt)) GPIO2_IRQHandler(void)
