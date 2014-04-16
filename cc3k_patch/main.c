@@ -44,7 +44,6 @@ void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 		CC3K_IRQ_FLAG = 1;
 		hw_digital_write(CC3K_ERR_LED, 1);
 		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
-		enqueue_system_event(SPI_IRQ_CALLBACK_EVENT, 0);
 	}
 }
 
@@ -54,12 +53,6 @@ void script_msg_queue (char *type, void* data, size_t size) {
 	(void) type;
 	(void) data;
 	(void) size;
-}
-
-// stub so that hw_interrupt compiles
-void enqueue_system_event(event_callback callback, unsigned data) {
-	(void) callback;
-	(void) data;
 }
 
 int main (void){
