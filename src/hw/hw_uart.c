@@ -37,10 +37,20 @@ typedef struct
     __IO uint8_t  *rx;  /*!< UART Rx data ring buffer */
 } UART_RING_BUFFER_T;
 
-// UART Ring buffers
-UART_RING_BUFFER_T rb0 = { 0 }; // ring buff for uart0
-UART_RING_BUFFER_T rb2 = { 0 }; // ring buff for uart2
-UART_RING_BUFFER_T rb3 = { 0 }; // ring buff for uart3
+typedef struct UART
+{
+  tm_event rx_event;
+  LPC_USARTn_Type *port;
+  UART_RING_BUFFER_T rb;
+} UART;
+
+void uart_rx_event_callback(tm_event* event);
+
+UART uarts[3] = {
+  {TM_EVENT_INIT(uart_rx_event_callback), LPC_USART0, {0}},
+  {TM_EVENT_INIT(uart_rx_event_callback), LPC_USART2, {0}},
+  {TM_EVENT_INIT(uart_rx_event_callback), LPC_USART3, {0}},
+};
 
 //UART_RING_BUFFER_T rb; // ring buff
 
@@ -53,9 +63,9 @@ void UART2_IRQHandler(void);
 void UART0_IRQHandler(void);
 void UART3_IRQHandler(void);
 void UART_IntErr(uint8_t bLSErrType);
-void UART_IntTransmit(LPC_USARTn_Type *UARTPort);
-void UART_IntReceive(LPC_USARTn_Type *UARTPort);
-void process_UART_interrupt(LPC_USARTn_Type *UARTPort);
+void UART_IntTransmit(UART* uart);
+void UART_IntReceive(UART* uart);
+void process_UART_interrupt(UART* uart);
 void emit_uart_receive_event(LPC_USARTn_Type *UARTPort);
 
 /*----------------- INTERRUPT SERVICE ROUTINES --------------------------*/
@@ -66,21 +76,22 @@ void emit_uart_receive_event(LPC_USARTn_Type *UARTPort);
  **********************************************************************/
 void UART2_IRQHandler(void)
 {
-  process_UART_interrupt(LPC_USART2);
+  process_UART_interrupt(&uarts[1]);
 }
 
 void UART0_IRQHandler(void)
 {
-  process_UART_interrupt(LPC_USART0);
+  process_UART_interrupt(&uarts[0]);
 }
 
 void UART3_IRQHandler(void)
 {
-  process_UART_interrupt(LPC_USART3);
+  process_UART_interrupt(&uarts[2]);
 }
 
-void process_UART_interrupt(LPC_USARTn_Type *UARTPort) {
+void process_UART_interrupt(UART* uart) {
   uint32_t intsrc, tmp, tmp1;
+  LPC_USARTn_Type* UARTPort = uart->port;
 
   /* Determine the interrupt source */
   intsrc = UARTPort->IIR;
@@ -103,28 +114,14 @@ void process_UART_interrupt(LPC_USARTn_Type *UARTPort) {
 
   // Receive Data Available or Character time-out
   if ((tmp == UART_IIR_INTID_RDA) || (tmp == UART_IIR_INTID_CTI)){
-      UART_IntReceive(UARTPort);
-      enqueue_system_event((void *)emit_uart_receive_event, (unsigned int)UARTPort);
+      UART_IntReceive(uart);
+      tm_event_trigger(&uart->rx_event);
   }
 
   // Transmit Holding Empty
   if (tmp == UART_IIR_INTID_THRE){
-      UART_IntTransmit(UARTPort);
+      UART_IntTransmit(uart);
   }
-}
-
-UART_RING_BUFFER_T *getRingBuff (LPC_USARTn_Type *UARTPort) {
-  if (UARTPort == LPC_USART0){
-    return &rb0;
-  }
-  if (UARTPort == LPC_USART2) {
-    return &rb2;
-  }
-  if (UARTPort == LPC_USART3) {
-    return &rb3;
-  }
-
-  return &rb0;
 }
 
 /********************************************************************//**
@@ -132,12 +129,13 @@ UART_RING_BUFFER_T *getRingBuff (LPC_USARTn_Type *UARTPort) {
  * @param[in] None
  * @return    None
  *********************************************************************/
-void UART_IntReceive(LPC_USARTn_Type *UARTPort)
+void UART_IntReceive(UART* uart)
 {
   uint8_t tmpc;
   uint32_t rLen;
 
-  UART_RING_BUFFER_T *rb = getRingBuff(UARTPort);
+  LPC_USARTn_Type* UARTPort = uart->port;
+  UART_RING_BUFFER_T *rb = &uart->rb;
 
   while(1){
     // Call UART read function in UART driver
@@ -161,7 +159,9 @@ void UART_IntReceive(LPC_USARTn_Type *UARTPort)
   }
 }
 
-void emit_uart_receive_event(LPC_USARTn_Type *UARTPort) {
+void uart_rx_event_callback(tm_event* event) {
+  UART* uart = (UART*) event;
+  int portnum = uart - uarts;
   // The JSON involving port number is about 30 bytes
   uint8_t headerLength = 30;
   // Current end of emitMessage buffer
@@ -170,14 +170,14 @@ void emit_uart_receive_event(LPC_USARTn_Type *UARTPort) {
   uint8_t emitMessage[headerLength + (UART_RING_BUFSIZE * 4)];
 
   // Copy the JSON into the buffer
-  end = sprintf((char *)emitMessage, "{\"port\":\"%d\",\"data\":[", (int)UARTPort);
+  end = sprintf((char *)emitMessage, "{\"port\":\"%d\",\"data\":[", portnum);
 
   // Create buffer for reading uart
   uint8_t* rxbuf = (uint8_t*) malloc(UART_RING_BUFSIZE);
   memset(rxbuf, 0, UART_RING_BUFSIZE);
 
   // Receive the uart data into the buffer
-  int bytes_read = hw_uart_receive((uint32_t) UARTPort, rxbuf, UART_RING_BUFSIZE);
+  int bytes_read = hw_uart_receive(portnum, rxbuf, UART_RING_BUFSIZE);
 
   // If we have read any bytes
   if (bytes_read != 0) {
@@ -207,17 +207,19 @@ void emit_uart_receive_event(LPC_USARTn_Type *UARTPort) {
  * @param[in] None
  * @return    None
  *********************************************************************/
-void UART_IntTransmit(LPC_USARTn_Type *UARTPort)
+void UART_IntTransmit(UART* uart)
 {
-    // Disable THRE interrupt
-    UART_IntConfig(UARTPort, UART_INTCFG_THRE, DISABLE);
+
+  LPC_USARTn_Type* UARTPort = uart->port;
+  // Disable THRE interrupt
+  UART_IntConfig(UARTPort, UART_INTCFG_THRE, DISABLE);
 
   /* Wait for FIFO buffer empty, transfer UART_TX_FIFO_SIZE bytes
    * of data or break whenever ring buffers are empty */
   /* Wait until THR empty */
   while (UART_CheckBusy(UARTPort) == SET);
 
-  UART_RING_BUFFER_T *rb = getRingBuff(UARTPort);
+  UART_RING_BUFFER_T *rb = &uart->rb;
 
   while (!__BUF_IS_EMPTY(rb->tx_head,rb->tx_tail))
     {
@@ -266,7 +268,7 @@ void UART_IntErr(uint8_t bLSErrType)
  **********************************************************************/
 uint32_t hw_uart_send (uint32_t port, const uint8_t *txbuf, size_t buflen)
 {
-  LPC_USARTn_Type *UARTPort = (LPC_USARTn_Type *) port;
+  LPC_USARTn_Type *UARTPort = uarts[port].port;
 
     uint8_t *data = (uint8_t *) txbuf;
     uint32_t bytes = 0;
@@ -276,7 +278,7 @@ uint32_t hw_uart_send (uint32_t port, const uint8_t *txbuf, size_t buflen)
      with the index values */
   UART_IntConfig(UARTPort, UART_INTCFG_THRE, DISABLE);
 
-  UART_RING_BUFFER_T *rb = getRingBuff(UARTPort);
+  UART_RING_BUFFER_T *rb = &uarts[port].rb;
 
   /* Loop until transmit run buffer is full or until n_bytes
      expires */
@@ -301,7 +303,7 @@ uint32_t hw_uart_send (uint32_t port, const uint8_t *txbuf, size_t buflen)
    * this interrupt type
    */
   if (TxIntStat == RESET) {
-    UART_IntTransmit(UARTPort);
+    UART_IntTransmit(&uarts[port]);
   }
   /*
    * Otherwise, re-enables Tx Interrupt
@@ -324,7 +326,7 @@ uint32_t hw_uart_send (uint32_t port, const uint8_t *txbuf, size_t buflen)
  **********************************************************************/
 uint32_t hw_uart_receive (uint32_t port, uint8_t *rxbuf, size_t buflen)
 {
-  LPC_USARTn_Type *UARTPort = (LPC_USARTn_Type *) port;
+  LPC_USARTn_Type *UARTPort = uarts[port].port;
 
     uint8_t *data = (uint8_t *) rxbuf;
     uint32_t bytes = 0;
@@ -334,7 +336,7 @@ uint32_t hw_uart_receive (uint32_t port, uint8_t *rxbuf, size_t buflen)
      with the index values */
   UART_IntConfig(UARTPort, UART_INTCFG_RBR, DISABLE);
 
-  UART_RING_BUFFER_T *rb = getRingBuff(UARTPort);
+  UART_RING_BUFFER_T *rb = &uarts[port].rb;
 
   /* Loop until receive buffer ring is empty or
     until max_bytes expires */
@@ -422,7 +424,7 @@ void hw_uart_disable (uint32_t port)
 
 void hw_uart_initialize (uint32_t port, uint32_t baudrate, UART_DATABIT_Type databits, UART_PARITY_Type parity, UART_STOPBIT_Type stopbits)
 {
-  LPC_USARTn_Type *UARTPort = (LPC_USARTn_Type *) port;
+  LPC_USARTn_Type *UARTPort = uarts[port].port;
 
   // UART Configuration structure variable
   UART_CFG_Type UARTConfigStruct;
@@ -473,7 +475,7 @@ void hw_uart_initialize (uint32_t port, uint32_t baudrate, UART_DATABIT_Type dat
    */
   TxIntStat = RESET;
 
-  UART_RING_BUFFER_T *rb = getRingBuff(UARTPort);
+  UART_RING_BUFFER_T *rb = &uarts[port].rb;
 
   // Reset ring buf head and tail idx
   __BUF_RESET(rb->rx_head);

@@ -129,10 +129,9 @@ void hw_i2c_set_slave_addr (uint32_t port, uint8_t slave_addr);
 #include "lpc18xx_libcfg.h"
 #include "lpc18xx_scu.h"
 
-#define UART0 (uint32_t) LPC_USART0
-#define UART1 (uint32_t) LPC_UART1
-#define UART2 (uint32_t) LPC_USART2
-#define UART3 (uint32_t) LPC_USART3
+#define UART0 0
+#define UART2 1
+#define UART3 2
 #define UART_SW_0 0
 #define UART_SW_1 1
 
