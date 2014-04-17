@@ -295,14 +295,6 @@ process.on('interrupt', function (interruptData) {
   }
 });
 
-process.on('uartReceive', function(receiveData) {
-  var port = parseInt(receiveData.port, 10);
-  var data = new Buffer(receiveData.data);
-  setImmediate(function() {
-    board.emit("uartReceive", port, data);
-  });
-});
-
 Pin.prototype.watch = function(mode, callback) {
 
   // Make sure trigger mode is valid
@@ -763,6 +755,10 @@ UART.prototype.setStopBits = function(stopBits){
 
   throw new Error("Invalid stopbit value");
   return -1;
+};
+
+global._G.uart_receive_callback = function(port, data) {
+  board.emit("uartReceive", port, data);
 };
 
 

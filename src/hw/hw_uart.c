@@ -9,8 +9,10 @@
 #include "tm.h"
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <stdio.h>
 #include "tessel.h"
+#include "colony.h"
 
 /* buffer size definition */
 #define UART_RING_BUFSIZE 2048
@@ -66,7 +68,8 @@ void UART_IntErr(uint8_t bLSErrType);
 void UART_IntTransmit(UART* uart);
 void UART_IntReceive(UART* uart);
 void process_UART_interrupt(UART* uart);
-void emit_uart_receive_event(LPC_USARTn_Type *UARTPort);
+
+uint32_t hw_uart_rx_available(UART* uart);
 
 /*----------------- INTERRUPT SERVICE ROUTINES --------------------------*/
 /*********************************************************************//**
@@ -162,44 +165,18 @@ void UART_IntReceive(UART* uart)
 void uart_rx_event_callback(tm_event* event) {
   UART* uart = (UART*) event;
   int portnum = uart - uarts;
-  // The JSON involving port number is about 30 bytes
-  uint8_t headerLength = 30;
-  // Current end of emitMessage buffer
-  int end = 0;
-  // Create the message buffer
-  uint8_t emitMessage[headerLength + (UART_RING_BUFSIZE * 4)];
 
-  // Copy the JSON into the buffer
-  end = sprintf((char *)emitMessage, "{\"port\":\"%d\",\"data\":[", portnum);
+  lua_State* L = tm_lua_state;
+  
+  int bytes_available = hw_uart_rx_available(uart);
 
-  // Create buffer for reading uart
-  uint8_t* rxbuf = (uint8_t*) malloc(UART_RING_BUFSIZE);
-  memset(rxbuf, 0, UART_RING_BUFSIZE);
-
-  // Receive the uart data into the buffer
-  int bytes_read = hw_uart_receive(portnum, rxbuf, UART_RING_BUFSIZE);
-
-  // If we have read any bytes
-  if (bytes_read != 0) {
-
-    // Copy the ascii representation of that integer into the message buffer
-    for (int j = 0; j < bytes_read; j++) {
-      end += sprintf((char *)emitMessage + end, "%d", rxbuf[j]);
-      if (j != (bytes_read-1)) {
-        emitMessage[end++] = ',';
-      }
-    }
-
-    // Add the end quote and bracket to the json
-    strcat((char *)emitMessage + end, "]}");
-
-    // Queue the event
-    script_msg_queue("uartReceive", emitMessage, strlen((char *)emitMessage));
-
-  }
-
-  // clean up
-  free(rxbuf);
+  lua_getfield(tm_lua_state, LUA_GLOBALSINDEX, "uart_receive_callback");
+  lua_getfield(tm_lua_state, LUA_GLOBALSINDEX, "global");
+  lua_pushnumber(L, portnum);
+  uint8_t* buffer = colony_createbuffer(L, bytes_available);
+  int bytes_read = hw_uart_receive(portnum, buffer, bytes_available);
+  assert(bytes_read == bytes_available);
+  tm_checked_call(L, 3);
 }
 
 /********************************************************************//**
@@ -358,6 +335,10 @@ uint32_t hw_uart_receive (uint32_t port, uint8_t *rxbuf, size_t buflen)
   UART_IntConfig(UARTPort, UART_INTCFG_RBR, ENABLE);
 
     return bytes;
+}
+
+uint32_t hw_uart_rx_available(UART* uart) {
+  return (uart->rb.rx_head - uart->rb.rx_tail)&__BUF_MASK;
 }
 
 static void hw_uart_output_tx (uint32_t pin)
