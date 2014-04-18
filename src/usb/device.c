@@ -1,6 +1,6 @@
 #include "usb/tessel_usb.h"
 #include "tessel.h"
-#include "hw.h"
+#include "tm.h"
 
 void handle_device_control_setup() {
 	switch (usb_setup.bRequest) {
@@ -14,7 +14,7 @@ void handle_device_control_setup() {
 			} 
 			break;
 		case REQ_KILL:
-			main_body_interrupt();
+			tm_runtime_schedule_exit(130);
 			usb_ep0_out();
 			return usb_ep0_in(0);
 		case REQ_STACK_TRACE:

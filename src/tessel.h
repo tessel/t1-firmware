@@ -59,7 +59,6 @@ typedef struct {
 
 void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned length);
 
-void main_body_interrupt ();
 int populate_fs (const uint8_t *file, size_t len);
 
 void debugstack(unsigned _);

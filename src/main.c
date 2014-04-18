@@ -335,8 +335,6 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 				if (size == 32 + 64 + 32 + 1) {
 					wifi_timeout = 1000 * (uint8_t) buf[128];
 				}
-				main_body_interrupt();
-				script_buf_lock = SCRIPT_EMPTY;
 			}
 #endif
 		}
@@ -468,10 +466,6 @@ _ramfunc void SysTick_Handler (void)
  * Main body of Tessel OS
  */
 
-jmp_buf L_jmp;
-int luaExitCode = 0;
-
-bool lua_exiting = 0;
 volatile event_ringbuf system_event_queue = {0, 0, {{0}}};
 
 /// Atomically sets a lua hook by disabling interrupts
@@ -501,26 +495,6 @@ void queue_hook (lua_State* L, lua_Debug *ar)
 void enqueue_system_event(event_callback callback, unsigned data) {
 	enqueue_event(&system_event_queue, callback, data);
 	safe_sethook(queue_hook, LUA_MASKCOUNT, 1);
-}
-
-void main_body_interrupt_hook (unsigned data)
-{
-	(void) data;
-	lua_exiting = true;
-}
-
-void main_body_interrupt ()
-{
-	if (tm_lua_state != NULL) {
-		enqueue_system_event(main_body_interrupt_hook, 0);
-	}
-}
-
-static int main_body_os_exit (lua_State *L)
-{
-	luaExitCode = luaL_optint(L, 1, EXIT_SUCCESS);
-	main_body_interrupt();
-	return 0;
 }
 
 void script_msg_queue (char *type, void* data, size_t size) {
@@ -622,6 +596,12 @@ void* runtime_arena = NULL;
 void tm_events_lock() { __disable_irq(); }
 void tm_events_unlock() { __enable_irq(); }
 
+void hw_wait_for_event() {
+	// TODO: use real timers and sleep here
+	tm_event_trigger(&tm_timer_event);
+	pop_event(&system_event_queue);
+}
+
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)
 {
 		int ret = 0;
@@ -710,10 +690,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			// Done with preload
 			lua_pop(L, 1);
 
-			// Get preload table.
-			lua_pushcfunction(L, main_body_os_exit);
-			lua_setglobal(L, "_exit");
-
 			// Open tessel lib.
 			TM_DEBUG("Loading tessel library...");
 			int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
@@ -753,29 +729,18 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			argv[1] = "_start.js";
 		}
 		argv[2] = NULL;
-		luaExitCode = 0;
-		if (setjmp(L_jmp) == 0) {
-			// Run the hook after the first instruction so we don't lose any events
-			safe_sethook(queue_hook, LUA_MASKCOUNT, 1);
+		TM_COMMAND('S', "1");
+		TM_LOG("Running script...");
+		TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
 
-			TM_COMMAND('S', "1");
-			TM_LOG("Running script...");
-			TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
-			ret = colony_runtime_run(argv[1], argv, 2);
+		int returncode = tm_runtime_run(argv[1], argv, 2);
 
-			while (tm_events_active()) {
-				tm_event_trigger(&tm_timer_event);
-				tm_event_process();
-				pop_event(&system_event_queue);
-			}
-		}
 #if !COLONY_STATE_CACHE
 		colony_runtime_close();
 #endif
 		tm_fs_destroy(tm_fs_root);
 		tm_fs_root = NULL;
 
-		int returncode = ret == 0 ? luaExitCode : ret;
 		TM_COMMAND('S', "%d", -returncode);
 		TM_DEBUG("Script ended with return code %d.", returncode);
 }
