@@ -61,7 +61,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned length);
 
 int populate_fs (const uint8_t *file, size_t len);
 
-void debugstack(unsigned _);
+int debugstack();
 
 
 /**

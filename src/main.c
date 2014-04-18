@@ -510,14 +510,10 @@ void script_msg_queue (char *type, void* data, size_t size) {
 	}
 }
 
-void debugstack(unsigned _)
+void debugstack_hook(lua_State* L, lua_Debug *ar)
 {
-	(void) _;
-	lua_State* L = tm_lua_state;
-	if (tm_lua_state == 0) {
-		hw_send_usb_msg('k', NULL, 0);
-		return;
-	}
+	(void) ar;
+	lua_sethook(L, NULL, 0, 0);
 
 	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
 	if (!lua_istable(L, -1)) {
@@ -537,6 +533,21 @@ void debugstack(unsigned _)
 	unsigned len = 0;
 	uint8_t* trace = (uint8_t*) lua_tolstring(L, -1, &len);
 	hw_send_usb_msg('k', trace, len);
+}
+
+int debugstack() {
+	if (tm_lua_state == 0) {
+		return -1;
+	}
+
+	if (lua_gethook(tm_lua_state) != 0) {
+		// Another hook probably means we're in the process of exiting
+		return -2;
+	}
+
+	// TODO: what if we're not currently running lua (waiting for event)
+	lua_sethook(tm_lua_state, debugstack_hook, LUA_MASKCOUNT, 1);
+	return 0;
 }
 
 

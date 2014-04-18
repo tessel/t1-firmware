@@ -18,9 +18,9 @@ void handle_device_control_setup() {
 			usb_ep0_out();
 			return usb_ep0_in(0);
 		case REQ_STACK_TRACE:
-			enqueue_system_event(debugstack, 0);
+			ep0_buf_in[0] = (int8_t) debugstack();
 			usb_ep0_out();
-			return usb_ep0_in(0);
+			return usb_ep0_in(((usb_setup.bmRequestType & USB_IN) == USB_IN)?1:0);
 		case REQ_WIFI:
 			if ((usb_setup.bmRequestType & USB_IN) == USB_IN) {
 				usb_ep0_out();
