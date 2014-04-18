@@ -209,7 +209,6 @@
         'src/hw/hw_pwm.c',
         'src/hw/hw_wait.c',
         'src/hw/hw_spi.c',
-        'src/hw/hw_sw_uart.c',
         'src/hw/hw_uart.c',
         'src/hw/l_hw.c',
 
