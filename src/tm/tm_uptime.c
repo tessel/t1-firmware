@@ -1,36 +1,23 @@
-/*
- * tm_time.c
- *
- *  Created on: Aug 12, 2013
- *      Author: tim
- */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "lpc18xx_timer.h"
+#include "LPC18xx.h"
+#include "lpc18xx_cgu.h"
 #include "tm.h"
 
+#define TIMER LPC_TIMER1
 
 void tm_uptime_init()
 {
-        TIM_TIMERCFG_Type TIM_ConfigStruct;
+    CGU_ConfigPWR(CGU_PERIPHERAL_TIMER1, ENABLE);
 
-        // Initialize timer 0, prescale count time of 1000000uS = 1S
-        TIM_ConfigStruct.PrescaleOption = TIM_PRESCALE_USVAL;
-        TIM_ConfigStruct.PrescaleValue        = 1;
+    TIMER->PR = 180;
+    TIMER->IR = 0xFFFFFFFF; // clear interrupts
+    TIMER->TCR = (1<<1); // reset counter
+    TIMER->TCR = (1<<0); // release reset and start
 
-        // Set configuration for Tim_config and Tim_MatchConfig
-        TIM_Init(LPC_TIMER1, TIM_TIMER_MODE, &TIM_ConfigStruct);
-        TIM_ResetCounter(LPC_TIMER1);
-        // To start timer 0
-        TIM_Cmd(LPC_TIMER1,ENABLE);
 }
 
 uint32_t tm_uptime_micro ()
 {
-        return LPC_TIMER1->TC;
+    return LPC_TIMER1->TC;
 }
 
 void hw_timer_update_interrupt()
@@ -38,6 +25,3 @@ void hw_timer_update_interrupt()
 
 }
 
-#ifdef __cplusplus
-}
-#endif
