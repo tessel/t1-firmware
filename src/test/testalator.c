@@ -41,8 +41,58 @@ uint8_t getCommand(uint8_t *buff, uint8_t len) {
 }
 
 void pinTest() {
+	hw_digital_write(LED1, 1);
+	hw_digital_write(LED2, 0);
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 0);
+
 	// bring all gpios low
-	tessel_gpio_init(0);
+	hw_digital_output(A_G1);
+	hw_digital_output(A_G2);
+	hw_digital_output(A_G3);
+
+	hw_digital_output(B_G1);
+	hw_digital_output(B_G2);
+	hw_digital_output(B_G3);
+
+	hw_digital_output(C_G1);
+	hw_digital_output(C_G2);
+	hw_digital_output(C_G3);
+
+	hw_digital_output(D_G1);
+	hw_digital_output(D_G2);
+	hw_digital_output(D_G3);
+
+	hw_digital_output(E_G1);
+	hw_digital_output(E_G2);
+	hw_digital_output(E_G3);
+	hw_digital_output(E_G4);
+	hw_digital_output(E_G5);
+	hw_digital_output(E_G6);
+
+	hw_digital_write(A_G1, HW_LOW);
+	hw_digital_write(A_G2, HW_LOW);
+	hw_digital_write(A_G3, HW_LOW);
+	
+	hw_digital_write(B_G1, HW_LOW);
+	hw_digital_write(B_G2, HW_LOW);
+	hw_digital_write(B_G3, HW_LOW);
+	
+	hw_digital_write(C_G1, HW_LOW);
+	hw_digital_write(C_G2, HW_LOW);
+	hw_digital_write(C_G3, HW_LOW);
+
+	hw_digital_write(D_G1, HW_LOW);
+	hw_digital_write(D_G2, HW_LOW);
+	hw_digital_write(D_G3, HW_LOW);
+
+	hw_digital_write(E_G1, HW_LOW);
+	hw_digital_write(E_G2, HW_LOW);
+	hw_digital_write(E_G3, HW_LOW);
+	hw_digital_write(E_G4, HW_LOW);
+	hw_digital_write(E_G5, HW_LOW);
+	hw_digital_write(E_G6, HW_LOW);
+
 	// respond
 	uint8_t txbuff[] = {OK};
 
@@ -74,6 +124,12 @@ uint8_t sckCount(uint8_t pin) {
 }
 
 void sckTest(uint8_t number) {
+
+	hw_digital_write(LED1, 0);
+	hw_digital_write(LED2, 1);
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 0);
+
 	// reply with something
 	uint8_t ok[1] = {OK};
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, ok, 1);
@@ -122,6 +178,11 @@ void sckTest(uint8_t number) {
 }
 
 void adcTest(){
+	hw_digital_write(LED1, 0);
+	hw_digital_write(LED2, 0);
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 0);
+
 	if (tessel_board_version() >= 3){
 		hw_analog_write(E_A1, 512);
 	} else if (tessel_board_version() <= 2){
@@ -133,6 +194,11 @@ void adcTest(){
 }
 
 void dacTest(){
+	hw_digital_write(LED1, 0);
+	hw_digital_write(LED2, 0);
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 1);
+
 	uint32_t dacReading = 0;
 	uint8_t txbuff[5] = {OK, 0x00, 0x00, 0x00, 0x00};
 
@@ -159,6 +225,12 @@ void testalator_init(){
 }
 
 void i2cTest(){
+
+	hw_digital_write(LED1, 1);
+	hw_digital_write(LED2, 1);
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 0);
+
 	uint8_t txbuff[1] = {OK};
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, txbuff, 1);
 
@@ -191,6 +263,11 @@ void i2cTest(){
 void testalator() {
 	testalator_init();
 
+	hw_digital_write(LED1, 1);
+	hw_digital_write(LED2, 1);
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 1);
+
 	uint8_t rxbuff[2] = {0x00, 0x00};
 	hw_digital_output(B_G1);
   	hw_digital_output(B_G2);
@@ -206,21 +283,25 @@ void testalator() {
 			TM_DEBUG("Testalator: pin done");
 			break;
 		case SCK_TEST:
+			tessel_gpio_init(0);
 			TM_DEBUG("Testalator: sck test");
 			sckTest(rxbuff[1]);
 			TM_DEBUG("Testalator: sck done");
 			break;
 		case ADC_TEST:
+			tessel_gpio_init(0);
 			TM_DEBUG("Testalator: adc test");
 			adcTest();
 			TM_DEBUG("Testalator: adc done");
 			break;
 		case DAC_TEST:
+			tessel_gpio_init(0);
 			TM_DEBUG("Testalator: dac test");
 			dacTest();
 			TM_DEBUG("Testalator: dac done");
 			break;
 		case I2C_TEST:
+			tessel_gpio_init(0);
 			TM_DEBUG("Testalator: i2c test");
 			i2cTest();
 			TM_DEBUG("Testalator: i2c done");
