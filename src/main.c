@@ -546,8 +546,8 @@ void main_body (void)
 				connect_wifi();
 				wifi_ssid[0] = 0;
 			}
+			hw_wait_for_event();
 			tm_event_process();
-			continue;
 		}
 
 		if (script_buf_flash) {
@@ -575,8 +575,15 @@ void tm_events_lock() { __disable_irq(); }
 void tm_events_unlock() { __enable_irq(); }
 
 void hw_wait_for_event() {
-	// TODO: use real timers and sleep here
-	tm_event_trigger(&tm_timer_event);
+	__disable_irq();
+	if (!tm_events_pending()) {
+		// Check for events after disabling interrupts to avoid the race
+		// condition where an event comes from an interrupt between check and
+		// sleep. Processor still wakes from sleep on interrupt request even
+		// when interrupts are disabled.
+		__WFI();
+	}
+	__enable_irq();
 }
 
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)
