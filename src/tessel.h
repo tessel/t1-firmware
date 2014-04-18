@@ -18,12 +18,7 @@
 // dedicated pin names
 #include "variant.h" 
 
-// event queue stuff
-//TODO: move to runtime
-#include "tm_event_queue.h"
 void script_msg_queue (char *type, void* data, size_t size);
-void enqueue_system_event(event_callback callback, unsigned data);
-
 
 int tessel_board_version();
 char* tessel_board_uuid ();

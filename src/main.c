@@ -52,7 +52,6 @@
 #include "lpc_types.h"
 #include "spi_flash.h"
 #include "bootloader.h"
-#include "tm_event_queue.h"
 #include "utility/wlan.h"
 
 // lua
@@ -466,37 +465,6 @@ _ramfunc void SysTick_Handler (void)
  * Main body of Tessel OS
  */
 
-volatile event_ringbuf system_event_queue = {0, 0, {{0}}};
-
-/// Atomically sets a lua hook by disabling interrupts
-void safe_sethook(lua_Hook func, int mask, int count) {
-	unsigned primask = __get_PRIMASK(); // Interrupt status
-	__disable_irq();
-	if (tm_lua_state != NULL) {
-		lua_sethook(tm_lua_state, func, mask, count);
-	}
-	__set_PRIMASK(primask); // Restore interrupt status
-}
-
-void queue_hook (lua_State* L, lua_Debug *ar)
-{
-	(void) ar;
-	safe_sethook(NULL, 0, 0);
-	while (pop_event(&system_event_queue)) {
-		if (lua_exiting) {
-			 lua_exiting = false;
-			 if (L != NULL) {
-				longjmp(L_jmp, 1);
-			}
-		}
-	}
-}
-
-void enqueue_system_event(event_callback callback, unsigned data) {
-	enqueue_event(&system_event_queue, callback, data);
-	safe_sethook(queue_hook, LUA_MASKCOUNT, 1);
-}
-
 void script_msg_queue (char *type, void* data, size_t size) {
 	lua_State* L = tm_lua_state;
 	// Get preload table.
@@ -578,7 +546,6 @@ void main_body (void)
 				connect_wifi();
 				wifi_ssid[0] = 0;
 			}
-			pop_event(&system_event_queue);
 			tm_event_process();
 			continue;
 		}
@@ -610,7 +577,6 @@ void tm_events_unlock() { __enable_irq(); }
 void hw_wait_for_event() {
 	// TODO: use real timers and sleep here
 	tm_event_trigger(&tm_timer_event);
-	pop_event(&system_event_queue);
 }
 
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)

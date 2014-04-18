@@ -194,7 +194,6 @@
         '<(SHARED_INTERMEDIATE_DIR)/tessel.c',
         'src/variants/lpc18xx/variant.c',
 
-        'src/tm/tm_event_queue.c',
         'src/tm/tm_net.c',
         'src/tm/tm_uptime.c',
 
