@@ -13,16 +13,13 @@
 #include "utility/netapp.h"
 #include "utility/evnt_handler.h"
 
-
-
 /**
  * Configuration
  */
 
 static volatile int inuse = 0;
-volatile uint8_t WIFI_IP[4] = {0, 0, 0, 0};
-volatile uint8_t CC_VER[2] = {0, 0};
-
+uint8_t hw_wifi_ip[4] = {0, 0, 0, 0};
+uint8_t hw_cc_ver[2] = {0, 0};
 
 void hw_net__inuse_start (void)
 {
@@ -128,35 +125,25 @@ uint32_t hw_net_dnsserver ()
 // }
 
 
-uint32_t hw_net_local_ip ()
+void hw_net_populate_ip ()
 {
-	if (!hw_net_is_connected()) return 0;
-
+	if (!hw_net_is_connected()) {
+		memset(hw_wifi_ip, 0, 4);
+	}
+	
 	CC3000_START;
 	tNetappIpconfigRetArgs ipinfo;
 	netapp_ipconfig(&ipinfo);
 	CC3000_END;
 
-	char* aliasable_ip = (char*) ipinfo.aucIP;
-	WIFI_IP[0] = aliasable_ip[0];
-	WIFI_IP[1] = aliasable_ip[1];
-	WIFI_IP[2] = aliasable_ip[2];
-	WIFI_IP[3] = aliasable_ip[3];
+	memcpy(hw_wifi_ip, ipinfo.aucIP, 4);
 
-	return *((uint32_t *) aliasable_ip);
+	// uint32_t ret;
+	// memcpy(&ret, WIFI_IP, 4);
+
+	// return ret;
 }
 
-void hw_net_get_curr_ip(uint8_t * buff){
-	buff[0] = WIFI_IP[0];
-	buff[1] = WIFI_IP[1];
-	buff[2] = WIFI_IP[2];
-	buff[3] = WIFI_IP[3];
-}
-
-void hw_net_get_cc_ver(uint8_t * buff){
-	buff[0] = CC_VER[0];
-	buff[1] = CC_VER[1];
-}
 
 int hw_net_mac (uint8_t mac[MAC_ADDR_LEN])
 {
@@ -236,7 +223,7 @@ int hw_net_block_until_readable (int ulSocket, int timeout)
   return 0;
 }
 
-unsigned char hw_net_initialize (void)
+void hw_net_initialize (void)
 {
 	CC3000_START;
 	SpiInit(4000000);
@@ -267,14 +254,11 @@ unsigned char hw_net_initialize (void)
 		TM_DEBUG("CC3000 firmware version: %d.%d", version[0], version[1]);
 	} else {
 		TM_DEBUG("Failed to read CC3000 firmware version.");
-		return 0;
 	}
 
-	CC_VER[0] = version[0];
-	CC_VER[1] = version[1];
+	memcpy(hw_cc_ver, version, 2);
 
 	CC3000_END;
-	return version[1];
 }
 
 void hw_net_config(int should_connect_to_open_ap, int should_use_fast_connect, int auto_start){

@@ -3,8 +3,11 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /** CPP **/
 
+#include <stdint.h>
+extern uint8_t hw_wifi_ip[];
+extern uint8_t hw_cc_ver[];
 
 // Utility
 
@@ -25,7 +28,7 @@ typedef enum {
 #include "utility/cc3000_common.h"
 #include "host_spi.h"
 
-unsigned char hw_net_initialize (void);
+void hw_net_initialize (void);
 void hw_net_config(int should_connect_to_open_ap, int should_use_fast_connect, int auto_start);
 void hw_net_smartconfig_initialize(void);
 void hw_net_disconnect (void);
@@ -43,7 +46,7 @@ void hw_net_get_cc_ver(uint8_t * buff);
 uint32_t hw_net_defaultgateway ();
 uint32_t hw_net_dnsserver ();
 uint32_t hw_net_dhcpserver ();
-uint32_t hw_net_local_ip ();
+void hw_net_populate_ip ();
 int hw_net_ssid (char ssid[33]);
 void tm_net_initialize_dhcp_server (void);
 int hw_net_mac (uint8_t mac[MAC_ADDR_LEN]);
@@ -224,6 +227,6 @@ int hw_analog_write (uint32_t ulPin, float ulValue);
 
 #ifdef __cplusplus
 };
-#endif
+#endif /**CPP**/
 
-#endif
+#endif /**__TM_I2C__**/

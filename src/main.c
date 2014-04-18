@@ -240,8 +240,8 @@ void on_wifi_connected()
 	hw_digital_write(CC3K_CONN_LED, 1);
 
 	uint32_t ip = 0;
-	ip = hw_net_local_ip();
-	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+	hw_net_populate_ip();
+	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 	ip = hw_net_dnsserver();
 	TM_DEBUG("DNS: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
 	ip = hw_net_dhcpserver();
@@ -250,8 +250,7 @@ void on_wifi_connected()
 	TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
 	TM_DEBUG("Connected to WiFi!");
 
-	ip = hw_net_local_ip();
-	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 
 #if TESSEL_WIFI_DEPLOY
 	// Enable remote deploy on 4444
@@ -284,7 +283,9 @@ int connect_wifi ()
 
 	TM_DEBUG("Waiting for DHCP (%d second timeout)...", wifi_timeout / 1000);
 	// DHCP wait can return but if local IP is 0, consider it a timeout.
-	if (!hw_net_block_until_dhcp_wait(wifi_timeout) || hw_net_local_ip() == 0) {
+	hw_net_populate_ip();
+	if (!hw_net_block_until_dhcp_wait(wifi_timeout) || 
+		(hw_wifi_ip[0] | hw_wifi_ip[1] | hw_wifi_ip[2] | hw_wifi_ip[3]) == 0) {
 		wifi_ssid[0] = 0;
 		TM_DEBUG("Connection timed out. Try connecting to WiFi again.");
 		TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
@@ -392,8 +393,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			}
 
 			if (hw_net_is_connected()) {
-				uint32_t ip = hw_net_local_ip();
-				TM_COMMAND('V', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+				TM_COMMAND('V', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 			} else {
 				TM_COMMAND('V', "{\"connected\": 0}");
 			}

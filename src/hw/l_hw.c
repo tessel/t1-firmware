@@ -530,7 +530,9 @@ static int l_hw_net_is_connected(lua_State* L)
 
 static int l_hw_net_local_ip(lua_State* L)
 {
-	lua_pushnumber(L, hw_net_local_ip());
+	uint32_t ret;
+	memcpy(&ret, hw_wifi_ip, 4);
+	lua_pushnumber(L, ret);
 	return 1;
 }
 

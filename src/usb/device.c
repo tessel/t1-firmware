@@ -25,14 +25,14 @@ void handle_device_control_setup() {
 			if ((usb_setup.bmRequestType & USB_IN) == USB_IN) {
 				usb_ep0_out();
 
-				hw_net_get_curr_ip(ep0_buf_in);
+				memcpy(ep0_buf_in, hw_wifi_ip, 4);
 				return usb_ep0_in(4);
 			}
 		case REQ_CC:
 			if ((usb_setup.bmRequestType & USB_IN) == USB_IN) {
 				usb_ep0_out();
 
-				hw_net_get_cc_ver(ep0_buf_in);
+				memcpy(ep0_buf_in, hw_cc_ver, 2);
 				return usb_ep0_in(2);
 			}
 			break;
