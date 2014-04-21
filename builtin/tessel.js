@@ -1,5 +1,6 @@
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
+var clone = require('_structured_clone');
 
 var tm = process.binding('tm');
 var hw = process.binding('hw');
@@ -14,8 +15,14 @@ var _interruptModes = {
   4 : "change"
 };
 
+process.on('raw-message', function (buf) {
+  try {
+    process.emit('message', clone.deserialize(buf))
+  } catch (e) { }
+})
+
 process.send = function (msg) {
-  hw.usb_send('M'.charCodeAt(0), JSON.stringify(msg));
+  hw.usb_send('M'.charCodeAt(0), clone.serialize(msg));
 }
 
 
