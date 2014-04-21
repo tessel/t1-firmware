@@ -24,11 +24,25 @@ uint32_t tm_uptime_micro ()
 void hw_timer_update_interrupt()
 {
     if (tm_timer_waiting()) {
-        TIMER->MR[0] = tm_timer_next_time();
-        TIMER->MCR |= 1;
-    } else {
-        TIMER->MCR &= ~1;
+        unsigned base = tm_timer_base_time();
+        unsigned step = tm_timer_head_time();
+        TIMER->MR[0] = base + step;
+        TIMER->MCR |= 1; // Enable timer match interrupt
+
+        // Compare difference rather than absolute to avoid wrap issues
+        unsigned elapsed = tm_uptime_micro() - base;
+        if (elapsed < step) {
+            return; // We're good. Leave the timer set.
+        } else {
+            // The time already passed, so trigger it now to avoid losing the
+            // wakeup. It's fine if the interrupt triggerred between enabling
+            // it and testing it because tm_event_trigger is atomic and
+            // idempotent.
+            tm_event_trigger(&tm_timer_event);
+        }
     }
+
+    TIMER->MCR &= ~1; // Disable timer match interrupt
 }
 
 void __attribute__ ((interrupt)) TIMER1_IRQHandler() {
