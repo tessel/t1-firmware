@@ -1,6 +1,7 @@
 #include "usb/tessel_usb.h"
 #include "tessel.h"
 #include "tm.h"
+#include "hw.h"
 
 void handle_device_control_setup() {
 	switch (usb_setup.bRequest) {

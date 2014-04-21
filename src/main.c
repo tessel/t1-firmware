@@ -93,14 +93,6 @@ void SPI_IRQ_CALLBACK_EVENT (tm_event* event)
 	}
 }
 
-void set_cc3k_irq_flag (uint8_t val) {
-	CC3K_IRQ_FLAG = val;
-}
-
-uint8_t get_cc3k_irq_flag () {
-	return CC3K_IRQ_FLAG;
-}
-
 tm_event cc3k_irq_event = TM_EVENT_INIT(SPI_IRQ_CALLBACK_EVENT);
 
 void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
