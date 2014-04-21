@@ -226,7 +226,7 @@ int hw_net_block_until_readable (int ulSocket, int timeout)
 void hw_net_initialize (void)
 {
 	CC3000_START;
-	SpiInit(4000000);
+	SpiInit(4e6);
 	hw_wait_us(100);
 
 //	TM_COMMAND('w', "Calling wlan_init\n");
@@ -252,7 +252,7 @@ void hw_net_initialize (void)
  	unsigned long aucDHCP = 14400;
 	unsigned long aucARP = 3600;
 	unsigned long aucKeepalive = 10;
-	unsigned long aucInactivity = 20;
+	unsigned long aucInactivity = 8;
 	if (netapp_timeout_values(&aucDHCP, &aucARP, &aucKeepalive, &aucInactivity) != 0) {
 		TM_DEBUG("Error setting inactivity timeout!");
 	}

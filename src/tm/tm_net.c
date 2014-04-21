@@ -217,20 +217,27 @@ int tm_tcp_readable (tm_socket_t sock)
 	if (!hw_net_is_connected()) return 0;
     CC3000_START;
 
-    fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
+    // Socket file descriptors we want to wake up for, using select()
+    fd_set readSet, errSet;
     FD_ZERO(&readSet);
+    FD_ZERO(&errSet);
     FD_SET(sock, &readSet);
+    FD_SET(sock, &errSet);
     struct timeval timeout;
+
+	// TODO remove this, figure out why sequential select calls fail
+	hw_wait_ms(1000);
 
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 
-    int rcount = select(sock+1, &readSet, (fd_set *) 0, (fd_set *) 0, &timeout );
+    int rcount = select(sock+1, &readSet, (fd_set *) 0, &errSet, &timeout );
+    int errflag = FD_ISSET(sock, &errSet);
     int flag = FD_ISSET(sock, &readSet);
     CC3000_END;
 
     (void) rcount;
-    return flag;
+    return errflag ? -1 : flag;
 }
 
 int tm_tcp_listen (tm_socket_t sock, uint16_t port)

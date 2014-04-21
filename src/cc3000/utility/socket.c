@@ -599,19 +599,18 @@ int
 select(long nfds, fd_set *readsds, fd_set *writesds, fd_set *exceptsds, 
        struct timeval *timeout)
 {
-	(void) timeout;
 	unsigned char *ptr, *args;
 	tBsdSelectRecvParams tParams;
-	// unsigned long is_blocking;
+	unsigned long is_blocking;
 	
-	// if( timeout == NULL)
-	// {
-	// 	is_blocking = 1;  blocking , infinity timeout 
-	// }
-	// else
-	// {
-	// 	is_blocking = 0; /* no blocking, timeout */
-	// }
+	if( timeout == NULL)
+	{
+		is_blocking = 1; /* blocking , infinity timeout */
+	}
+	else
+	{
+		is_blocking = 0; /* no blocking, timeout */
+	}
 	
 	// Fill in HCI packet structure
 	ptr = tSLInformation.pucTxCommandBuffer;
@@ -623,21 +622,21 @@ select(long nfds, fd_set *readsds, fd_set *writesds, fd_set *exceptsds,
 	args = UINT32_TO_STREAM(args, 0x00000014);
 	args = UINT32_TO_STREAM(args, 0x00000014);
 	args = UINT32_TO_STREAM(args, 0x00000014);
-	args = UINT32_TO_STREAM(args, 0);
+	args = UINT32_TO_STREAM(args, is_blocking);
 	args = UINT32_TO_STREAM(args, ((readsds) ? *(unsigned long*)readsds : 0));
 	args = UINT32_TO_STREAM(args, ((writesds) ? *(unsigned long*)writesds : 0));
 	args = UINT32_TO_STREAM(args, ((exceptsds) ? *(unsigned long*)exceptsds : 0));
 	
-	// if (timeout)
-	// {
-	// 	if ( 0 == timeout->tv_sec && timeout->tv_usec < 
-	// 			SELECT_TIMEOUT_MIN_MICRO_SECONDS)
-	// 	{
-	// 		timeout->tv_usec = SELECT_TIMEOUT_MIN_MICRO_SECONDS;
-	// 	}
-		args = UINT32_TO_STREAM(args, 0);
-		args = UINT32_TO_STREAM(args, SELECT_TIMEOUT_MIN_MICRO_SECONDS);
-	// }
+	if (timeout)
+	{
+		if ( 0 == timeout->tv_sec && timeout->tv_usec < 
+				SELECT_TIMEOUT_MIN_MICRO_SECONDS)
+		{
+			timeout->tv_usec = SELECT_TIMEOUT_MIN_MICRO_SECONDS;
+		}
+		args = UINT32_TO_STREAM(args, timeout->tv_sec);
+		args = UINT32_TO_STREAM(args, timeout->tv_usec);
+	}
 	
 	// Initiate a HCI command
 	hci_command_send(HCI_CMND_BSD_SELECT, ptr, SOCKET_SELECT_PARAMS_LEN);
