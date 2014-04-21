@@ -1,9 +1,6 @@
 #include "hw.h"
 #include "lpc18xx_gpdma.h"
 
-/** GPDMA Mux definitions */
-#define DMAMUX_ADDRESS    LPC_CREG->DMAMUX
-
 /**
  * @brief Lookup Table of GPDMA Channel Number matched with
  * GPDMA channel pointer
@@ -58,7 +55,6 @@ volatile const void *GPDMA_Connections[] = {
  *********************************************************************/
 uint8_t TM_DMAMUX_Config(uint32_t connection_number)
 {
-  uint32_t *dmamux_reg = (uint32_t*)DMAMUX_ADDRESS;
   uint8_t function, channel;
 
   switch(connection_number)
@@ -94,8 +90,8 @@ uint8_t TM_DMAMUX_Config(uint32_t connection_number)
     default:          function = 3; channel = 15; break;
   }
   //Set select function to dmamux register
-  *dmamux_reg &= ~(0x03<<(2*channel));
-  *dmamux_reg |= (function<<(2*channel));
+  LPC_CREG->DMAMUX &= ~(0x03<<(2*channel));
+  LPC_CREG->DMAMUX |= (function<<(2*channel));
 
   return channel;
 }

@@ -181,7 +181,7 @@ int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, si
 	hw_gpdma_transfer_config(rx_chan, &rx_config);
 
 
-		/* Reset terminal counter */
+	/* Reset terminal counter */
 	SPI_STATUS.transferCount = 0;
 	/* Reset Error counter */
 	SPI_STATUS.transferError = 0;
@@ -207,7 +207,6 @@ int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, si
 	while ((SPI_STATUS.transferError == 0) && (SPI_STATUS.transferCount == 0));
 
 	// Free our linked list (should do this in an event)
-	// Question: Will this delete the whole list if it was calloced in one go?
 	free(tx_Linked_List);
 	free(rx_Linked_List);
 
