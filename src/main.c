@@ -80,14 +80,14 @@ uint8_t get_cc3k_irq_flag () {
 
 void set_cc3k_irq_flag (uint8_t value) {
 	CC3K_IRQ_FLAG = value;
-	hw_digital_write(CC3K_ERR_LED, value);
+	// hw_digital_write(CC3K_ERR_LED, value);
 }
 
 void SPI_IRQ_CALLBACK_EVENT (unsigned no)
 {
 	(void) no;
 	CC3K_EVENT_ENABLED = 0;
-	hw_digital_write(CC3K_ERR_LED, 0);
+	// hw_digital_write(CC3K_ERR_LED, 0);
 	if (CC3K_IRQ_FLAG) {
 		CC3K_IRQ_FLAG = 0;
 		SPI_IRQ();
@@ -99,7 +99,7 @@ void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)
 	validirqcount++;
 	if (GPIO_GetIntStatus(0))
 	{
-		hw_digital_write(CC3K_ERR_LED, 1);
+		// hw_digital_write(CC3K_ERR_LED, 1);
 		CC3K_IRQ_FLAG = 1;
     	if (!CC3K_EVENT_ENABLED) {
     		CC3K_EVENT_ENABLED = 1;
@@ -245,6 +245,7 @@ void smart_config_task ()
 
 void on_wifi_connected()
 {
+	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 1);
 
 	uint32_t ip = 0;
@@ -287,6 +288,7 @@ int connect_wifi ()
 	tessel_wifi_enable();
 
 	// Connect to given network.
+	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_net_connect(wifi_security, wifi_ssid, wifi_pass); // use this for using tessel wifi from command line
 
 	TM_DEBUG("Waiting for DHCP (%d second timeout)...", wifi_timeout / 1000);
@@ -311,6 +313,7 @@ int fast_connect() {
 	int backoff = 2000;
 
 	hw_net_initialize();
+	hw_digital_write(CC3K_ERR_LED, 0);
 	if (hw_net_block_until_dhcp_wait(backoff)) {
 		TM_DEBUG("Connected to saved network.");
 		netconnected = 1;

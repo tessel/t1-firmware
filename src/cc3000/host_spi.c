@@ -818,7 +818,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		ulCC3000DHCP      = 0;
 		ulCC3000DHCP_configured = 0;
 		printOnce = 1;
-		
+		hw_digital_write(CC3K_ERR_LED, 1);
 	}
 	
 	if (lEventType == HCI_EVNT_WLAN_UNSOL_DHCP)
