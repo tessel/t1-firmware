@@ -172,12 +172,11 @@ void uart_rx_event_callback(tm_event* event) {
 
   lua_getglobal(L, "_colony_emit");
   lua_pushstring(L, "uart-receive");
-  uint8_t* buffer = colony_createbuffer(L, bytes_available + 1);
-  buffer[0] = (uint8_t) portnum;
-  int bytes_read = hw_uart_receive(portnum, &buffer[1], bytes_available);
+  lua_pushnumber(L, portnum);
+  uint8_t* buffer = colony_createbuffer(L, bytes_available);
+  int bytes_read = hw_uart_receive(portnum, buffer, bytes_available);
   assert(bytes_read == bytes_available);
-  // tm_checked_call(L, 2);
-  lua_call(L, 2, 0);
+  tm_checked_call(L, 3);
 }
 
 /********************************************************************//**

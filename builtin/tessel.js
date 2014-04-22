@@ -679,11 +679,11 @@ function UART(params, port) {
   this.initialize();
 
   // When we get UART data
-  process.on('uart-receive', function (data) {
+  process.on('uart-receive', function (port, data) {
     // If it's on this port
-    if (data[0] == this.uartPort) {
+    if (port === this.uartPort) {
       // Emit the data
-      this.emit('data', data.slice(1));
+      this.emit('data', data);
     }
   }.bind(this));
 }
