@@ -365,7 +365,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			}
 		}
 		else if (cmd == 'M') {
-			script_msg_queue("message", buf, size);
+			colony_ipc_emit("raw-message", buf, size);
 		}
 		else if (cmd == 'B') {
 			jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
@@ -457,7 +457,7 @@ _ramfunc void SysTick_Handler (void)
  * Main body of Tessel OS
  */
 
-void script_msg_queue (char *type, void* data, size_t size) {
+void colony_ipc_emit (char *type, void* data, size_t size) {
 	lua_State* L = tm_lua_state;
 	// Get preload table.
 	lua_getglobal(L, "_colony_emit");
@@ -465,7 +465,8 @@ void script_msg_queue (char *type, void* data, size_t size) {
 		lua_pop(L, 1);
 	} else {
 		lua_pushstring(L, type);
-		lua_pushlstring(L, data, size);
+		uint8_t* buf = colony_createbuffer(L, size);
+		memcpy(buf, data, size);
 		tm_checked_call(L, 2);
 	}
 }

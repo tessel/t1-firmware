@@ -191,7 +191,7 @@ void interrupt_callback(tm_event* event)
 
 	sprintf(emitMessage+end, "}");
 
-	script_msg_queue("interrupt", emitMessage, strlen(emitMessage));
+	colony_ipc_emit("interrupt", emitMessage, strlen(emitMessage));
 }
 
 

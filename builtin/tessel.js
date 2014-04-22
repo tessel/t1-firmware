@@ -679,11 +679,11 @@ function UART(params, port) {
   this.initialize();
 
   // When we get UART data
-  board.on('uartReceive', function(port, data) {
+  process.on('uart-receive', function (data) {
     // If it's on this port
-    if (port == this.uartPort) {
+    if (data[0] == this.uartPort) {
       // Emit the data
-      this.emit('data', data);
+      this.emit('data', data.slice(1));
     }
   }.bind(this));
 }
@@ -762,10 +762,6 @@ UART.prototype.setStopBits = function(stopBits){
 
   throw new Error("Invalid stopbit value");
   return -1;
-};
-
-global._G.uart_receive_callback = function(port, data) {
-  board.emit("uartReceive", port, data);
 };
 
 
