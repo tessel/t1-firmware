@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "tm.h"
+#include "colony.h"
 #include "hw.h"
 #include "tessel.h"
 #include "assert.h"
@@ -171,27 +172,13 @@ void interrupt_callback(tm_event* event)
 	GPIO_Interrupt* interrupt = (GPIO_Interrupt*) event;
 	int interrupt_index = interrupt - interrupts;
 
-	char emitMessage[100];
-
-	sprintf(emitMessage, "{\"pin\":\"%d\",", interrupt->pin);
-	char end = strlen(emitMessage);
-
-	sprintf(emitMessage+end, "\"interrupt\":\"%d\",", interrupt_index);
-	end = strlen(emitMessage);
-
-	sprintf(emitMessage+end, "\"mode\":\"%d\",", interrupt->mode);
-	end = strlen(emitMessage);
-
-	sprintf(emitMessage+end, "\"state\": \"%d\",", interrupt->state);
-	end = strlen(emitMessage);
-
-	// Can't return time until we refactor CC3k Interrupt code
-	sprintf(emitMessage+end, "\"time\": \"%d\"", 0);//(int)hw_uptime_micro());
-	end = strlen(emitMessage);
-
-	sprintf(emitMessage+end, "}");
-
-	colony_ipc_emit("interrupt", emitMessage, strlen(emitMessage));
+	lua_State* L = tm_lua_state;
+	lua_getglobal(L, "_colony_emit");
+	lua_pushstring(L, "interrupt");
+	lua_pushnumber(L, interrupt_index);
+	lua_pushnumber(L, interrupt->mode);
+	lua_pushnumber(L, interrupt->state);
+	tm_checked_call(L, 4);
 }
 
 

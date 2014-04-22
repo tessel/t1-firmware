@@ -258,12 +258,9 @@ AnalogPin.prototype.read = function (next) {
  */
 
 // Event for GPIO interrupts
-process.on('interrupt', function (interruptData) { 
+process.on('interrupt', function (index, _mode, state) {
   // Grab the interrupt generating message
-  var index = parseInt(interruptData.interrupt, 10);
-  var mode = _interruptModes[interruptData.mode];
-  var state = parseInt(interruptData.state, 10);
-  var time = parseInt(interruptData.time, 10);
+  var mode = _interruptModes[_mode];
 
   // Grab corresponding pin
   var assigned = board.interrupts[index];
@@ -279,13 +276,13 @@ process.on('interrupt', function (interruptData) {
 
       if (state === 1) {
         callbacks.concat(assigned.modes['rise'].callbacks);
-        assigned.pin.emit('change', null, time, 'low');
-        assigned.pin.emit('rise', null, time, 'rise');
+        assigned.pin.emit('change', null, 0, 'low');
+        assigned.pin.emit('rise', null, 0, 'rise');
       } 
       else {
         callbacks.concat(assigned.modes['low'].callbacks);
-        assigned.pin.emit('change', null, time, 'low');
-        assigned.pin.emit('low', null, time, 'low');
+        assigned.pin.emit('change', null, 0, 'low');
+        assigned.pin.emit('low', null, 0, 'low');
       }
     }
     else {
@@ -293,7 +290,7 @@ process.on('interrupt', function (interruptData) {
     }
     // If there are, call them
     for (var i = 0; i < callbacks.length; i++) {
-      callbacks[i].bind(assigned.pin, null, time, mode)();
+      callbacks[i].bind(assigned.pin, null, 0, mode)();
     }
         // If it's a high or low event, clear that interrupt (should only happen once)
     if (mode == 'high' || mode == 'low') {
