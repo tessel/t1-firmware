@@ -47,14 +47,6 @@ void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 	}
 }
 
-// stub so that hw_interrupt compiles
-void script_msg_queue (char *type, void* data, size_t size) {
-	
-	(void) type;
-	(void) data;
-	(void) size;
-}
-
 int main (void){
 	__disable_irq();
 	SystemInit();
