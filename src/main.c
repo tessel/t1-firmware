@@ -1,8 +1,6 @@
 #define TESSEL_WIFI 1
 #define TESSEL_WIFI_DEPLOY 0
 #define TESSEL_TEST 0
-#define TESSEL_FASTCONNECT 1
-#define TESTALATOR 0
 
 #ifndef COLONY_STATE_CACHE
 #define COLONY_STATE_CACHE 0
@@ -44,15 +42,20 @@
 #include "tm.h"
 #include "hw.h"
 #include "tessel.h"
+#include "tessel_wifi.h"
 #include "l_hw.h"
 #include "colony.h"
-#include "test.h"
 
 #include "sdram_init.h"
 #include "lpc_types.h"
 #include "spi_flash.h"
 #include "bootloader.h"
 #include "utility/wlan.h"
+
+// test
+#ifdef TESSEL_TEST
+#include "test.h"
+#endif
 
 // lua
 #include <lua.h>
@@ -66,7 +69,6 @@ tm_fs_ent* tm_fs_root;
  */
 
 volatile int validirqcount = 0;
-volatile int netconnected = 0;
 
 volatile uint8_t CC3K_EVENT_ENABLED = 0;
 volatile uint8_t CC3K_IRQ_FLAG = 0;
@@ -167,145 +169,7 @@ uint8_t wifi_check_output = 0;
 char wifi_ssid[32] = {0};
 char wifi_pass[64] = {0};
 char wifi_security[32] = {0};
-static int wifi_timeout = 8000;
-
-unsigned long wifi_intervals[16] = { 2000 };
-
-int wifi_initialized = 0;
-
-void tessel_wifi_enable ()
-{
-	if (!wifi_initialized) {
-		TM_DEBUG("enabling wifi");
-		hw_net_initialize();
-		hw_net_config(0, TESSEL_FASTCONNECT, !TESSEL_FASTCONNECT);
-		wlan_ioctl_set_scan_params(10000, 20, 30, 2, 0x7FF, -100, 0, 205, wifi_intervals);
-		wifi_initialized = 1;
-		tm_net_initialize_dhcp_server();
-	}
-}
-
-void tessel_wifi_disable ()
-{
-	hw_net_disconnect();
-	hw_wait_ms(100);
-	netconnected = 0;
-	wifi_initialized = 0;
-} 
-
-void smart_config_task ()
-{
-	if (netconnected != 0) {
-		tessel_wifi_disable();
-	}
-//  tm_task_idle_start(tm_task_default_loop(), StartSmartConfig, 0);
-//  tm_net_initialize();
-	StartSmartConfig();
-}
-
-void on_wifi_connected()
-{
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 1);
-
-	uint32_t ip = hw_net_dnsserver();
-	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	ip = hw_net_dnsserver();
-	TM_DEBUG("DNS: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	ip = hw_net_dhcpserver();
-	TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	ip = hw_net_defaultgateway();
-	TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	TM_DEBUG("Connected to WiFi!");
-
-	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
-
-#if TESSEL_WIFI_DEPLOY
-	// Enable remote deploy on 4444
-	tcpsocket = tm_tcp_open();
-	tm_tcp_listen(tcpsocket, 4444);
-	TM_COMMAND('u', "Listening for remote updates on port 4444 (socket %d)...", tcpsocket);
-#endif
-
-	netconnected = 1;
-}
-
-void check_wifi(){
-	TM_DEBUG("checking wifi status...");
-	if (hw_net_is_connected() && hw_net_has_ip()){
-		on_wifi_connected();
-	} else {
-		TM_DEBUG("nope didn't connect");
-		if (wifi_check_output) TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
-	}
-}
-
-int connect_wifi ()
-{
-	if (wifi_ssid[0] == 0) {
-		return 1;
-	}
-
-	if (netconnected == 1){
-		TM_DEBUG("Disconnecting from current network.");
-		TM_COMMAND('W', "{\"connected\": 0}");
-		tessel_wifi_disable();
-		
-	}
-
-	TM_DEBUG("Starting up wifi (already initialized: %d)", wifi_initialized);
-	tessel_wifi_enable();
-
-	// Connect to given network.
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_net_connect(wifi_security, wifi_ssid, wifi_pass); // use this for using tessel wifi from command line
-
-	/*
-	TM_DEBUG("Waiting for DHCP (%d second timeout)...", wifi_timeout / 1000);
-	// DHCP wait can return but if local IP is 0, consider it a timeout.
-	if (!hw_net_block_until_dhcp_wait(wifi_timeout) || 
-		(hw_wifi_ip[0] | hw_wifi_ip[1] | hw_wifi_ip[2] | hw_wifi_ip[3]) == 0) {
-		// wifi_ssid[0] = 0;
-
-		// check the net connection statuses
-		if(!hw_net_is_connected() || !hw_net_has_ip()) {
-			TM_DEBUG("Connection timed out. Try connecting to WiFi again.");
-			TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
-		} else {
-			TM_DEBUG("we're connected");
-		}
-		// tessel_wifi_disable();
-		return 1;
-	}
-
-	// hw_net_populate_ip();
-	on_wifi_connected();
-	*/
-	return 0;
-}
-
-// tries to connect straight away
-int fast_connect() {
-
-	TM_DEBUG("Connecting to last available network...");
-	int backoff = 2000;
-
-	hw_net_initialize();
-	hw_digital_write(CC3K_ERR_LED, 0);
-	if (hw_net_block_until_dhcp_wait(backoff)) {
-		TM_DEBUG("Connected to saved network.");
-		netconnected = 1;
-		on_wifi_connected();
-		return 1;
-	}
-
-	tessel_wifi_disable();
-	TM_DEBUG("Couldn't connect to saved network.");
-	// TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
-
-	tessel_wifi_enable();
-	return 0;
-}
+// static int wifi_timeout = 8000;
 
 
 /**
@@ -345,9 +209,9 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 				memcpy(wifi_ssid, &buf[0], 32);
 				memcpy(wifi_pass, &buf[32], 64);
 				memcpy(wifi_security, &buf[96], 32);
-				if (size == 32 + 64 + 32 + 1) {
-					wifi_timeout = 1000 * (uint8_t) buf[128];
-				}
+				// if (size == 32 + 64 + 32 + 1) {
+					// wifi_timeout = 1000 * (uint8_t) buf[128];
+				// }
 			}
 #endif
 		} else if (cmd == 'C') {
@@ -356,13 +220,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 #else
 			// check wifi for connection
 			wifi_check = 1;
-			if (buf[0]){
-				TM_DEBUG("wifi check output = 1");
-			} else {
-				TM_DEBUG("wifi check output = 0");
-			}
 			wifi_check_output = buf[0] ? 1 : 0;
-				TM_DEBUG("wifi_check_output %d", wifi_check_output);
 
 #endif
 		} else if (cmd == 'V') {
@@ -572,16 +430,11 @@ void main_body (void)
 		TM_DEBUG("Ready.");
 		while (script_buf_lock != SCRIPT_READING) {
 			if (wifi_ssid[0] != 0) {
-				TM_DEBUG("starting to connect to wifi");
-				connect_wifi();
-				TM_DEBUG("resetting ssid");
-				if(hw_net_is_connected() && hw_net_has_ip()) {
-					TM_DEBUG("got connected after wifi check");
-				}
+				tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
 				wifi_ssid[0] = 0;
 			}
 			if (wifi_check == 1){
-				check_wifi();
+				tessel_wifi_check(wifi_check_output);
 				wifi_check = 0;
 			}
 			hw_wait_for_event();
@@ -840,7 +693,7 @@ int main (void)
 	hw_wait_us(LIGHTSHOWDELAY);
 
 #if TESSEL_WIFI && TESSEL_FASTCONNECT
-	fast_connect();
+	tessel_wifi_fast_connect();
 #endif
 
 #if TESSEL_TEST

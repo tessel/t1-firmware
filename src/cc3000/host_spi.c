@@ -828,7 +828,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		// only if status is OK, the flag is set to 1 and the addresses are valid
 		if ( *(data + NETAPP_IPCONFIG_MAC_OFFSET) == 0)
 		{
-			hw_net_dhcp_ip(data);
+			memcpy(hw_wifi_ip, data, 4);
 			TM_DEBUG("DHCP Ip: %d.%d.%d.%d", data[3], data[2], data[1], data[0]);
 			hw_digital_write(CC3K_CONN_LED, 1);
 			ulCC3000DHCP = 1;
@@ -883,88 +883,88 @@ void SSIContReadOperation(void)
 /**
  * Smart Config
  */
+/*
+void FinishSmartConfig(void) {
+	mdnsAdvertiser(1,device_name,strlen(device_name));
+}
 
-// void FinishSmartConfig(void) {
-// 	mdnsAdvertiser(1,device_name,strlen(device_name));
-// }
+#define CC3000_UNENCRYPTED_SMART_CONFIG 1
+ void StartSmartConfig(void)
+ {
+ 	TM_DEBUG("Start Smart Config");
 
-// #define CC3000_UNENCRYPTED_SMART_CONFIG 1
-//  void StartSmartConfig(void)
-//  {
-//  	TM_DEBUG("Start Smart Config");
+ 	ulSmartConfigFinished = 0;
+ 	ulCC3000Connected = 0;
+ 	ulCC3000DHCP = 0;
+ 	OkToDoShutDown=0;
 
-//  	ulSmartConfigFinished = 0;
-//  	ulCC3000Connected = 0;
-//  	ulCC3000DHCP = 0;
-//  	OkToDoShutDown=0;
+ 	// Reset all the previous configuration
+ 	wlan_ioctl_set_connection_policy(0, 0, 0);
+ 	wlan_ioctl_del_profile(255);
 
-//  	// Reset all the previous configuration
-//  	wlan_ioctl_set_connection_policy(0, 0, 0);
-//  	wlan_ioctl_del_profile(255);
+ 	TM_DEBUG("Deleted profiles");
+ 	//Wait until CC3000 is disconnected
+ 	while (ulCC3000Connected == 1)
+ 	{
+// 		delayMicroseconds(100);
+ 		CC_BLOCKS();
+ 		fakeWait(100000);
+ 	}
 
-//  	TM_DEBUG("Deleted profiles");
-//  	//Wait until CC3000 is disconnected
-//  	while (ulCC3000Connected == 1)
-//  	{
-// // 		delayMicroseconds(100);
-//  		CC_BLOCKS();
-//  		fakeWait(100000);
-//  	}
+ 	// Trigger the Smart Config process
+ 	// Start blinking LED6 during Smart Configuration process
+ 	hw_digital_write(CC3K_CONN_LED, 1);
+ 	wlan_smart_config_set_prefix((char*)aucCC3000_prefix);
+ 	hw_digital_write(CC3K_CONN_LED, 0);
 
-//  	// Trigger the Smart Config process
-//  	// Start blinking LED6 during Smart Configuration process
-//  	hw_digital_write(CC3K_CONN_LED, 1);
-//  	wlan_smart_config_set_prefix((char*)aucCC3000_prefix);
-//  	hw_digital_write(CC3K_CONN_LED, 0);
+ 	TM_DEBUG("starting config");
+ 	// Start the SmartConfig start process
+ 	wlan_smart_config_start(0);
 
-//  	TM_DEBUG("starting config");
-//  	// Start the SmartConfig start process
-//  	wlan_smart_config_start(0);
+ 	hw_digital_write(CC3K_CONN_LED, 1);
 
-//  	hw_digital_write(CC3K_CONN_LED, 1);
+ 	// Wait for Smartconfig process complete
+ 	while (ulSmartConfigFinished == 0)
+ 	{
+ 		CC_BLOCKS();
+ 		fakeWait(1000000);
 
-//  	// Wait for Smartconfig process complete
-//  	while (ulSmartConfigFinished == 0)
-//  	{
-//  		CC_BLOCKS();
-//  		fakeWait(1000000);
+ 		hw_digital_write(CC3K_CONN_LED, 0);
 
-//  		hw_digital_write(CC3K_CONN_LED, 0);
+ 		fakeWait(1000000);
 
-//  		fakeWait(1000000);
+ 		hw_digital_write(CC3K_CONN_LED, 1);
 
-//  		hw_digital_write(CC3K_CONN_LED, 1);
+ 	}
+ 	TM_DEBUG("finishd config");
+ 	hw_digital_write(CC3K_CONN_LED, 1);
 
-//  	}
-//  	TM_DEBUG("finishd config");
-//  	hw_digital_write(CC3K_CONN_LED, 1);
+ #ifndef CC3000_UNENCRYPTED_SMART_CONFIG
+ 	// create new entry for AES encryption key
+ 	nvmem_create_entry(NVMEM_AES128_KEY_FILEID,16);
 
-//  #ifndef CC3000_UNENCRYPTED_SMART_CONFIG
-//  	// create new entry for AES encryption key
-//  	nvmem_create_entry(NVMEM_AES128_KEY_FILEID,16);
+ 	// write AES key to NVMEM
+ 	aes_write_key((unsigned char *)(&smartconfigkey[0]));
 
-//  	// write AES key to NVMEM
-//  	aes_write_key((unsigned char *)(&smartconfigkey[0]));
+ 	// Decrypt configuration information and add profile
+ 	wlan_smart_config_process();
+ #endif
 
-//  	// Decrypt configuration information and add profile
-//  	wlan_smart_config_process();
-//  #endif
+ 	// Configure to connect automatically to the AP retrieved in the
+ 	// Smart config process
+ 	TM_DEBUG("reset policy");
+ 	wlan_ioctl_set_connection_policy(0, 0, 1);
 
-//  	// Configure to connect automatically to the AP retrieved in the
-//  	// Smart config process
-//  	TM_DEBUG("reset policy");
-//  	wlan_ioctl_set_connection_policy(0, 0, 1);
+ 	// reset the CC3000
+ 	wlan_stop();
 
-//  	// reset the CC3000
-//  	wlan_stop();
+ 	fakeWait(6000000);
+ 	hw_digital_write(CC3K_CONN_LED, 0);
+ 	TM_DEBUG("Config done");
+ 	wlan_start(0);
 
-//  	fakeWait(6000000);
-//  	hw_digital_write(CC3K_CONN_LED, 0);
-//  	TM_DEBUG("Config done");
-//  	wlan_start(0);
-
-//  	// Mask out all non-required events
-//  	wlan_set_event_mask(HCI_EVNT_WLAN_KEEPALIVE|HCI_EVNT_WLAN_UNSOL_INIT|HCI_EVNT_WLAN_ASYNC_PING_REPORT);
-//  	smartconfig_process = 0;
-//  }
-
+ 	// Mask out all non-required events
+ 	wlan_set_event_mask(HCI_EVNT_WLAN_KEEPALIVE|HCI_EVNT_WLAN_UNSOL_INIT|HCI_EVNT_WLAN_ASYNC_PING_REPORT);
+ 	smartconfig_process = 0;
+ }
+*/

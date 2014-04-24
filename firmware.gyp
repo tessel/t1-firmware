@@ -189,6 +189,8 @@
       ],
       'defines': [
         'CC3000_DEBUG',
+        'TESSEL_FASTCONNECT=1',
+        'TESTALATOR=0'
       ],
       'sources': [
         # Startup script
@@ -239,6 +241,7 @@
         'src/main.c',
         'src/syscalls.c',
         'src/tessel.c',
+        'src/tessel_wifi.c',
 
         'src/usb/usb.c',
         'src/usb/device.c',
