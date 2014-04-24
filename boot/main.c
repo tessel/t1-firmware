@@ -116,6 +116,7 @@ void bootloader_main() {
 	__enable_irq();
 
 	usb_init();
+	usb_set_speed(USB_SPEED_FULL);
 	usb_attach();
 
 	while(!exit_and_jump) {
@@ -125,7 +126,7 @@ void bootloader_main() {
 
 	delay_ms(25);
 
-	// Shut down USB
+	usb_detach();
 
 	delay_ms(100);
 
