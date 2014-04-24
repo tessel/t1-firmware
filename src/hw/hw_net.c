@@ -50,24 +50,8 @@ int hw_net_has_ip ()
   return ulCC3000DHCP;
 }
 
-void hw_net_block_until_dhcp ()
-{
-	hw_net_block_until_dhcp_wait(0);
-}
-
-int hw_net_block_until_dhcp_wait (int wait)
-{
-  // Wait for interrupts
-  while (!hw_net_is_connected() || !hw_net_has_ip()) {
-	  if (wait > 0 && wait <= 50) {
-		  return 0;
-	  }
-	  hw_wait_ms(50);
-	  if (wait > 0) {
-		  wait -= 50;
-	  }
-  }
-  return 1;
+int hw_net_is_online(){
+	return ulCC3000Connected && ulCC3000DHCP;
 }
 
 int hw_net_ssid (char ssid[33])
@@ -238,12 +222,10 @@ void hw_net_initialize (void)
 	}
 
 	unsigned char version[2];
-	if (!nvmem_read_sp_version(version)) {
-		TM_DEBUG("CC3000 firmware version: %d.%d", version[0], version[1]);
-	} else {
-		TM_DEBUG("Failed to read CC3000 firmware version.");
-	}
-
+	if (nvmem_read_sp_version(version)) {
+		TM_ERR("Failed to read CC3000 firmware version.");
+	} 
+	
 	memcpy(hw_cc_ver, version, 2);
 
 	CC3000_END;
