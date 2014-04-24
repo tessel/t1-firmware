@@ -167,6 +167,7 @@ void uart_rx_event_callback(tm_event* event) {
   int portnum = uart - uarts;
 
   lua_State* L = tm_lua_state;
+  if (!L) return;
   
   int bytes_available = hw_uart_rx_available(uart);
 
