@@ -32,32 +32,13 @@ void delay_ms(unsigned ms) {
 
 void init_systick() {
 	if (SysTick_Config(SystemCoreClock / 1000)) {	/* Setup SysTick Timer for 1 msec interrupts  */
-		while (1) {									/* Capture error */
-		}
+		while (1) {}								/* Capture error */
 	}
 	NVIC_SetPriority(SysTick_IRQn, 0x0);
 	g_msTicks = 0;
 }
 
 /*** USB / DFU ***/
-
-#if 0
-uint16_t dfu_cb_upload_block(uint16_t block, uint16_t maxLength, uint8_t** pBuff) {
-	unsigned addr = block_num * DFU_TRANSFER_SIZE;
-	uint8_t* buf = (uint8_t*) DFU_DEST_BASE; //TODO: a proper section
-
-	if (addr == FLASH_FW_SIZE) {
-		return 0; // Because 0 doesn't work
-	} else if (addr > FLASH_FW_SIZE) {
-		return DFU_STATUS_errADDRESS;
-	}
-
-	// spiflash_read(addr, buf, length);
-
-	*pBuff = buf;
-	return length;
-}
-#endif
 
 uint8_t* dfu_cb_dnload_block(uint16_t block_num, uint16_t len) {
 	if (len > DFU_TRANSFER_SIZE) {
@@ -109,8 +90,6 @@ void dfu_cb_manifest(void) {
 uint8_t led_state = 0;
 uint32_t led_next_time = 0;
 
-volatile uint32_t cfi = 0;
-
 void led_task() {
 	if (g_msTicks > led_next_time) {
 		led_next_time += 400;
@@ -140,7 +119,6 @@ void bootloader_main() {
 	usb_attach();
 
 	while(!exit_and_jump) {
-		// dfu_task();
 		led_task();
 		__WFI(); /* conserve power */
 	}
@@ -148,8 +126,6 @@ void bootloader_main() {
 	delay_ms(25);
 
 	// Shut down USB
-	// USBD_API->hw->Connect(g_hUsb, 0);
-	//NVIC_DisableIRQ(LPC_USB_IRQ);
 
 	delay_ms(100);
 
@@ -174,7 +150,6 @@ int main(unsigned r0) {
 	hw_digital_input(BTN1);
 
 	if (r0 == BOOT_MAGIC || !flash_valid() || button_pressed()) {
-		//while (!go);
 		bootloader_main();
 	}
 
