@@ -829,7 +829,8 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		if ( *(data + NETAPP_IPCONFIG_MAC_OFFSET) == 0)
 		{
 			memcpy(hw_wifi_ip, data, 4);
-			TM_DEBUG("DHCP Ip: %d.%d.%d.%d", data[3], data[2], data[1], data[0]);
+			// TM_DEBUG("DHCP Ip: %d.%d.%d.%d", data[3], data[2], data[1], data[0]);
+			// TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 			hw_digital_write(CC3K_CONN_LED, 1);
 			ulCC3000DHCP = 1;
 		}
@@ -838,6 +839,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 			ulCC3000DHCP = 0;
 			TM_DEBUG("DHCP failed. Try reconnecting.");
 			hw_digital_write(CC3K_CONN_LED, 0);
+			TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
 		}
 	}
 	

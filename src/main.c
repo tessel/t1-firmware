@@ -167,9 +167,11 @@ volatile int accept_count = 0;
 uint8_t wifi_check = 0;
 uint8_t wifi_check_output = 0;
 char wifi_ssid[32] = {0};
+// we keep the old ssid so we don't connect to the same network twice
+char wifi_old_ssid[32] = {0}; 
 char wifi_pass[64] = {0};
 char wifi_security[32] = {0};
-// static int wifi_timeout = 8000;
+uint8_t wifi_start_connect = 0;
 
 
 /**
@@ -205,13 +207,16 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 				TM_ERR("WiFi buffer malformed, aborting.");
 				TM_COMMAND('W', "{\"connected\":0}");
 			} else {
-				TM_DEBUG("copying wifi ssid");
 				memcpy(wifi_ssid, &buf[0], 32);
-				memcpy(wifi_pass, &buf[32], 64);
-				memcpy(wifi_security, &buf[96], 32);
-				// if (size == 32 + 64 + 32 + 1) {
-					// wifi_timeout = 1000 * (uint8_t) buf[128];
-				// }
+				if (wifi_ssid[0] == 0 || strcmp(wifi_old_ssid, wifi_ssid) != 0 || !hw_net_is_online()){
+					memcpy(wifi_pass, &buf[32], 64);
+					memcpy(wifi_security, &buf[96], 32);
+					memcpy(wifi_old_ssid, &buf[0], 32);
+					wifi_start_connect = 1;
+				} else {
+					tessel_wifi_check(true);
+				}
+				
 			}
 #endif
 		} else if (cmd == 'C') {
@@ -429,10 +434,10 @@ void main_body (void)
 		// While we're not running the script, we can do other interrupts.
 		TM_DEBUG("Ready.");
 		while (script_buf_lock != SCRIPT_READING) {
-			if (wifi_ssid[0] != 0) {
+			if (wifi_start_connect == 1) {
 				tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-				wifi_ssid[0] = 0;
-			}
+				wifi_start_connect = 0;
+			} 
 			if (wifi_check == 1){
 				tessel_wifi_check(wifi_check_output);
 				wifi_check = 0;

@@ -15,17 +15,16 @@ unsigned long wifi_intervals[16] = { 2000 };
 
 int wifi_initialized = 0;
 
-void tessel_wifi_enable ()
+void tessel_wifi_onconnect()
 {
-	if (!wifi_initialized) {
-		TM_DEBUG("enabling wifi");
-		hw_net_initialize();
-		hw_net_config(0, TESSEL_FASTCONNECT, !TESSEL_FASTCONNECT);
-		wlan_ioctl_set_scan_params(10000, 20, 30, 2, 0x7FF, -100, 0, 205, wifi_intervals);
-		wifi_initialized = 1;
-		tm_net_initialize_dhcp_server();
-	}
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 1);
+
+	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
+
+	netconnected = 1;
 }
+
 
 void tessel_wifi_disable ()
 {
@@ -34,6 +33,23 @@ void tessel_wifi_disable ()
 	netconnected = 0;
 	wifi_initialized = 0;
 } 
+
+
+void tessel_wifi_enable ()
+{
+	if (!wifi_initialized) {
+		hw_net_initialize();
+		hw_net_config(0, TESSEL_FASTCONNECT, !TESSEL_FASTCONNECT);
+		wlan_ioctl_set_scan_params(10000, 20, 30, 2, 0x7FF, -100, 0, 205, wifi_intervals);
+		wifi_initialized = 1;
+		tm_net_initialize_dhcp_server();
+	} else {
+		// disable and re-enable
+		tessel_wifi_disable();
+		tessel_wifi_enable();
+	}
+}
+
 
 void tessel_wifi_smart_config ()
 {
@@ -45,35 +61,18 @@ void tessel_wifi_smart_config ()
 	StartSmartConfig();
 }
 
-void tessel_wifi_connected()
-{
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 1);
-
-	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", hw_wifi_ip[3], hw_wifi_ip[2], hw_wifi_ip[1], hw_wifi_ip[0]);
-	uint32_t ip = hw_net_dnsserver();
-	TM_DEBUG("DNS: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	ip = hw_net_dhcpserver();
-	TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	ip = hw_net_defaultgateway();
-	TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
-	TM_DEBUG("Connected to WiFi!");
-
-	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
-
-#if TESSEL_WIFI_DEPLOY
-	// Enable remote deploy on 4444
-	tcpsocket = tm_tcp_open();
-	tm_tcp_listen(tcpsocket, 4444);
-	TM_COMMAND('u', "Listening for remote updates on port 4444 (socket %d)...", tcpsocket);
-#endif
-
-	netconnected = 1;
-}
 
 void tessel_wifi_check(uint8_t output){
-	if (hw_net_is_connected() && hw_net_has_ip()){
-		tessel_wifi_connected();
+	if (hw_net_is_online()){
+		TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", hw_wifi_ip[3], hw_wifi_ip[2], hw_wifi_ip[1], hw_wifi_ip[0]);
+		uint32_t ip = hw_net_dnsserver();
+		TM_DEBUG("DNS: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+		ip = hw_net_dhcpserver();
+		TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+		ip = hw_net_defaultgateway();
+		TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
+		TM_DEBUG("Connected to WiFi!");
+		tessel_wifi_onconnect();
 	} else {
 		if (output) TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
 	}
@@ -89,11 +88,12 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 		TM_DEBUG("Disconnecting from current network.");
 		TM_COMMAND('W', "{\"connected\": 0}");
 		tessel_wifi_disable();
-		
 	}
 
-	TM_DEBUG("Starting up wifi (already initialized: %d)", wifi_initialized);
-	tessel_wifi_enable();
+	// TM_DEBUG("Starting up wifi (already initialized: %d)", wifi_initialized);
+	if (!wifi_initialized) {
+		tessel_wifi_enable();
+	}
 
 	// Connect to given network.
 	hw_digital_write(CC3K_ERR_LED, 0);
@@ -103,23 +103,11 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 }
 
 // tries to connect straight away
-int tessel_wifi_fast_connect() {
+void tessel_wifi_fast_connect() {
 
 	TM_DEBUG("Connecting to last available network...");
-	int backoff = 2000;
 
 	hw_net_initialize();
 	hw_digital_write(CC3K_ERR_LED, 0);
-	if (hw_net_block_until_dhcp_wait(backoff)) {
-		TM_DEBUG("Connected to saved network.");
-		netconnected = 1;
-		tessel_wifi_connected();
-		return 1;
-	}
-
-	tessel_wifi_disable();
-	TM_DEBUG("Couldn't connect to saved network.");
-
-	tessel_wifi_enable();
-	return 0;
+	wifi_initialized = 1;
 }

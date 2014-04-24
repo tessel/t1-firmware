@@ -96,7 +96,6 @@ void test_gpios (void)
 void test_udp_send (void)
 {
 	hw_net_initialize();
-	hw_net_block_until_dhcp();
 
 	// Send UDP packet
 	while (1) {
@@ -127,7 +126,6 @@ void test_udp_send (void)
 void test_udp_receive (void)
 {
 	hw_net_initialize();
-	hw_net_block_until_dhcp();
 
 	hw_digital_write(CC3K_CONN_LED, 1);
 
