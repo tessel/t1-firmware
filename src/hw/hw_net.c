@@ -59,12 +59,12 @@ int hw_net_block_until_dhcp_wait (int wait)
 {
   // Wait for interrupts
   while (!hw_net_is_connected() || !hw_net_has_ip()) {
-	  if (wait > 0 && wait <= 100) {
+	  if (wait > 0 && wait <= 50) {
 		  return 0;
 	  }
-	  hw_wait_ms(100);
+	  hw_wait_ms(50);
 	  if (wait > 0) {
-		  wait -= 100;
+		  wait -= 50;
 	  }
   }
   return 1;
@@ -123,26 +123,6 @@ uint32_t hw_net_dnsserver ()
 //   }
 //   return res;
 // }
-
-
-void hw_net_populate_ip ()
-{
-	if (!hw_net_is_connected()) {
-		memset(hw_wifi_ip, 0, 4);
-	}
-	
-	CC3000_START;
-	tNetappIpconfigRetArgs ipinfo;
-	netapp_ipconfig(&ipinfo);
-	CC3000_END;
-
-	memcpy(hw_wifi_ip, ipinfo.aucIP, 4);
-
-	// uint32_t ret;
-	// memcpy(&ret, WIFI_IP, 4);
-
-	// return ret;
-}
 
 
 int hw_net_mac (uint8_t mac[MAC_ADDR_LEN])
@@ -320,6 +300,7 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
     TM_DEBUG("Error #%d in connecting...", connected);
   } else {
     TM_DEBUG("Acquiring IP address...");
+    TM_COMMAND('W', "{\"acquiring\": 1}");
   }
   CC3000_END;
   return connected;

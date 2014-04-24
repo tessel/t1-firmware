@@ -187,6 +187,9 @@
         '-Wextra',
         '-Werror',
       ],
+      'defines': [
+        'CC3000_DEBUG',
+      ],
       'sources': [
         # Startup script
         'src/sys/startup_lpc1800.s',

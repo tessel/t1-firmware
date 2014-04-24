@@ -46,7 +46,6 @@ void hw_net_get_cc_ver(uint8_t * buff);
 uint32_t hw_net_defaultgateway ();
 uint32_t hw_net_dnsserver ();
 uint32_t hw_net_dhcpserver ();
-void hw_net_populate_ip ();
 int hw_net_ssid (char ssid[33]);
 void tm_net_initialize_dhcp_server (void);
 int hw_net_mac (uint8_t mac[MAC_ADDR_LEN]);
