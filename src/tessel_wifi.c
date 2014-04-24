@@ -9,28 +9,15 @@
 #include "tm.h"
 #include "utility/wlan.h"
 
-volatile int netconnected = 0;
-
 unsigned long wifi_intervals[16] = { 2000 };
 
 int wifi_initialized = 0;
-
-void tessel_wifi_onconnect()
-{
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 1);
-
-	TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
-
-	netconnected = 1;
-}
 
 
 void tessel_wifi_disable ()
 {
 	hw_net_disconnect();
 	hw_wait_ms(100);
-	netconnected = 0;
 	wifi_initialized = 0;
 } 
 
@@ -53,7 +40,7 @@ void tessel_wifi_enable ()
 
 void tessel_wifi_smart_config ()
 {
-	if (netconnected != 0) {
+	if (hw_net_is_online()) {
 		tessel_wifi_disable();
 	}
 //  tm_task_idle_start(tm_task_default_loop(), StartSmartConfig, 0);
@@ -72,7 +59,7 @@ void tessel_wifi_check(uint8_t output){
 		ip = hw_net_defaultgateway();
 		TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
 		TM_DEBUG("Connected to WiFi!");
-		tessel_wifi_onconnect();
+		TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 	} else {
 		if (output) TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
 	}
@@ -84,7 +71,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 		return 1;
 	}
 
-	if (netconnected == 1){
+	if (hw_net_is_online()){
 		TM_DEBUG("Disconnecting from current network.");
 		TM_COMMAND('W', "{\"connected\": 0}");
 		tessel_wifi_disable();
