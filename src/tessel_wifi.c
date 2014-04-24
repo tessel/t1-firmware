@@ -1,3 +1,14 @@
+// Copyright 2013 Technical Machine. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// Tessel-specific wifi setup
+
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -40,7 +51,7 @@ void tessel_wifi_enable ()
 
 void tessel_wifi_smart_config ()
 {
-	if (hw_net_is_online()) {
+	if (hw_net_online_status()) {
 		tessel_wifi_disable();
 	}
 //  tm_task_idle_start(tm_task_default_loop(), StartSmartConfig, 0);
@@ -50,7 +61,7 @@ void tessel_wifi_smart_config ()
 
 
 void tessel_wifi_check(uint8_t output){
-	if (hw_net_is_online()){
+	if (hw_net_online_status()){
 		TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", hw_wifi_ip[3], hw_wifi_ip[2], hw_wifi_ip[1], hw_wifi_ip[0]);
 		uint32_t ip = hw_net_dnsserver();
 		TM_DEBUG("DNS: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
@@ -71,7 +82,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 		return 1;
 	}
 
-	if (hw_net_is_online()){
+	if (hw_net_online_status()){
 		TM_DEBUG("Disconnecting from current network.");
 		TM_COMMAND('W', "{\"connected\": 0}");
 		tessel_wifi_disable();
@@ -90,7 +101,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 }
 
 // tries to connect straight away
-void tessel_wifi_fast_connect() {
+void tessel_wifi_fastconnect() {
 
 	TM_DEBUG("Connecting to last available network...");
 

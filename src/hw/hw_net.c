@@ -50,7 +50,8 @@ int hw_net_has_ip ()
   return ulCC3000DHCP;
 }
 
-int hw_net_is_online(){
+int hw_net_online_status(){
+	// checks if the CC is connected to wifi and an IP address is allocated
 	return ulCC3000Connected && ulCC3000DHCP;
 }
 
@@ -225,7 +226,7 @@ void hw_net_initialize (void)
 	if (nvmem_read_sp_version(version)) {
 		TM_ERR("Failed to read CC3000 firmware version.");
 	} 
-	
+
 	memcpy(hw_cc_ver, version, 2);
 
 	CC3000_END;

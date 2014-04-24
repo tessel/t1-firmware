@@ -208,7 +208,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			} else {
 				if (wifi_ssid[0] == 0 || strncmp((const char *) &buf[0], wifi_ssid, 32) != 0 
 					|| strncmp((const char *) &buf[32], wifi_pass, 64) != 0 
-					|| !hw_net_is_online()){
+					|| !hw_net_online_status()){
 					memcpy(wifi_security, &buf[96], 32);
 					memcpy(wifi_ssid, &buf[0], 32);
 					memcpy(wifi_pass, &buf[32], 64);
@@ -689,7 +689,7 @@ int main (void)
 	hw_wait_us(LIGHTSHOWDELAY);
 
 #if TESSEL_WIFI && TESSEL_FASTCONNECT
-	tessel_wifi_fast_connect();
+	tessel_wifi_fastconnect();
 #endif
 
 #if TESSEL_TEST

@@ -189,8 +189,7 @@
       ],
       'defines': [
         'CC3000_DEBUG',
-        'TESSEL_FASTCONNECT=1',
-        'TESTALATOR=0'
+        'TESSEL_FASTCONNECT=1'
       ],
       'sources': [
         # Startup script

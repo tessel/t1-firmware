@@ -38,7 +38,7 @@ int hw_net_connect_wpa2 (const char *ssid, const char *keys);
 int hw_net_inuse ();
 int hw_net_is_connected (void);
 int hw_net_has_ip (void);
-int hw_net_is_online (void);
+int hw_net_online_status (void);
 void hw_net_get_curr_ip(uint8_t * buff);
 void hw_net_get_cc_ver(uint8_t * buff);
 
