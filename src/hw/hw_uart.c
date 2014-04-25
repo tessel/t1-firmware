@@ -379,6 +379,7 @@ void hw_uart_enable (uint32_t port)
     hw_uart_output_tx(A_G1);
     hw_uart_output_rx(A_G2);
   }
+  tm_event_ref(&uarts[port].rx_event);
 }
 
 void hw_uart_disable (uint32_t port)
@@ -402,6 +403,7 @@ void hw_uart_disable (uint32_t port)
     hw_digital_output(A_G1);
     hw_digital_output(A_G2);
   }
+  tm_event_unref(&uarts[port].rx_event);
 }
 
 void hw_uart_initialize (uint32_t port, uint32_t baudrate, UART_DATABIT_Type databits, UART_PARITY_Type parity, UART_STOPBIT_Type stopbits)
