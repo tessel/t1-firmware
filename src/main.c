@@ -616,17 +616,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		TM_DEBUG("Script ended with return code %d.", returncode);
 }
 
-#include <internal.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-// TODO get rid of these
-void *getgrgid(gid_t gid) { (void) gid; return 0; }
-void *getpwuid(pid_t gid) { (void) gid; return 0; }
-void *getgrnam(const char *name) { (void) name; return 0; }
-void *getpwnam(const char *name) { (void) name; return 0; }
-void strmode(int mode, char *bp) { (void) mode; *bp = 0; }
-
 void tm_usb_init(void);
 
 int main (void)
