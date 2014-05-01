@@ -188,14 +188,13 @@ void place_awaiting_interrupt(int interrupt_id)
 	GPIO_Interrupt* interrupt = &interrupts[interrupt_id];
 
 	if (interrupt->mode == TM_INTERRUPT_MODE_LOW) {
+		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
 		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
-		LPC_GPIO_PIN_INT->CIENF |= (1<<interrupt_id);
 		hw_interrupt_disable(interrupt_id);
 	}
 	else if (interrupt->mode == TM_INTERRUPT_MODE_HIGH){
-
+		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
 		GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
-		LPC_GPIO_PIN_INT->SIENF |= (1<<interrupt_id);
 		hw_interrupt_disable(interrupt_id);
 	}
 

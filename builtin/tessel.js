@@ -293,13 +293,17 @@ process.on('interrupt', function (index, _mode, state) {
     else {
       assigned.pin.emit(mode)
     }
+
+    // If it's a high or low event, clear that interrupt (should only happen once)
+    // This happens before the callback so the callback can re-arm the interrupt.
+    if (mode == 'high' || mode == 'low') {
+      delete board.interrupts[index];
+      hw.interrupt_unwatch(index);
+    }
+
     // If there are, call them
     for (var i = 0; i < callbacks.length; i++) {
       callbacks[i].bind(assigned.pin, null, 0, mode)();
-    }
-        // If it's a high or low event, clear that interrupt (should only happen once)
-    if (mode == 'high' || mode == 'low') {
-      assigned.pin.cancelWatch();
     }
   }
 });
