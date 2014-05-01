@@ -356,6 +356,7 @@ _ramfunc void SysTick_Handler (void)
 
 void colony_ipc_emit (char *type, void* data, size_t size) {
 	lua_State* L = tm_lua_state;
+	if (!L) return;
 	// Get preload table.
 	lua_getglobal(L, "_colony_emit");
 	if (lua_isnil(L, -1)) {
