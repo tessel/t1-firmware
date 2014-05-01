@@ -122,7 +122,7 @@ Pin.prototype.output = function output(value) {
 
 Pin.prototype.input = function input() {
   this.rawDirection(false);
-  return this.rawRead();
+  return this;
 }
 
 Pin.prototype.setInput = function (next) {
@@ -152,27 +152,35 @@ Pin.prototype.setOutput = function (initial, next) {
 }
 
 Pin.prototype.read = function (next) {
-  console.warn("pin.read() is deprecated. Use pin.input() instead.");
-  setImmediate(function() {
-    next(this.input());
-  }.bind(this));
+  this.rawDirection(false);
+  var value = this.rawRead();
+
+  if (next) {
+    console.warn("pin.read is now synchronous. Use of the callback is deprecated.");
+    setImmediate(function() { next(value) });
+  }
+  return value;
 }
 
 Pin.prototype.readSync = function(value) {
-  console.warn("pin.readSync() is deprecated. Use pin.input() instead.");
-  return this.input();
+  console.warn("pin.readSync() is deprecated. Use pin.read() instead.");
+  return this.read();
 }
 
 Pin.prototype.write = function (value, next) {
-  console.warn("pin.write() is deprecated. Use pin.output() instead");
-  pin.output(value);
-  if (next) setImmediate(next);
-  return this;
+  this.rawWrite(value);
+  this.rawDirection(true);
+
+  if (next) {
+    console.warn("pin.write is now synchronous. Use of the callback is deprecated.");
+    setImmediate(next);
+  }
+  return null;
 }
 
 Pin.prototype.writeSync = function(value) {
-  console.warn("pin.writeSync() is deprecated. Use pin.output() instead.");
-  return this.output(value);
+  console.warn("pin.writeSync() is deprecated. Use pin.write() instead.");
+  return this.write(value);
 }
 
 Pin.prototype.high = function () {
