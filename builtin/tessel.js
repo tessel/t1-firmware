@@ -89,94 +89,100 @@ function intBytes (num) {
 
 function Pin (pin) {
   this.pin = pin;
-  this.pinmode = null;
-  this.value = 0;
 }
 
 util.inherits(Pin, EventEmitter);
 
 Pin.prototype.type = 'digital'
 
+Pin.prototype.rawDirection = function rawDirection(isOutput) {
+  if (isOutput) {
+    hw.digital_output(this.pin);
+  } else {
+    hw.digital_input(this.pin);
+  }
+  return this;
+};
+
+Pin.prototype.rawRead = function rawRead() {
+  return hw.digital_read(this.pin);
+}
+
+Pin.prototype.rawWrite = function rawWrite(value) {
+  hw.digital_write(this.pin, value ? hw.HIGH : hw.LOW);
+  return this;
+};
+
+
+Pin.prototype.output = function output(value) {
+  this.rawWrite(value);
+  this.rawDirection(true);
+  return this;
+}
+
+Pin.prototype.input = function input() {
+  this.rawDirection(false);
+  return this.rawRead();
+}
+
 Pin.prototype.setInput = function (next) {
-  hw.digital_input(this.pin);
-  next && setImmediate(next);
+  console.warn("pin.setInput is deprecated. Use pin.input()");
+  hw.rawDirection(false);
+  if (next) {
+    setImmediate(next);
+  }
   return this;
 }
 
 Pin.prototype.setOutput = function (initial, next) {
+  console.warn("pin.setOutput is deprecated. Use pin.output()");
+
   if (typeof initial == 'function') {
     next = initial;
-    initial = null;
+    initial = false;
   }
-  hw.digital_write(this.pin, initial || initial != 'low' ? hw.HIGH : hw.LOW);
-  hw.digital_output(this.pin);
-  next && setImmediate(next);
+
+  this.output(initial);
+
+  if (next) {
+    setImmediate(next);
+  }
+
   return this;
 }
 
 Pin.prototype.read = function (next) {
-  var self = this;
-  setImmediate(function () {
-    hw.digital_input(self.pin);
-    next && next(null, hw.digital_read(self.pin));
-  });
-
-  return this;
+  console.warn("pin.read() is deprecated. Use pin.input() instead.");
+  setImmediate(function() {
+    next(this.input());
+  }.bind(this));
 }
 
-Pin.prototype.readSync = function () {
-  hw.digital_input(this.pin);
-  return hw.digital_read(this.pin);
+Pin.prototype.readSync = function(value) {
+  console.warn("pin.readSync() is deprecated. Use pin.input() instead.");
+  return this.input();
 }
 
 Pin.prototype.write = function (value, next) {
-  var self = this;
-  setImmediate(function () {
-    hw.digital_output(self.pin);
-    hw.digital_write(self.pin, value ? hw.HIGH : hw.LOW);
-    self.value = v;
-    next && next();
-  });
-
+  console.warn("pin.write() is deprecated. Use pin.output() instead");
+  pin.output(value);
+  if (next) setImmediate(next);
   return this;
 }
 
-Pin.prototype.writeSync = function (value) {
-  hw.digital_output(this.pin);
-  hw.digital_write(this.pin, value ? hw.HIGH : hw.LOW);
-  this.value = v;
-}
-
-// TM <<<
-
-
-
-Pin.prototype.mode = function (mode) {
-  // truthy = input, falsy = output
-  if (mode) {
-    this.pinmode = 'input';
-    hw.digital_input(this.pin);
-  } else {
-    this.pinmode = 'output';
-    hw.digital_output(this.pin);
-  }
-  return this;
-}
-
-Pin.prototype.input = function () {
-  return this.mode(true);
-}
-
-Pin.prototype.output = function () {
-  return this.mode(false);
+Pin.prototype.writeSync = function(value) {
+  console.warn("pin.writeSync() is deprecated. Use pin.output() instead.");
+  return this.output(value);
 }
 
 Pin.prototype.high = function () {
-  return this.set(1);
+  this.output(true);
+  return this;
 }
 
 Pin.prototype.low = function () {
-  return this.set(0);
+  this.output(false);
+  return this;
 }
 
 Pin.prototype.pulse = function () {
@@ -185,13 +191,12 @@ Pin.prototype.pulse = function () {
 }
 
 Pin.prototype.toggle = function () {
-  return this.set(!this.value);
+  this.output(!this.rawRead());
 }
 
 Pin.prototype.set = function (v) {
-  // truthy = high, falsy = low
-  hw.digital_write(this.pin, v ? hw.HIGH : hw.LOW);
-  this.value = v;
+  console.warn("pin.set() is deprecated. Use this.rawWrite(v) or this.output(v)");
+  this.rawWrite(v);
   return this;
 }
 
@@ -222,13 +227,13 @@ function AnalogPin (pin) {
 
 AnalogPin.prototype.write = function (val){
   if (tessel_version <= 2 && this.pin != hw.PIN_E_A4) {
-    return console.log("Only A4 can write analog signals");
+    return console.warn("Only A4 can write analog signals");
   } else if (tessel_version == 3 && this.pin != hw.PIN_E_A1){
-    return console.log("Only A1 can write analog signals");
+    return console.warn("Only A1 can write analog signals");
   }
 
   if (val < 0 || val > 1024) {
-    return console.log("Analog values must be between 0 and 1024");
+    return console.warn("Analog values must be between 0 and 1024");
   }
 
   hw.analog_write(this.pin, val);
