@@ -612,6 +612,8 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		tm_fs_destroy(tm_fs_root);
 		tm_fs_root = NULL;
 
+		tessel_gpio_init(0);
+
 		TM_COMMAND('S', "%d", -returncode);
 		TM_DEBUG("Script ended with return code %d.", returncode);
 }
