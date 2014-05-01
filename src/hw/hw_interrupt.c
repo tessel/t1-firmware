@@ -173,6 +173,8 @@ void interrupt_callback(tm_event* event)
 	int interrupt_index = interrupt - interrupts;
 
 	lua_State* L = tm_lua_state;
+	if (!L) return;
+
 	lua_getglobal(L, "_colony_emit");
 	lua_pushstring(L, "interrupt");
 	lua_pushnumber(L, interrupt_index);
