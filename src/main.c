@@ -612,6 +612,9 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		tm_fs_destroy(tm_fs_root);
 		tm_fs_root = NULL;
 
+		hw_uart_disable(UART0);
+		hw_uart_disable(UART2);
+		hw_uart_disable(UART3);
 		tessel_gpio_init(0);
 
 		TM_COMMAND('S', "%d", -returncode);

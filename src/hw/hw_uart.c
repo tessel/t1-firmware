@@ -35,8 +35,8 @@ typedef struct
     __IO uint32_t tx_tail;                /*!< UART Tx ring buffer tail index */
     __IO uint32_t rx_head;                /*!< UART Rx ring buffer head index */
     __IO uint32_t rx_tail;                /*!< UART Rx ring buffer tail index */
-    __IO uint8_t  *tx;  /*!< UART Tx data ring buffer */
-    __IO uint8_t  *rx;  /*!< UART Rx data ring buffer */
+    uint8_t  *tx;  /*!< UART Tx data ring buffer */
+    uint8_t  *rx;  /*!< UART Rx data ring buffer */
 } UART_RING_BUFFER_T;
 
 typedef struct UART
@@ -384,25 +384,46 @@ void hw_uart_enable (uint32_t port)
 
 void hw_uart_disable (uint32_t port)
 {
+  LPC_USARTn_Type *UARTPort = uarts[port].port;
+  UART_RING_BUFFER_T *rb = &uarts[port].rb;
+  
+  UART_TxCmd(UARTPort, DISABLE);
+  UART_IntConfig(UARTPort, UART_INTCFG_RBR, DISABLE);
+  UART_IntConfig(UARTPort, UART_INTCFG_RLS, DISABLE);
+
+  __BUF_RESET(rb->rx_head);
+  __BUF_RESET(rb->rx_tail);
+  __BUF_RESET(rb->tx_head);
+  __BUF_RESET(rb->tx_tail);
+
+  free(rb->tx);
+  rb->tx = NULL;
+  free(rb->rx);
+  rb->rx = NULL;
+
   // Disable UART Pins
   if (port == UART2) { // >TM2 == B
     TM_DEBUG("Disabling UART2 pins");
     if (tessel_board_version() < 2) {
-      hw_digital_output(E_G1);
-      hw_digital_output(E_G2);
+      hw_digital_startup(E_G1);
+      hw_digital_startup(E_G2);
     } else {
-      hw_digital_output(B_G1);
-      hw_digital_output(B_G2);
+      hw_digital_startup(B_G1);
+      hw_digital_startup(B_G2);
     }
+    NVIC_DisableIRQ(USART2_IRQn);
   } else if (port == UART0) { // >TM2 == D
     TM_DEBUG("Disabling UART0 pins");
-    hw_digital_output(D_G1);
-    hw_digital_output(D_G2);
+    hw_digital_startup(D_G1);
+    hw_digital_startup(D_G2);
+    NVIC_DisableIRQ(USART0_IRQn);
   } else if (port == UART3) { // >TM2 == A
     TM_DEBUG("Disabling UART3 pins");
-    hw_digital_output(A_G1);
-    hw_digital_output(A_G2);
+    hw_digital_startup(A_G1);
+    hw_digital_startup(A_G2);
+    NVIC_DisableIRQ(USART3_IRQn);
   }
+
   tm_event_unref(&uarts[port].rx_event);
 }
 
@@ -442,16 +463,16 @@ void hw_uart_initialize (uint32_t port, uint32_t baudrate, UART_DATABIT_Type dat
   UART_FIFOConfigStructInit(&UARTFIFOConfigStruct);
 
   // Initialize FIFO for UART0 peripheral
-  UART_FIFOConfig((LPC_USARTn_Type *)UARTPort, &UARTFIFOConfigStruct);
+  UART_FIFOConfig(UARTPort, &UARTFIFOConfigStruct);
 
 
   // Enable UART Transmit
-  UART_TxCmd((LPC_USARTn_Type *)UARTPort, ENABLE);
+  UART_TxCmd(UARTPort, ENABLE);
 
   /* Enable UART Rx interrupt */
-  UART_IntConfig((LPC_USARTn_Type *)UARTPort, UART_INTCFG_RBR, ENABLE);
+  UART_IntConfig(UARTPort, UART_INTCFG_RBR, ENABLE);
   /* Enable UART line status interrupt */
-  UART_IntConfig((LPC_USARTn_Type *)UARTPort, UART_INTCFG_RLS, ENABLE);
+  UART_IntConfig(UARTPort, UART_INTCFG_RLS, ENABLE);
   /*
    * Do not enable transmit interrupt here, since it is handled by
    * UART_Send() function, just to reset Tx Interrupt state for the
