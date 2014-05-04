@@ -480,6 +480,9 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 
 		initialize_GPIO_interrupts();
 
+		// Initialize GPDMA
+		GPDMA_Init();
+
 		// Reset board state.
 		tessel_gpio_init(0);
 		tessel_network_reset();

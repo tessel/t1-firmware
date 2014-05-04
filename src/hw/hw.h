@@ -53,8 +53,73 @@ int hw_net_mac (uint8_t mac[MAC_ADDR_LEN]);
 int hw_net_is_readable (int ulSocket);
 int hw_net_block_until_readable (int ulSocket, int tries);
 
+// general purpose dma
+#include "lpc18xx_gpdma.h"
+
+typedef enum {
+  SPIFI_CONN = 0,
+  MAT0_0_CONN,
+  UART0_TX_CONN,
+  MAT0_1_CONN,
+  UART0_RX_CONN,
+  MAT1_0_CONN, 
+  UART1_TX_CONN,
+  MAT1_1_CONN,
+  UART1_RX_CONN,
+  MAT2_0_CONN,
+  UART2_TX_CONN,
+  MAT2_1_CONN,
+  UART2_RX_CONN,
+  MAT3_0_CONN,
+  UART3_TX_CONN,
+  SCT0_CONN,
+  MAT3_1_CONN,
+  UART3_RX_CONN,
+  SCT1_CONN,
+  SSP0_RX_CONN,
+  I2S_TX_CONN,
+  SSP0_TX_CONN,
+  I2S_RX_CONN,
+  SSP1_RX_CONN,
+  SSP1_TX_CONN,
+  ADC0_CONN,
+  ADC1_CONN,
+  DAC_CONN
+} hw_GPDMA_Conn_Type;
+
+
+typedef enum {
+  m2m,
+  m2p,
+  p2m,
+  p2p
+} hw_GPDMA_Transfer_Type;
+
+/**
+ * @brief GPDMA Channel configuration structure type definition
+ */
+typedef struct {
+  uint32_t SrcConn;   /**< Peripheral Source Connection type
+               */
+  uint32_t DestConn;   /**< Peripheral Destination Connection type
+              */
+  hw_GPDMA_Transfer_Type TransferType;
+} hw_GPDMA_Chan_Config;
+
+typedef struct {
+  uint32_t Source;  /**< Source Address or peripheral */
+  uint32_t Destination; /**< Destination address or peripheral */
+  uint32_t NextLLI; /**< Next LLI address, otherwise set to '0' */
+  uint32_t Control; /**< GPDMA Control of this LLI */
+} hw_GPDMA_Linked_List_Type;
+
+void hw_gpdma_init(void);
+uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *channelConfig);
+void hw_gpdma_transfer_begin(uint32_t channelNum, hw_GPDMA_Linked_List_Type *firstLLI);
+uint32_t hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type);
 
 // SPI
+#include "lpc18xx_ssp.h"
 
 typedef enum {
 	HW_SPI_MASTER = 0,
@@ -81,18 +146,36 @@ struct spi_status_t{
 	uint8_t isSlave;
 	uint32_t transferCount;
 	uint32_t transferError;
+  hw_GPDMA_Linked_List_Type *tx_Linked_List;
+  hw_GPDMA_Linked_List_Type *rx_Linked_List;
 };
+
+// Configuration for a port
+typedef struct hw_spi {
+  LPC_SSPn_Type *port;
+  int cs;
+  int mosi;
+  int miso;
+  int clock_port;
+  int clock_pin;
+  int clock_mode;
+  int clock_func;
+  int cgu_base;
+  int cgu_peripheral;
+  SSP_CFG_Type config;
+} hw_spi_t;
 
 #define SPI_MAX_DMA_SIZE 0xFFF
 
 extern volatile struct spi_status_t SPI_STATUS;
 
+hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
-int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
+int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len);
 int hw_spi_send_async (size_t port, const uint8_t *txbuf, size_t buf_len);
-int hw_spi_receive_async (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
+int hw_spi_receive_async (size_t port, uint8_t *rxbuf, size_t buf_len);
 int hw_spi_transfer (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
 int hw_spi_send (size_t port, const uint8_t *txbuf, size_t buf_len);
 int hw_spi_receive (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
@@ -226,70 +309,6 @@ uint8_t hw_digital_read (size_t ulPin);
 
 uint32_t hw_analog_read (uint32_t ulPin);
 int hw_analog_write (uint32_t ulPin, float ulValue);
-
-// general purpose dma
-
-typedef enum {
-  SPIFI_CONN = 0,
-  MAT0_0_CONN,
-  UART0_TX_CONN,
-  MAT0_1_CONN,
-  UART0_RX_CONN,
-  MAT1_0_CONN, 
-  UART1_TX_CONN,
-  MAT1_1_CONN,
-  UART1_RX_CONN,
-  MAT2_0_CONN,
-  UART2_TX_CONN,
-  MAT2_1_CONN,
-  UART2_RX_CONN,
-  MAT3_0_CONN,
-  UART3_TX_CONN,
-  SCT0_CONN,
-  MAT3_1_CONN,
-  UART3_RX_CONN,
-  SCT1_CONN,
-  SSP0_RX_CONN,
-  I2S_TX_CONN,
-  SSP0_TX_CONN,
-  I2S_RX_CONN,
-  SSP1_RX_CONN,
-  SSP1_TX_CONN,
-  ADC0_CONN,
-  ADC1_CONN,
-  DAC_CONN
-} hw_GPDMA_Conn_Type;
-
-
-typedef enum {
-	m2m,
-	m2p,
-	p2m,
-	p2p
-} hw_GPDMA_Transfer_Type;
-
-/**
- * @brief GPDMA Channel configuration structure type definition
- */
-typedef struct {
-  uint32_t SrcConn;   /**< Peripheral Source Connection type
-               */
-  uint32_t DestConn;   /**< Peripheral Destination Connection type
-              */
-  hw_GPDMA_Transfer_Type TransferType;
-} hw_GPDMA_Chan_Config;
-
-typedef struct {
-	uint32_t Source;	/**< Source Address or peripheral */
-	uint32_t Destination;	/**< Destination address or peripheral */
-	uint32_t NextLLI;	/**< Next LLI address, otherwise set to '0' */
-	uint32_t Control;	/**< GPDMA Control of this LLI */
-} hw_GPDMA_Linked_List_Type;
-
-void hw_gpdma_init(void);
-uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *channelConfig);
-void hw_gpdma_transfer_begin(uint32_t channelNum, hw_GPDMA_Linked_List_Type *firstLLI);
-uint32_t hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type);
 
 #ifdef __cplusplus
 };

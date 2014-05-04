@@ -104,9 +104,10 @@ static int l_hw_spi_transfer_async(lua_State* L)
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
 	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
+	luaL_ref(L, (uint32_t)txbuf);
+	luaL_ref(L, (uint32_t)rxbuf);
 	memset(rxbuf, 0, buf_len);
-	size_t buf_read = 0;
-	hw_spi_transfer_async(port, txbuf, rxbuf, buf_len, &buf_read);
+	hw_spi_transfer_async(port, txbuf, rxbuf, buf_len);
 	
 	return 1;
 }
@@ -132,8 +133,7 @@ static int l_hw_spi_receive_async(lua_State* L)
 
 	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
 	memset(rxbuf, 0, buf_len);
-	size_t buf_read = 0;
-	int res = hw_spi_receive_async(port, rxbuf, buf_len, &buf_read);
+	int res = hw_spi_receive_async(port, rxbuf, buf_len);
 
 	lua_pushnumber(L, res);
 	return 2;
