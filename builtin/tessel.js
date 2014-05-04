@@ -823,7 +823,7 @@ function SPI (params)
   this.chipSelectActive = params.chipSelectActive == 'high' || params.chipSelectActive == 1 ? 1 : 0;
 
   if (this.chipSelect) {
-    this.chipSelect.setOutput();
+    this.chipSelect.output();
     if (this.chipSelectActive) {
       this.chipSelect.low();
     } else {
