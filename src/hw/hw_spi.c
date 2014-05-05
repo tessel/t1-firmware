@@ -168,7 +168,7 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 		SSP_Init(SPIx->port, &SPIx->config);
 
 		// Now enable SPI peripheral.
-		hw_spi_enable(port);		
+		hw_spi_enable(port);
 	}
 
 	// start up DMA on both lines

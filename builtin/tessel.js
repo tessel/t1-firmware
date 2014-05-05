@@ -909,19 +909,25 @@ SPI.prototype.receiveSync = function (buf_len, unused_rxbuf)
 }
 
 
-SPI.prototype.transfer = function (txbuf, unused_rxbuf, fn)
+SPI.prototype.transfer = function (txbuf, fn)
 {
-  if (!fn) {
-    fn = unused_rxbuf;
-    unused_rxbuf = null;
+  var self = this;
+  var rxbuf = new Buffer(txbuf.length);
+  rxbuf.fill(0);
+
+  if (fn) {
+    process.once('spi_async_complete', function (err, async_rxbuf) {
+      if (err === 1) {
+        fn(new Error("Unable to complete SPI Transfer."));
+      }
+      else {
+        rxbuf = async_rxbuf;
+        fn(null, rxbuf);
+      }
+    });
   }
 
-  var self = this;
-  setImmediate(function() {
-    // TODO: this needs to change to callback
-    var rxbuf = hw.spi_transfer_async(self.port, txbuf, unused_rxbuf);
-    fn && fn(null, rxbuf);
-  });
+  hw.spi_transfer_async(self.port, txbuf, rxbuf);
 }
 
 

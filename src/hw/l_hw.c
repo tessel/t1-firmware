@@ -99,44 +99,20 @@ static int l_hw_spi_disable(lua_State* L)
 
 static int l_hw_spi_transfer_async(lua_State* L)
 {
+	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-
+	// Create the tx/rx buffers
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
-	luaL_ref(L, (uint32_t)txbuf);
-	luaL_ref(L, (uint32_t)rxbuf);
-	memset(rxbuf, 0, buf_len);
-	hw_spi_transfer_async(port, txbuf, rxbuf, buf_len);
+	const uint8_t* rxbuf = colony_tobuffer(L, ARG1 + 2, NULL);
+	// Create refs to tx and rx so they aren't gc'ed in the meantime
+	// rxRef must come first because it's on the top of the stack
+	uint32_t rxRef = luaL_ref(L, LUA_REGISTRYINDEX);
+	uint32_t txRef = luaL_ref(L, LUA_REGISTRYINDEX);
+	// Begin the transfer
+	hw_spi_transfer_async(port, txbuf, rxbuf, buf_len, txRef, rxRef);
 	
 	return 1;
-}
-
-
-static int l_hw_spi_send_async(lua_State* L)
-{
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-
-	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-
-	int res = hw_spi_send_async(port, txbuf, buf_len);
-	lua_pushnumber(L, res);
-	return 1;
-}
-
-
-static int l_hw_spi_receive_async(lua_State* L)
-{
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	size_t buf_len = (size_t)lua_tonumber(L, ARG1 + 1);
-
-	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
-	memset(rxbuf, 0, buf_len);
-	int res = hw_spi_receive_async(port, rxbuf, buf_len);
-
-	lua_pushnumber(L, res);
-	return 2;
 }
 
 static int l_hw_spi_transfer(lua_State* L)
@@ -585,8 +561,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "spi_enable", l_hw_spi_enable },
 		{ "spi_disable", l_hw_spi_disable },
 		{ "spi_transfer_async", l_hw_spi_transfer_async },
-		{ "spi_send_async", l_hw_spi_send_async },
-		{ "spi_receive_async", l_hw_spi_receive_async },
+		// { "spi_send_async", l_hw_spi_send_async },
+		// { "spi_receive_async", l_hw_spi_receive_async },
 		{ "spi_transfer", l_hw_spi_transfer },
 		{ "spi_send", l_hw_spi_send },
 		{ "spi_receive", l_hw_spi_receive },
