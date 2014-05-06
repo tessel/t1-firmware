@@ -9,9 +9,9 @@
 #include "variant.h"
 #include "lpc18xx_cgu.h"
 
-
-
 volatile struct spi_status_t SPI_STATUS;
+
+#define TEMP_LUA_NOREF -2
 
 /**
  * LPC spi list
@@ -136,6 +136,8 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 {
 	hw_spi_t* SPIx = find_spi(port);
 
+	hw_spi_status_initialize();
+
 	if (spimode == HW_SPI_SLAVE) {
 		SPI_STATUS.isSlave = 1;
 		hw_spi_slave_enable(port);
@@ -181,4 +183,13 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 	NVIC_SetPriority(DMA_IRQn, ((0x01<<3)|0x01));
 
 	return 0;
+}
+
+void hw_spi_status_initialize() {
+  SPI_STATUS.tx_Linked_List = 0;
+  SPI_STATUS.rx_Linked_List = 0;
+  SPI_STATUS.txLength = 0;
+  SPI_STATUS.rxLength = 0;
+  SPI_STATUS.txRef = TEMP_LUA_NOREF;
+  SPI_STATUS.rxRef = TEMP_LUA_NOREF;
 }

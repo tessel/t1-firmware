@@ -918,11 +918,13 @@ SPI.prototype.transfer = function (txbuf, fn)
   // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
+  // Switch SPI to these settings
+  this._initialize();
+
   // Activate chip select if it was provided
   self._activeChipSelect(1);
 
-  // When the transfer is complete
-  process.once('spi_async_complete', function processTransferCB(errBool) {
+  function processTransferCB(errBool) {
     // De-assert chip select
     self._activeChipSelect(0);
     // If there was an error
@@ -935,10 +937,22 @@ SPI.prototype.transfer = function (txbuf, fn)
       // Call the callback
       fn(err, rxbuf);
     }
-  });
+  }
+
+  // When the transfer is complete
+  process.once('spi_async_complete', processTransferCB);
 
   // Begin the transfer
-  hw.spi_transfer(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
+  var res = hw.spi_transfer(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
+
+  console.log('res', res);
+  // Check the return code. -1 means there was an error
+  if (res === -1) {
+    process.removeListener('spi_async_complete', processTransferCB);
+    if (fn) {
+      fn(new Error("Unable to process SPI request. "));
+    }
+  }
 }
 
 SPI.prototype.send = function (txbuf, fn)

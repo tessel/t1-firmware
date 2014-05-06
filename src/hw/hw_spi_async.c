@@ -6,9 +6,6 @@ void async_spi_callback();
 /// The event triggered by the timer callback
 tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 
-// Global spi status
-volatile struct spi_status_t SPI_STATUS;
-
 void hw_spi_dma_counter (uint8_t channel){
   // Check counter terminal status
   if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, channel)){
@@ -108,13 +105,11 @@ void hw_spi_async_cleanup () {
   // Free our linked list 
   free(SPI_STATUS.tx_Linked_List);
   free(SPI_STATUS.rx_Linked_List);
+
   // Clear our config struct
-  SPI_STATUS.tx_Linked_List = 0;
-  SPI_STATUS.rx_Linked_List = 0;
-  SPI_STATUS.txLength = 0;
-  SPI_STATUS.rxLength = 0;
-  SPI_STATUS.txRef = 0;
-  SPI_STATUS.rxRef = 0;
+  hw_spi_status_initialize();
+
+  tm_event_unref(&async_spi_event);
 }
 
 void async_spi_callback (void) {
@@ -128,10 +123,10 @@ void async_spi_callback (void) {
   lua_pushstring(L, "spi_async_complete");
   // push whether we got an error (1 or 0)
   lua_pushnumber(L, SPI_STATUS.transferError);
-  // Verify that the Lua state is correct
-  tm_checked_call(L, 2);
   // Clean up our vars so that we can do this again
   hw_spi_async_cleanup();
+  // Verify that the Lua state is correct
+  tm_checked_call(L, 2);
 }
 
 int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref)

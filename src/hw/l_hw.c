@@ -99,6 +99,13 @@ static int l_hw_spi_disable(lua_State* L)
 
 static int l_hw_spi_transfer(lua_State* L)
 {
+
+	// If the is currently a transfer underway, don't continue
+	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
 	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	// Create the tx/rx buffers
@@ -120,12 +127,20 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Begin the transfer
 	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
-	
+	// Push a success code onto the stack
+	lua_pushnumber(L, 0);
 	return 1;
 }
 
 static int l_hw_spi_transfer_sync(lua_State* L)
 {
+	// If the is currently a transfer underway, don't continue
+	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 
 	size_t buf_len = 0;
@@ -135,13 +150,20 @@ static int l_hw_spi_transfer_sync(lua_State* L)
 	memset(rxbuf, 0, buf_len);
 	size_t buf_read = 0;
 	hw_spi_transfer_sync(port, txbuf, rxbuf, buf_len, &buf_read);
-	
 	return 1;
 }
 
 
 static int l_hw_spi_send_sync(lua_State* L)
 {
+
+	// If the is currently a transfer underway, don't continue
+	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 
 	size_t buf_len = 0;
@@ -155,6 +177,13 @@ static int l_hw_spi_send_sync(lua_State* L)
 
 static int l_hw_spi_receive_sync(lua_State* L)
 {
+	// If the is currently a transfer underway, don't continue
+	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	size_t buf_len = (size_t)lua_tonumber(L, ARG1 + 1);
 
