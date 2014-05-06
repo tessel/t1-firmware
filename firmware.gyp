@@ -248,7 +248,9 @@
         'src/usb/msg_interface.c',
       ],
       'dependencies': [
-        'deps/runtime/runtime.gyp:tessel-runtime',
+        'deps/runtime/libtm.gyp:libtm',
+        'deps/runtime/libtm.gyp:axtls',
+        'deps/runtime/libcolony.gyp:libcolony',
         'cmsis-lpc18xx',
         'tessel-builtin',
         'usb',
@@ -268,10 +270,6 @@
       'include_dirs': [
         'deps/runtime/src',
         'deps/runtime/deps/colony-lua/src',
-        'deps/runtime/deps/libtar/lib',
-        'deps/runtime/deps/libtar',
-        'deps/runtime/deps/libtar/compat',
-        'deps/runtime/deps/libtar/listhash',
         'deps/runtime/deps/axtls/config',
         'deps/runtime/deps/axtls/ssl',
         'deps/runtime/deps/axtls/crypto',
