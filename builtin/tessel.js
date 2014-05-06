@@ -912,47 +912,67 @@ SPI.prototype.receiveSync = function (buf_len, unused_rxbuf)
 SPI.prototype.transfer = function (txbuf, fn)
 {
   var self = this;
+  var err;
+  // Create a new receive buffer
   var rxbuf = new Buffer(txbuf.length);
+  // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
-  if (fn) {
-    process.once('spi_async_complete', function (err, async_rxbuf) {
-      if (err === 1) {
-        fn(new Error("Unable to complete SPI Transfer."));
-      }
-      else {
-        rxbuf = async_rxbuf;
-        fn(null, rxbuf);
-      }
-    });
-  }
+  // Activate chip select if it was provided
+  self._activeChipSelect(1);
 
-  hw.spi_transfer_async(self.port, txbuf, rxbuf);
+  // When the transfer is complete
+  process.once('spi_async_complete', function processTransferCB(errBool) {
+    // De-assert chip select
+    self._activeChipSelect(0);
+    // If there was an error
+    if (errBool === 1) {
+      // Create an error object
+      err = new Error("Unable to complete SPI Transfer.");
+    }
+    // If a callback was requested
+    if (fn) {
+      // Call the callback
+      fn(err, rxbuf);
+    }
+  });
+
+  // Begin the transfer
+  hw.spi_transfer_async(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
 }
-
 
 SPI.prototype.send = function (txbuf, fn)
 {
   var self = this;
-  setImmediate(function() {
-    hw.spi_send_async(self.port, txbuf);
-    fn && fn(null);
+  var err;
+
+  // Activate chip select if it was provided
+  self._activeChipSelect(1);
+
+  process.once('spi_async_complete', function processSendCB(errBool) {
+    // De-assert chip select
+    self._activeChipSelect(0);
+    // If there was an error
+    if (errBool === 1) {
+      // Create an error object
+      err = new Error("Unable to complete SPI Transfer.");
+    }
+    // If a callback was requested
+    if (fn) {
+      // Call the callback
+      fn(err);
+    }
   });
+
+  // Transfer the bytes. Don't bother receiving any
+  hw.spi_transfer_async(self.port, txbuf.length, 0, txbuf);
 };
 
 
-SPI.prototype.receive = function (buf_len, unused_rxbuf, fn)
+SPI.prototype.receive = function (buf_len, fn)
 {
-  if (!fn) {
-    fn = unused_rxbuf;
-    unused_rxbuf = null;
-  }
-
-  var self = this;
-  setImmediate(function() {
-    var rxbuf = hw.spi_receive_async(self.port, buf_len, unused_rxbuf);
-    fn && fn(null, rxbuf);
-  });
+  // We have to transfer bytes for DMA to tick the clock
+  this.transfer(new Buffer(buf_len), fn);
 };
 
 

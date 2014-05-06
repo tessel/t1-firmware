@@ -15,7 +15,8 @@ void hw_spi_dma_counter(uint8_t channel){
     // Clear terminate counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, channel);
     // This interrupt status should be hit for both tx and rx
-    if (++SPI_STATUS.transferCount == 2) {
+    uint8_t done_count = (SPI_STATUS.txLength && SPI_STATUS.rxLength) ? 2 : 1;
+    if (++SPI_STATUS.transferCount == done_count) {
       // Trigger the callback
       tm_event_trigger(&async_spi_event);
     }
@@ -110,7 +111,8 @@ void hw_spi_async_cleanup() {
   // Clear our config struct
   SPI_STATUS.tx_Linked_List = 0;
   SPI_STATUS.rx_Linked_List = 0;
-  SPI_STATUS.transferLength = 0;
+  SPI_STATUS.txLength = 0;
+  SPI_STATUS.rxLength = 0;
   SPI_STATUS.txRef = 0;
   SPI_STATUS.rxRef = 0;
 }
@@ -126,15 +128,13 @@ void async_spi_callback(void) {
   lua_pushstring(L, "spi_async_complete");
   // push whether we got an error (1 or 0)
   lua_pushnumber(L, SPI_STATUS.transferError);
-  // Push the received buffer onto the stack
-  lua_pushlstring(L, (const char *)SPI_STATUS.rx_Linked_List->Destination, SPI_STATUS.transferLength);
   // Verify that the Lua state is correct
-  tm_checked_call(L, 3);
+  tm_checked_call(L, 2);
   // Clean up our vars so that we can do this again
   hw_spi_async_cleanup();
 }
 
-int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, const uint8_t *rxbuf, size_t buf_len, uint32_t txref, uint32_t rxref)
+int hw_spi_transfer_async (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref)
 {
   hw_spi_t *SPIx = find_spi(port);
 
@@ -156,45 +156,54 @@ int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, const uint8_t *rxb
     rx_config.SrcConn = SSP1_RX_CONN;
   }
 
-  // Source Connection - unused
-  tx_config.SrcConn = 0;
-  // Transfer type
-  tx_config.TransferType = m2p;
+  if (txlen != 0) {
+     // Source Connection - unused
+    tx_config.SrcConn = 0;
+    // Transfer type
+    tx_config.TransferType = m2p;
 
-  // Destination connection - unused
-  rx_config.DestConn = 0;
-  // Transfer type
-  rx_config.TransferType = p2m;
+    // Configure the tx transfer on channel 0
+    // TODO: Get next available channel
+    hw_gpdma_transfer_config(tx_chan, &tx_config);
 
-  // Configure the tx transfer on channel 0
-  // TODO: Get next available channel
-  hw_gpdma_transfer_config(tx_chan, &tx_config);
+    // Save the length that we're transferring
+    SPI_STATUS.txLength = txlen;
 
-  // Configure the rx transfer on channel 1
-  // TODO: Get next available channel
-  hw_gpdma_transfer_config(rx_chan, &rx_config);
+    // Generate the linked list structure for transmission
+    SPI_STATUS.tx_Linked_List = hw_spi_dma_packetize(txlen, (uint32_t)txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
+
+    // Begin the transmission
+    hw_gpdma_transfer_begin(tx_chan, SPI_STATUS.tx_Linked_List);
+  }
+
+  if (rxlen != 0) {
+    // Destination connection - unused
+    rx_config.DestConn = 0;
+    // Transfer type
+    rx_config.TransferType = p2m;
+
+    // Configure the rx transfer on channel 1
+    // TODO: Get next available channel
+    hw_gpdma_transfer_config(rx_chan, &rx_config);
+
+    // Save the length that we're transferring
+    SPI_STATUS.rxLength = rxlen;
+
+    // Generate the linked list structure for receiving
+    SPI_STATUS.rx_Linked_List = hw_spi_dma_packetize(rxlen, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), (uint32_t)rxbuf, 0);
+
+    // Begin the reception
+    hw_gpdma_transfer_begin(rx_chan, SPI_STATUS.rx_Linked_List);
+  }
 
   /* Reset terminal counter */
   SPI_STATUS.transferCount = 0;
   /* Reset Error counter */
   SPI_STATUS.transferError = 0;
 
-  // Save the length that we're transferring
-  SPI_STATUS.transferLength = buf_len;
-
   SPI_STATUS.txRef = txref;
   SPI_STATUS.rxRef = rxref;
 
-  // Generate the linked list structure for transmission
-  SPI_STATUS.tx_Linked_List = hw_spi_dma_packetize(buf_len, (uint32_t)txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
-
-  // Generate the linked list structure for receiving
-  SPI_STATUS.rx_Linked_List = hw_spi_dma_packetize(buf_len, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), (uint32_t)rxbuf, 0);
-
-  // Begin the transmission
-  hw_gpdma_transfer_begin(tx_chan, SPI_STATUS.tx_Linked_List);
-  // Begin the reception
-  hw_gpdma_transfer_begin(rx_chan, SPI_STATUS.rx_Linked_List);
 
   // if it's a slave pull down CS
   if (SPI_STATUS.isSlave) {
@@ -206,14 +215,3 @@ int hw_spi_transfer_async (size_t port, const uint8_t *txbuf, const uint8_t *rxb
 
   return 0;
 }
-
-// int hw_spi_send_async (size_t port, const uint8_t *txbuf, size_t buf_len)
-// {
-//   return hw_spi_transfer_async(port, txbuf, NULL, buf_len);
-// }
-
-
-// int hw_spi_receive_async (size_t port, uint8_t *rxbuf, size_t buf_len)
-// {
-//   return hw_spi_transfer_async(port, NULL, rxbuf, buf_len);
-// }

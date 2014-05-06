@@ -102,15 +102,24 @@ static int l_hw_spi_transfer_async(lua_State* L)
 	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	// Create the tx/rx buffers
-	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-	const uint8_t* rxbuf = colony_tobuffer(L, ARG1 + 2, NULL);
+	size_t txlen = (size_t)lua_tonumber(L, ARG1 + 1);
+	size_t rxlen = (size_t)lua_tonumber(L, ARG1 + 2);
+
+	const uint8_t* txbuf = NULL;
+	const uint8_t* rxbuf = NULL;
+
+	if (txlen != 0) {
+		txbuf = colony_tobuffer(L, ARG1 + 3, NULL);
+	}
+	if (rxlen != 0) {
+		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
+	}
 	// Create refs to tx and rx so they aren't gc'ed in the meantime
 	// rxRef must come first because it's on the top of the stack
-	uint32_t rxRef = luaL_ref(L, LUA_REGISTRYINDEX);
-	uint32_t txRef = luaL_ref(L, LUA_REGISTRYINDEX);
+	uint32_t rxref = luaL_ref(L, LUA_REGISTRYINDEX);
+	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Begin the transfer
-	hw_spi_transfer_async(port, txbuf, rxbuf, buf_len, txRef, rxRef);
+	hw_spi_transfer_async(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
 	
 	return 1;
 }
