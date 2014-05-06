@@ -32,7 +32,7 @@ hw_spi_t *find_spi (size_t port)
 }
 
 
-int hw_spi_transfer (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+int hw_spi_transfer_sync (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
 {
 	// sync transfer only supports Master mode
 	hw_spi_t *SPIx = find_spi(port);
@@ -55,15 +55,15 @@ int hw_spi_transfer (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t b
 }
 
 
-int hw_spi_send (size_t port, const uint8_t *txbuf, size_t buf_len)
+int hw_spi_send_sync (size_t port, const uint8_t *txbuf, size_t buf_len)
 {
-	return hw_spi_transfer(port, txbuf, NULL, buf_len, NULL);
+	return hw_spi_transfer_sync(port, txbuf, NULL, buf_len, NULL);
 }
 
 
-int hw_spi_receive (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
+int hw_spi_receive_sync (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read)
 {
-	return hw_spi_transfer(port, NULL, rxbuf, buf_len, buf_read);
+	return hw_spi_transfer_sync(port, NULL, rxbuf, buf_len, buf_read);
 }
 
 int hw_spi_disable (size_t port)
@@ -83,7 +83,7 @@ int hw_spi_disable (size_t port)
 	return 0;
 }
 
-static int hw_spi_slave_enable(size_t port){
+static int hw_spi_slave_enable (size_t port){
 	hw_spi_t* SPIx = find_spi(port);
 
 	// Enable all lines

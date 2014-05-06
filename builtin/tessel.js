@@ -884,7 +884,7 @@ SPI.prototype.transferSync = function (txbuf, unused_rxbuf)
 {
   this._initialize();
   this._activeChipSelect(1);
-  var rxbuf = hw.spi_transfer(this.port, txbuf);
+  var rxbuf = hw.spi_transfer_sync(this.port, txbuf);
   this._activeChipSelect(0);
   return rxbuf;
 }
@@ -894,7 +894,7 @@ SPI.prototype.sendSync = function (txbuf)
 {
   this._initialize();
   this._activeChipSelect(1);
-  hw.spi_send(this.port, txbuf);
+  hw.spi_send_sync(this.port, txbuf);
   this._activeChipSelect(0);
 }
 
@@ -903,7 +903,7 @@ SPI.prototype.receiveSync = function (buf_len, unused_rxbuf)
 {
   this._initialize();
   this._activeChipSelect(1);
-  var rxbuf = hw.spi_receive(this.port, buf_len);
+  var rxbuf = hw.spi_receive_sync(this.port, buf_len);
   this._activeChipSelect(0);
   return rxbuf;
 }
@@ -938,7 +938,7 @@ SPI.prototype.transfer = function (txbuf, fn)
   });
 
   // Begin the transfer
-  hw.spi_transfer_async(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
+  hw.spi_transfer(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
 }
 
 SPI.prototype.send = function (txbuf, fn)
@@ -965,7 +965,7 @@ SPI.prototype.send = function (txbuf, fn)
   });
 
   // Transfer the bytes. Don't bother receiving any
-  hw.spi_transfer_async(self.port, txbuf.length, 0, txbuf);
+  hw.spi_transfer(self.port, txbuf.length, 0, txbuf);
 };
 
 

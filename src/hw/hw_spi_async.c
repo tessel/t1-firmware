@@ -9,7 +9,7 @@ tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 // Global spi status
 volatile struct spi_status_t SPI_STATUS;
 
-void hw_spi_dma_counter(uint8_t channel){
+void hw_spi_dma_counter (uint8_t channel){
   // Check counter terminal status
   if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, channel)){
     // Clear terminate counter Interrupt pending
@@ -31,7 +31,7 @@ void hw_spi_dma_counter(uint8_t channel){
   }
 }
 
-hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize(size_t buf_len, uint32_t source, uint32_t destination, uint8_t txBool) {
+hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, uint32_t source, uint32_t destination, uint8_t txBool) {
 
   // Get the number of complete packets (0xFFF bytes)
   uint32_t num_full_packets = buf_len/SPI_MAX_DMA_SIZE;
@@ -101,7 +101,7 @@ hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize(size_t buf_len, uint32_t source
   return Linked_List;
 }
 
-void hw_spi_async_cleanup() {
+void hw_spi_async_cleanup () {
   // Unreference our buffers so they can be garbage collected
   luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_STATUS.txRef);
   luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_STATUS.rxRef);
@@ -117,7 +117,7 @@ void hw_spi_async_cleanup() {
   SPI_STATUS.rxRef = 0;
 }
 
-void async_spi_callback(void) {
+void async_spi_callback (void) {
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
   if (!L) return;
@@ -134,7 +134,7 @@ void async_spi_callback(void) {
   hw_spi_async_cleanup();
 }
 
-int hw_spi_transfer_async (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref)
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref)
 {
   hw_spi_t *SPIx = find_spi(port);
 

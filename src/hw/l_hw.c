@@ -97,7 +97,7 @@ static int l_hw_spi_disable(lua_State* L)
 }
 
 
-static int l_hw_spi_transfer_async(lua_State* L)
+static int l_hw_spi_transfer(lua_State* L)
 {
 	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
@@ -119,12 +119,12 @@ static int l_hw_spi_transfer_async(lua_State* L)
 	uint32_t rxref = luaL_ref(L, LUA_REGISTRYINDEX);
 	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Begin the transfer
-	hw_spi_transfer_async(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
+	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
 	
 	return 1;
 }
 
-static int l_hw_spi_transfer(lua_State* L)
+static int l_hw_spi_transfer_sync(lua_State* L)
 {
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 
@@ -134,26 +134,26 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
 	memset(rxbuf, 0, buf_len);
 	size_t buf_read = 0;
-	hw_spi_transfer(port, txbuf, rxbuf, buf_len, &buf_read);
+	hw_spi_transfer_sync(port, txbuf, rxbuf, buf_len, &buf_read);
 	
 	return 1;
 }
 
 
-static int l_hw_spi_send(lua_State* L)
+static int l_hw_spi_send_sync(lua_State* L)
 {
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
 
-	int res = hw_spi_send(port, txbuf, buf_len);
+	int res = hw_spi_send_sync(port, txbuf, buf_len);
 	lua_pushnumber(L, res);
 	return 1;
 }
 
 
-static int l_hw_spi_receive(lua_State* L)
+static int l_hw_spi_receive_sync(lua_State* L)
 {
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	size_t buf_len = (size_t)lua_tonumber(L, ARG1 + 1);
@@ -161,7 +161,7 @@ static int l_hw_spi_receive(lua_State* L)
 	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
 	memset(rxbuf, 0, buf_len);
 	size_t buf_read = 0;
-	int res = hw_spi_receive(port, rxbuf, buf_len, &buf_read);
+	int res = hw_spi_receive_sync(port, rxbuf, buf_len, &buf_read);
 
 	lua_pushnumber(L, res);
 	return 2;
@@ -569,12 +569,10 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "spi_initialize", l_hw_spi_initialize },
 		{ "spi_enable", l_hw_spi_enable },
 		{ "spi_disable", l_hw_spi_disable },
-		{ "spi_transfer_async", l_hw_spi_transfer_async },
-		// { "spi_send_async", l_hw_spi_send_async },
-		// { "spi_receive_async", l_hw_spi_receive_async },
 		{ "spi_transfer", l_hw_spi_transfer },
-		{ "spi_send", l_hw_spi_send },
-		{ "spi_receive", l_hw_spi_receive },
+		{ "spi_transfer_sync", l_hw_spi_transfer_sync },
+		{ "spi_send_sync", l_hw_spi_send_sync },
+		{ "spi_receive_sync", l_hw_spi_receive_sync },
 
 		// i2c
 		{ "i2c_initialize", l_hw_i2c_initialize },

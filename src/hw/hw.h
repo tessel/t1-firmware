@@ -177,14 +177,15 @@ hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
-int hw_spi_transfer_async (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
-// int hw_spi_send_async (size_t port, const uint8_t *txbuf, size_t buf_len);
-// int hw_spi_receive_async (size_t port, uint8_t *rxbuf, size_t buf_len);
-void hw_spi_async_cleanup(void);
-int hw_spi_transfer (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
-int hw_spi_send (size_t port, const uint8_t *txbuf, size_t buf_len);
-int hw_spi_receive (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
-void hw_spi_dma_counter(uint8_t channel);
+
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
+void hw_spi_async_cleanup (void);
+void hw_spi_dma_counter (uint8_t channel);
+
+int hw_spi_transfer_sync (size_t port, const uint8_t *txbuf, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
+int hw_spi_send_sync (size_t port, const uint8_t *txbuf, size_t buf_len);
+int hw_spi_receive_sync (size_t port, uint8_t *rxbuf, size_t buf_len, size_t* buf_read);
+
 
 
 // I2C

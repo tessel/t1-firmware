@@ -226,7 +226,7 @@ void test_spi (char port)
   hw_digital_write(pin, 0);
   hw_spi_initialize(TESSEL_SPI_0, 1000000, HW_SPI_MASTER, 0, 0, HW_SPI_FRAME_NORMAL);
   uint8_t buff[5] = {10, 11, 12, 13, 14};
-  hw_spi_send (TESSEL_SPI_0, buff, 5);
+  hw_spi_send_sync (TESSEL_SPI_0, buff, 5);
   hw_digital_write(pin, 1);
 
   hw_wait_ms(100);

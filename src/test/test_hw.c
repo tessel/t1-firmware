@@ -22,7 +22,7 @@ void test_hw_spi (void)
 
 		// send test string
 		const char * p = "Hello, world! This is a very long string that I'm sending over SPI.\n";
-		hw_spi_send(TESSEL_SPI_0, (uint8_t*) p, strlen(p));
+		hw_spi_send_sync(TESSEL_SPI_0, (uint8_t*) p, strlen(p));
 
 		// disable slave select
 		hw_digital_write(SPI_SS, 1);
