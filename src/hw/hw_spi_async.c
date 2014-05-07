@@ -6,14 +6,23 @@ void async_spi_callback();
 /// The event triggered by the timer callback
 tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 
+volatile struct spi_async_status_t SPI_ASYNC_STATUS = {
+  .txRef = 0,
+  .rxRef = 0,
+  .txLength = 0,
+  .rxLength = 0,
+  .tx_Linked_List = 0,
+  .rx_Linked_List = 0,
+};
+
 void hw_spi_dma_counter (uint8_t channel){
   // Check counter terminal status
   if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, channel)){
     // Clear terminate counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, channel);
     // This interrupt status should be hit for both tx and rx
-    uint8_t done_count = (SPI_STATUS.txLength && SPI_STATUS.rxLength) ? 2 : 1;
-    if (++SPI_STATUS.transferCount == done_count) {
+    uint8_t done_count = (SPI_ASYNC_STATUS.txLength && SPI_ASYNC_STATUS.rxLength) ? 2 : 1;
+    if (++SPI_ASYNC_STATUS.transferCount == done_count) {
       // Trigger the callback
       tm_event_trigger(&async_spi_event);
     }
@@ -22,7 +31,7 @@ void hw_spi_dma_counter (uint8_t channel){
     // Clear error counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTERR, channel);
     // Register the error in our struct
-    SPI_STATUS.transferError++;
+    SPI_ASYNC_STATUS.transferError++;
     // Trigger the callback because there was an error
     tm_event_trigger(&async_spi_event);
   }
@@ -100,14 +109,14 @@ hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, uint32_t sourc
 
 void hw_spi_async_cleanup () {
   // Unreference our buffers so they can be garbage collected
-  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_STATUS.txRef);
-  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_STATUS.rxRef);
+  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_ASYNC_STATUS.txRef);
+  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_ASYNC_STATUS.rxRef);
   // Free our linked list 
-  free(SPI_STATUS.tx_Linked_List);
-  free(SPI_STATUS.rx_Linked_List);
+  free(SPI_ASYNC_STATUS.tx_Linked_List);
+  free(SPI_ASYNC_STATUS.rx_Linked_List);
 
   // Clear our config struct
-  hw_spi_status_initialize();
+  hw_spi_async_status_initialize();
 
   tm_event_unref(&async_spi_event);
 }
@@ -122,7 +131,7 @@ void async_spi_callback (void) {
   // The process message identifier
   lua_pushstring(L, "spi_async_complete");
   // push whether we got an error (1 or 0)
-  lua_pushnumber(L, SPI_STATUS.transferError);
+  lua_pushnumber(L, SPI_ASYNC_STATUS.transferError);
   // Clean up our vars so that we can do this again
   hw_spi_async_cleanup();
   // Verify that the Lua state is correct
@@ -151,6 +160,8 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     rx_config.SrcConn = SSP1_RX_CONN;
   }
 
+  hw_spi_async_status_initialize();
+
   if (txlen != 0) {
      // Source Connection - unused
     tx_config.SrcConn = 0;
@@ -162,13 +173,13 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     hw_gpdma_transfer_config(tx_chan, &tx_config);
 
     // Save the length that we're transferring
-    SPI_STATUS.txLength = txlen;
+    SPI_ASYNC_STATUS.txLength = txlen;
 
     // Generate the linked list structure for transmission
-    SPI_STATUS.tx_Linked_List = hw_spi_dma_packetize(txlen, (uint32_t)txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
+    SPI_ASYNC_STATUS.tx_Linked_List = hw_spi_dma_packetize(txlen, (uint32_t)txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
 
     // Begin the transmission
-    hw_gpdma_transfer_begin(tx_chan, SPI_STATUS.tx_Linked_List);
+    hw_gpdma_transfer_begin(tx_chan, SPI_ASYNC_STATUS.tx_Linked_List);
   }
 
   if (rxlen != 0) {
@@ -182,26 +193,21 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     hw_gpdma_transfer_config(rx_chan, &rx_config);
 
     // Save the length that we're transferring
-    SPI_STATUS.rxLength = rxlen;
+    SPI_ASYNC_STATUS.rxLength = rxlen;
 
     // Generate the linked list structure for receiving
-    SPI_STATUS.rx_Linked_List = hw_spi_dma_packetize(rxlen, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), (uint32_t)rxbuf, 0);
+    SPI_ASYNC_STATUS.rx_Linked_List = hw_spi_dma_packetize(rxlen, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), (uint32_t)rxbuf, 0);
 
     // Begin the reception
-    hw_gpdma_transfer_begin(rx_chan, SPI_STATUS.rx_Linked_List);
+    hw_gpdma_transfer_begin(rx_chan, SPI_ASYNC_STATUS.rx_Linked_List);
   }
-
-  /* Reset terminal counter */
-  SPI_STATUS.transferCount = 0;
-  /* Reset Error counter */
-  SPI_STATUS.transferError = 0;
-
-  SPI_STATUS.txRef = txref;
-  SPI_STATUS.rxRef = rxref;
+  
+  SPI_ASYNC_STATUS.txRef = txref;
+  SPI_ASYNC_STATUS.rxRef = rxref;
 
 
   // if it's a slave pull down CS
-  if (SPI_STATUS.isSlave) {
+  if (SPIx->is_slave) {
     scu_pinmux(0xF, 1u, PUP_DISABLE | PDN_ENABLE |  MD_EZI | MD_ZI | MD_EHS, FUNC2);  //  SSP0 SSEL0
   }
 
@@ -209,4 +215,13 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   tm_event_ref(&async_spi_event);
 
   return 0;
+}
+
+void hw_spi_async_status_initialize() {
+  SPI_ASYNC_STATUS.tx_Linked_List = 0;
+  SPI_ASYNC_STATUS.rx_Linked_List = 0;
+  SPI_ASYNC_STATUS.txLength = 0;
+  SPI_ASYNC_STATUS.rxLength = 0;
+  SPI_ASYNC_STATUS.txRef = LUA_NOREF;
+  SPI_ASYNC_STATUS.rxRef = LUA_NOREF;
 }

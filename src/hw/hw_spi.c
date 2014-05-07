@@ -9,17 +9,13 @@
 #include "variant.h"
 #include "lpc18xx_cgu.h"
 
-volatile struct spi_status_t SPI_STATUS;
-
-#define TEMP_LUA_NOREF -2
-
 /**
  * LPC spi list
  */
 
 // TODO: not use A_G1 as the dedicated CS pin
-hw_spi_t SPI0 = { LPC_SSP0, 0, MOSI, MISO, 3, 0, MD_PLN, FUNC4, CGU_BASE_SSP0, CGU_PERIPHERAL_SSP0, { 0 }};
-hw_spi_t SPI1 = { LPC_SSP1, CC3K_CS, SSP1_MOSI, SSP1_MISO, 1, 19, MD_PUP, ( INBUF_ENABLE | MD_ZI | FUNC1), CGU_BASE_SSP1, CGU_PERIPHERAL_SSP1, { 0 }};
+hw_spi_t SPI0 = { LPC_SSP0, 0, MOSI, MISO, 3, 0, MD_PLN, FUNC4, CGU_BASE_SSP0, CGU_PERIPHERAL_SSP0, { 0 }, 0};
+hw_spi_t SPI1 = { LPC_SSP1, CC3K_CS, SSP1_MOSI, SSP1_MISO, 1, 19, MD_PUP, ( INBUF_ENABLE | MD_ZI | FUNC1), CGU_BASE_SSP1, CGU_PERIPHERAL_SSP1, { 0 }, 0};
 
 static hw_spi_t* spi_list[] = { &SPI0, &SPI1 };
 
@@ -136,14 +132,12 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 {
 	hw_spi_t* SPIx = find_spi(port);
 
-	hw_spi_status_initialize();
-
 	if (spimode == HW_SPI_SLAVE) {
-		SPI_STATUS.isSlave = 1;
+		SPIx->is_slave = 1;
 		hw_spi_slave_enable(port);
 
 	} else {
-		SPI_STATUS.isSlave = 0;
+		SPIx->is_slave = 0;
 
 		// initialize SSP configuration structure to default
 		SSP_ConfigStructInit(&SPIx->config);
@@ -183,13 +177,4 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 	NVIC_SetPriority(DMA_IRQn, ((0x01<<3)|0x01));
 
 	return 0;
-}
-
-void hw_spi_status_initialize() {
-  SPI_STATUS.tx_Linked_List = 0;
-  SPI_STATUS.rx_Linked_List = 0;
-  SPI_STATUS.txLength = 0;
-  SPI_STATUS.rxLength = 0;
-  SPI_STATUS.txRef = TEMP_LUA_NOREF;
-  SPI_STATUS.rxRef = TEMP_LUA_NOREF;
 }

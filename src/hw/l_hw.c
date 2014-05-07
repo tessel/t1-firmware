@@ -101,7 +101,7 @@ static int l_hw_spi_transfer(lua_State* L)
 {
 
 	// If the is currently a transfer underway, don't continue
-	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
 		// Push an error code onto the stack
 		lua_pushnumber(L, -1);
 		return 1;
@@ -135,7 +135,7 @@ static int l_hw_spi_transfer(lua_State* L)
 static int l_hw_spi_transfer_sync(lua_State* L)
 {
 	// If the is currently a transfer underway, don't continue
-	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
 		// Push an error code onto the stack
 		lua_pushnumber(L, -1);
 		return 1;
@@ -158,7 +158,7 @@ static int l_hw_spi_send_sync(lua_State* L)
 {
 
 	// If the is currently a transfer underway, don't continue
-	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
 		// Push an error code onto the stack
 		lua_pushnumber(L, -1);
 		return 1;
@@ -178,7 +178,7 @@ static int l_hw_spi_send_sync(lua_State* L)
 static int l_hw_spi_receive_sync(lua_State* L)
 {
 	// If the is currently a transfer underway, don't continue
-	if (SPI_STATUS.rxRef > 0 || SPI_STATUS.txRef > 0) {
+	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
 		// Push an error code onto the stack
 		lua_pushnumber(L, -1);
 		return 1;

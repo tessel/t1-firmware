@@ -945,7 +945,6 @@ SPI.prototype.transfer = function (txbuf, fn)
   // Begin the transfer
   var res = hw.spi_transfer(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
 
-  console.log('res', res);
   // Check the return code. -1 means there was an error
   if (res === -1) {
     process.removeListener('spi_async_complete', processTransferCB);

@@ -142,10 +142,9 @@ typedef enum {
 	HW_SPI_SECOND = 1
 } hw_spi_phase_t;
 
-struct spi_status_t{
-	uint8_t isSlave;
-	uint32_t transferCount;
-	uint32_t transferError;
+struct spi_async_status_t {
+  uint32_t transferCount;
+  uint32_t transferError;
   hw_GPDMA_Linked_List_Type *tx_Linked_List;
   hw_GPDMA_Linked_List_Type *rx_Linked_List;
   uint32_t txLength;
@@ -167,17 +166,18 @@ typedef struct hw_spi {
   int cgu_base;
   int cgu_peripheral;
   SSP_CFG_Type config;
+  int is_slave;
 } hw_spi_t;
 
 #define SPI_MAX_DMA_SIZE 0xFFF
 
-extern volatile struct spi_status_t SPI_STATUS;
+extern volatile struct spi_async_status_t SPI_ASYNC_STATUS;
 
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
-void hw_spi_status_initialize(void);
+void hw_spi_async_status_initialize(void);
 
 int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
 void hw_spi_async_cleanup (void);
