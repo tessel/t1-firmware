@@ -172,3 +172,7 @@ void hw_gpdma_init(void)
 {
   GPDMA_Init();
 }
+
+void hw_gpdma_cancel_transfer(uint32_t channelNum) {
+  GPDMA_ChannelCmd(channelNum, DISABLE);
+}

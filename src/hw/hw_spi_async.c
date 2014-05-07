@@ -7,13 +7,22 @@ void async_spi_callback();
 tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 
 volatile struct spi_async_status_t SPI_ASYNC_STATUS = {
-  .txRef = 0,
-  .rxRef = 0,
+  .txRef = LUA_NOREF,
+  .rxRef = LUA_NOREF,
   .txLength = 0,
   .rxLength = 0,
   .tx_Linked_List = 0,
   .rx_Linked_List = 0,
 };
+
+void hw_spi_async_status_reset () {
+  SPI_ASYNC_STATUS.tx_Linked_List = 0;
+  SPI_ASYNC_STATUS.rx_Linked_List = 0;
+  SPI_ASYNC_STATUS.txLength = 0;
+  SPI_ASYNC_STATUS.rxLength = 0;
+  SPI_ASYNC_STATUS.txRef = LUA_NOREF;
+  SPI_ASYNC_STATUS.rxRef = LUA_NOREF;
+}
 
 void hw_spi_dma_counter (uint8_t channel){
   // Check counter terminal status
@@ -107,17 +116,28 @@ hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, uint32_t sourc
   return Linked_List;
 }
 
+
+void hw_spi_async_cancel_transfers () {
+  hw_gpdma_cancel_transfer(0);
+  hw_gpdma_cancel_transfer(1);
+}
+
 void hw_spi_async_cleanup () {
   // Unreference our buffers so they can be garbage collected
   luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_ASYNC_STATUS.txRef);
   luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, SPI_ASYNC_STATUS.rxRef);
+  
   // Free our linked list 
   free(SPI_ASYNC_STATUS.tx_Linked_List);
   free(SPI_ASYNC_STATUS.rx_Linked_List);
 
   // Clear our config struct
-  hw_spi_async_status_initialize();
+  hw_spi_async_status_reset();
 
+  // If there are any current transfers, stop them
+  hw_spi_async_cancel_transfers();
+
+  // Unreference the event to free up the event queue
   tm_event_unref(&async_spi_event);
 }
 
@@ -160,7 +180,7 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     rx_config.SrcConn = SSP1_RX_CONN;
   }
 
-  hw_spi_async_status_initialize();
+  hw_spi_async_status_reset();
 
   if (txlen != 0) {
      // Source Connection - unused
@@ -201,7 +221,7 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     // Begin the reception
     hw_gpdma_transfer_begin(rx_chan, SPI_ASYNC_STATUS.rx_Linked_List);
   }
-  
+
   SPI_ASYNC_STATUS.txRef = txref;
   SPI_ASYNC_STATUS.rxRef = rxref;
 
@@ -215,13 +235,4 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   tm_event_ref(&async_spi_event);
 
   return 0;
-}
-
-void hw_spi_async_status_initialize() {
-  SPI_ASYNC_STATUS.tx_Linked_List = 0;
-  SPI_ASYNC_STATUS.rx_Linked_List = 0;
-  SPI_ASYNC_STATUS.txLength = 0;
-  SPI_ASYNC_STATUS.rxLength = 0;
-  SPI_ASYNC_STATUS.txRef = LUA_NOREF;
-  SPI_ASYNC_STATUS.rxRef = LUA_NOREF;
 }
