@@ -117,7 +117,7 @@ int tm_udp_readable (tm_socket_t sock)
     return flag;
 }
 
-int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, int port, uint8_t *buf, unsigned long buf_len)
+int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, int port, const uint8_t *buf, unsigned long buf_len)
 {
 	if (!hw_net_is_connected()) return 0;
 
@@ -187,7 +187,7 @@ int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uin
 
 // http://publib.boulder.ibm.com/infocenter/iseries/v5r3/index.jsp?topic=%2Frzab6%2Frzab6xnonblock.htm
 
-int tm_tcp_write (tm_socket_t sock, uint8_t *buf, size_t buflen)
+int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 {
 	if (!hw_net_is_connected()) return 0;
 	CC3000_START;
