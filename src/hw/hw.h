@@ -172,7 +172,7 @@ typedef struct hw_spi {
 
 #define SPI_MAX_DMA_SIZE 0xFFF
 
-extern volatile struct spi_async_status_t SPI_ASYNC_STATUS;
+extern volatile struct spi_async_status_t spi_async_status;
 
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);

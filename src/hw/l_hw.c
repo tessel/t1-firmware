@@ -101,7 +101,7 @@ static int l_hw_spi_transfer(lua_State* L)
 {
 
 	// If the is currently a transfer underway, don't continue
-	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
+	if (spi_async_status.rxRef > 0 || spi_async_status.txRef > 0) {
 		// Push an error code onto the stack
 		lua_pushnumber(L, -1);
 		return 1;
