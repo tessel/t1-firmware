@@ -798,11 +798,10 @@ _asyncSPIQueue._pushTransfer = function(transfer) {
   // If it's the only thing in the queue
   if (this.length === 1) {
     // Start executing
-    this._execute_async();
+    return this._execute_async();
   }
 
-  // Return the number of items in the queue
-  return this.length;
+  return 0;
 };
 
 _asyncSPIQueue._shiftTransfer = function() {
@@ -824,7 +823,7 @@ _asyncSPIQueue._execute_async = function() {
 
   // If it doesn't exist, something went wrong
   if (!transfer) {
-    return
+    return -1;
   }
   else {
 
@@ -858,11 +857,11 @@ _asyncSPIQueue._execute_async = function() {
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-    var res = hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+     return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
   }
 };
 
-function asyncSPITransfer(port, txbuf, rxbuf, callback) {
+function AsyncSPITransfer(port, txbuf, rxbuf, callback) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
@@ -965,19 +964,22 @@ SPI.prototype.transfer = function (txbuf, fn)
   rxbuf.fill(0);
 
   // Push it into the queue to be completed
-  _asyncSPIQueue._pushTransfer(new asyncSPITransfer(this, txbuf, rxbuf, fn));
+  // Returns a -1 on error and 0 on successful queueing
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, fn));
 }
 
 SPI.prototype.send = function (txbuf, fn)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
-  _asyncSPIQueue._pushTransfer(new asyncSPITransfer(this, txbuf, null, fn));
+  // Returns a -1 on error and 0 on successful queueing
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, fn));
 };
 
 
 SPI.prototype.receive = function (buf_len, fn)
 {
   // We have to transfer bytes for DMA to tick the clock
+  // Returns a -1 on error and 0 on successful queueing
   this.transfer(new Buffer(buf_len), fn);
 };
 
