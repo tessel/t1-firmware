@@ -132,70 +132,6 @@ static int l_hw_spi_transfer(lua_State* L)
 	return 1;
 }
 
-static int l_hw_spi_transfer_sync(lua_State* L)
-{
-	// If the is currently a transfer underway, don't continue
-	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
-		// Push an error code onto the stack
-		lua_pushnumber(L, -1);
-		return 1;
-	}
-
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-
-	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-
-	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
-	memset(rxbuf, 0, buf_len);
-	size_t buf_read = 0;
-	hw_spi_transfer_sync(port, txbuf, rxbuf, buf_len, &buf_read);
-	return 1;
-}
-
-
-static int l_hw_spi_send_sync(lua_State* L)
-{
-
-	// If the is currently a transfer underway, don't continue
-	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
-		// Push an error code onto the stack
-		lua_pushnumber(L, -1);
-		return 1;
-	}
-
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-
-	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
-
-	int res = hw_spi_send_sync(port, txbuf, buf_len);
-	lua_pushnumber(L, res);
-	return 1;
-}
-
-
-static int l_hw_spi_receive_sync(lua_State* L)
-{
-	// If the is currently a transfer underway, don't continue
-	if (SPI_ASYNC_STATUS.rxRef > 0 || SPI_ASYNC_STATUS.txRef > 0) {
-		// Push an error code onto the stack
-		lua_pushnumber(L, -1);
-		return 1;
-	}
-
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	size_t buf_len = (size_t)lua_tonumber(L, ARG1 + 1);
-
-	uint8_t* rxbuf = colony_createbuffer(L, buf_len);
-	memset(rxbuf, 0, buf_len);
-	size_t buf_read = 0;
-	int res = hw_spi_receive_sync(port, rxbuf, buf_len, &buf_read);
-
-	lua_pushnumber(L, res);
-	return 2;
-}
-
 // i2c
 
 static int l_hw_i2c_initialize (lua_State* L)
@@ -599,9 +535,6 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "spi_enable", l_hw_spi_enable },
 		{ "spi_disable", l_hw_spi_disable },
 		{ "spi_transfer", l_hw_spi_transfer },
-		{ "spi_transfer_sync", l_hw_spi_transfer_sync },
-		{ "spi_send_sync", l_hw_spi_send_sync },
-		{ "spi_receive_sync", l_hw_spi_receive_sync },
 
 		// i2c
 		{ "i2c_initialize", l_hw_i2c_initialize },

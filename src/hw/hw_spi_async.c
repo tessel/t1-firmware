@@ -146,7 +146,7 @@ void async_spi_callback (void) {
   lua_State* L = tm_lua_state;
   if (!L) return;
 
-  // Tell the runtime that we need to send info to JS
+  // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
   lua_pushstring(L, "spi_async_complete");
@@ -154,7 +154,7 @@ void async_spi_callback (void) {
   lua_pushnumber(L, SPI_ASYNC_STATUS.transferError);
   // Clean up our vars so that we can do this again
   hw_spi_async_cleanup();
-  // Verify that the Lua state is correct
+  // Call _colony_emit to run the JS callback
   tm_checked_call(L, 2);
 }
 
