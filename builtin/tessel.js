@@ -789,6 +789,86 @@ UART.prototype.setStopBits = function(stopBits){
 
 var _currentSPI = null;
 
+var _asyncSPIQueue = [];
+
+_asyncSPIQueue._pushTransfer = function(transfer) {
+  // Push the transfer into the queue
+  this.push(transfer);
+
+  // If it's the only thing in the queue
+  if (this.length === 1) {
+    // Start executing
+    this._execute_async();
+  }
+
+  // Return the number of items in the queue
+  return this.length;
+};
+
+_asyncSPIQueue._shiftTransfer = function() {
+  // Pop the item from the head
+  this.shift();
+
+  // If we have remaining items
+  if (this.length > 0) {
+    // Process the next one
+    this._execute_async();
+  }
+};
+
+_asyncSPIQueue._execute_async = function() {
+  // Grab the transfer at the head of the queue
+  var transfer = this[0];
+  var err;
+  var self = this;
+
+  // If it doesn't exist, something went wrong
+  if (!transfer) {
+    return
+  }
+  else {
+
+    // Switch SPI to these settings
+    transfer.port._initialize();
+
+    // Activate chip select if it was provided
+    transfer.port._activeChipSelect(1);
+
+    function processTransferCB(errBool) {
+
+      // De-assert chip select
+      transfer.port._activeChipSelect(0);
+
+      // Continue processing transfers after calling callback
+      setImmediate(self._shiftTransfer.bind(self));
+
+      // If a callback was requested
+      if (transfer.callback) {
+        // If there was an error
+        if (errBool === 1) {
+          // Create an error object
+          err = new Error("Unable to complete SPI Transfer.");
+        }
+        // Call the callback
+        transfer.callback(err, transfer.rxbuf);
+      }
+    }
+
+    // When the transfer is complete, process it and call callback
+    process.once('spi_async_complete', processTransferCB);
+
+    // Begin the transfer
+    var res = hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+  }
+};
+
+function asyncSPITransfer(port, txbuf, rxbuf, callback) {
+  this.port = port;
+  this.txbuf = txbuf;
+  this.rxbuf = rxbuf;
+  this.callback = callback;
+}
+
 function SPI (params)
 { 
   params = params || {};
@@ -856,7 +936,6 @@ SPI.prototype._activeChipSelect = function (flag)
   }
 }
 
-
 SPI.prototype._initialize = function ()
 {
   if (_currentSPI != this) {
@@ -869,7 +948,6 @@ SPI.prototype._initialize = function ()
   }
 }
 
-
 // DEPRECATED this was the old way to invoke I2C initialize
 SPI.prototype.initialize = function () { }
 
@@ -879,106 +957,21 @@ SPI.prototype.close = SPI.prototype.end = function ()
   hw.spi_disable(this.port);
 };
 
-
-SPI.prototype.transferSync = function (txbuf, unused_rxbuf)
-{
-  this._initialize();
-  this._activeChipSelect(1);
-  var rxbuf = hw.spi_transfer_sync(this.port, txbuf);
-  this._activeChipSelect(0);
-  return rxbuf;
-}
-
-
-SPI.prototype.sendSync = function (txbuf)
-{
-  this._initialize();
-  this._activeChipSelect(1);
-  hw.spi_send_sync(this.port, txbuf);
-  this._activeChipSelect(0);
-}
-
-
-SPI.prototype.receiveSync = function (buf_len, unused_rxbuf)
-{
-  this._initialize();
-  this._activeChipSelect(1);
-  var rxbuf = hw.spi_receive_sync(this.port, buf_len);
-  this._activeChipSelect(0);
-  return rxbuf;
-}
-
-
 SPI.prototype.transfer = function (txbuf, fn)
 {
-  var self = this;
-  var err;
   // Create a new receive buffer
   var rxbuf = new Buffer(txbuf.length);
   // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
-  // Switch SPI to these settings
-  this._initialize();
-
-  // Activate chip select if it was provided
-  self._activeChipSelect(1);
-
-  function processTransferCB(errBool) {
-    // De-assert chip select
-    self._activeChipSelect(0);
-    // If there was an error
-    if (errBool === 1) {
-      // Create an error object
-      err = new Error("Unable to complete SPI Transfer.");
-    }
-    // If a callback was requested
-    if (fn) {
-      // Call the callback
-      fn(err, rxbuf);
-    }
-  }
-
-  // When the transfer is complete
-  process.once('spi_async_complete', processTransferCB);
-
-  // Begin the transfer
-  var res = hw.spi_transfer(self.port, txbuf.length, rxbuf.length, txbuf, rxbuf);
-
-  // Check the return code. -1 means there was an error
-  if (res === -1) {
-    process.removeListener('spi_async_complete', processTransferCB);
-    if (fn) {
-      fn(new Error("Unable to process SPI request. "));
-    }
-  }
+  // Push it into the queue to be completed
+  _asyncSPIQueue._pushTransfer(new asyncSPITransfer(this, txbuf, rxbuf, fn));
 }
 
 SPI.prototype.send = function (txbuf, fn)
 {
-  var self = this;
-  var err;
-
-  // Activate chip select if it was provided
-  self._activeChipSelect(1);
-
-  process.once('spi_async_complete', function processSendCB(errBool) {
-    // De-assert chip select
-    self._activeChipSelect(0);
-    // If there was an error
-    if (errBool === 1) {
-      // Create an error object
-      err = new Error("Unable to complete SPI Transfer.");
-    }
-    // If a callback was requested
-    if (fn) {
-      // Call the callback
-      fn(err);
-    }
-  });
-
-  // Transfer the bytes. Don't bother receiving any
-  hw.spi_transfer(self.port, txbuf.length, 0, txbuf);
+  // Push the transfer into the queue. Don't bother receiving any bytes
+  _asyncSPIQueue._pushTransfer(new asyncSPITransfer(this, txbuf, null, fn));
 };
 
 

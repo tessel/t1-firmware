@@ -224,6 +224,8 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
 
   SPI_ASYNC_STATUS.txRef = txref;
   SPI_ASYNC_STATUS.rxRef = rxref;
+  SPI_ASYNC_STATUS.transferCount = 0;
+  SPI_ASYNC_STATUS.transferError = 0;
 
 
   // if it's a slave pull down CS
