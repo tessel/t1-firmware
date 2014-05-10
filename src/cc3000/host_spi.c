@@ -474,7 +474,7 @@ void SpiWriteDataSynchronous(unsigned char *data, unsigned short size)
 	
 	// csn(HW_LOW);
 	while (size--) {
-		hw_spi_send(TESSEL_SPI_1, data, 1);
+		hw_spi_send_sync(TESSEL_SPI_1, data, 1);
 		data+=1;
 	}
 	// csn(HW_HIGH);
@@ -493,7 +493,7 @@ void SpiReadDataSynchronous(unsigned char *data, unsigned short size)
 {
 	unsigned int i = 0;
 	for (i = 0; i < size; i ++) {
-		hw_spi_transfer(TESSEL_SPI_1, &(tSpiReadHeader[0]), &(data[i]), 1, NULL);
+		hw_spi_transfer_sync(TESSEL_SPI_1, &(tSpiReadHeader[0]), &(data[i]), 1, NULL);
 	}
 }
 
