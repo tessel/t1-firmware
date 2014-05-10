@@ -8,22 +8,22 @@ var hw = process.binding('hw');
 var tessel_version = process.versions.tessel_board;
 
 var _interruptModes = {
-  0 : "rise",
-  1 : "fall",
-  2 : "high",
-  3 : "low",
-  4 : "change"
+  0 : 'rise',
+  1 : 'fall',
+  2 : 'high',
+  3 : 'low',
+  4 : 'low'
 };
 
 process.on('raw-message', function (buf) {
   try {
-    process.emit('message', clone.deserialize(buf))
+    process.emit('message', clone.deserialize(buf));
   } catch (e) { }
-})
+});
 
 process.send = function (msg) {
   hw.usb_send('M'.charCodeAt(0), clone.serialize(msg));
-}
+};
 
 
 /**
@@ -38,7 +38,7 @@ function propertySetWithDefault (provided, possibility, defaultProp) {
     if (verifyParams(possibility, provided)) {
       return provided;
     } else {
-      throw new Error("Invalid property value");
+      throw new Error('Invalid property value');
     }
   }
 }
@@ -52,37 +52,6 @@ function verifyParams (possible, provided) {
   return false;
 }
 
-function intBytes (num) {
-  var NUM_INT_BYTES = 4;
-  var NUM_BITS_INT = 8;
-  var buf = [];
-
-  // Iterate through each octet
-  for (var i = 0; i < NUM_INT_BYTES; i++) {
-    // Grab the bytes at each octet and move it back to the beginning of the byte array
-    var bite = (num & (0xFF << (i* NUM_BITS_INT))) >> (i * NUM_BITS_INT);
-
-    // If the byte is still less than zero (usually the last octet of neg. number)
-    if (bite < 0) {
-      // Grab the last octet
-      bite = bite & 0xFF
-    }
-
-    // Push the byte into the array
-    buf.push(bite);
-  }
-
-
-  // Remove trailing zeros
-  while (buf[--i] == 0) {
-    // Pop that zero
-    buf.pop(i);
-  }
-
-  return buf;
-}
-
-
 /**
  * Pins
  */
@@ -93,7 +62,7 @@ function Pin (pin) {
 
 util.inherits(Pin, EventEmitter);
 
-Pin.prototype.type = 'digital'
+Pin.prototype.type = 'digital';
 
 Pin.prototype.rawDirection = function rawDirection(isOutput) {
   if (isOutput) {
@@ -106,7 +75,7 @@ Pin.prototype.rawDirection = function rawDirection(isOutput) {
 
 Pin.prototype.rawRead = function rawRead() {
   return hw.digital_read(this.pin);
-}
+};
 
 Pin.prototype.rawWrite = function rawWrite(value) {
   hw.digital_write(this.pin, value ? hw.HIGH : hw.LOW);
@@ -118,24 +87,24 @@ Pin.prototype.output = function output(value) {
   this.rawWrite(value);
   this.rawDirection(true);
   return this;
-}
+};
 
 Pin.prototype.input = function input() {
   this.rawDirection(false);
   return this;
-}
+};
 
 Pin.prototype.setInput = function (next) {
-  console.warn("pin.setInput is deprecated. Use pin.input()");
+  console.warn('pin.setInput is deprecated. Use pin.input()');
   hw.rawDirection(false);
   if (next) {
     setImmediate(next);
   }
   return this;
-}
+};
 
 Pin.prototype.setOutput = function (initial, next) {
-  console.warn("pin.setOutput is deprecated. Use pin.output()");
+  console.warn('pin.setOutput is deprecated. Use pin.output()');
 
   if (typeof initial == 'function') {
     next = initial;
@@ -149,64 +118,64 @@ Pin.prototype.setOutput = function (initial, next) {
   }
 
   return this;
-}
+};
 
 Pin.prototype.read = function (next) {
   this.rawDirection(false);
   var value = this.rawRead();
 
   if (next) {
-    console.warn("pin.read is now synchronous. Use of the callback is deprecated.");
-    setImmediate(function() { next(value) });
+    console.warn('pin.read is now synchronous. Use of the callback is deprecated.');
+    setImmediate(function() { next(value); });
   }
   return value;
-}
+};
 
 Pin.prototype.readSync = function(value) {
-  console.warn("pin.readSync() is deprecated. Use pin.read() instead.");
+  console.warn('pin.readSync() is deprecated. Use pin.read() instead.');
   return this.read();
-}
+};
 
 Pin.prototype.write = function (value, next) {
   this.rawWrite(value);
   this.rawDirection(true);
 
   if (next) {
-    console.warn("pin.write is now synchronous. Use of the callback is deprecated.");
+    console.warn('pin.write is now synchronous. Use of the callback is deprecated.');
     setImmediate(next);
   }
   return null;
-}
+};
 
 Pin.prototype.writeSync = function(value) {
-  console.warn("pin.writeSync() is deprecated. Use pin.write() instead.");
+  console.warn('pin.writeSync() is deprecated. Use pin.write() instead.');
   return this.write(value);
-}
+};
 
 Pin.prototype.high = function () {
   this.output(true);
   return this;
-}
+};
 
 Pin.prototype.low = function () {
   this.output(false);
   return this;
-}
+};
 
 Pin.prototype.pulse = function () {
   this.high();
   this.low();
-}
+};
 
 Pin.prototype.toggle = function () {
   this.output(!this.rawRead());
-}
+};
 
 Pin.prototype.set = function (v) {
   console.warn("pin.set() is deprecated. Use this.rawWrite(v) or this.output(v)");
   this.rawWrite(v);
   return this;
-}
+};
 
 Pin.prototype.pwm = function (frequency, dutyCycle)
 {
@@ -218,10 +187,10 @@ Pin.prototype.pwm = function (frequency, dutyCycle)
 
   var pulsewidth = dutyCycle*period;
 
-  if (hw.pwm(this.pin, hw.PWM_EDGE_HI, period, pulsewidth) != 0) {
+  if (hw.pwm(this.pin, hw.PWM_EDGE_HI, period, pulsewidth) !== 0) {
     throw new Error("PWM is not supported on this pin");
   }
-}
+};
 
 
 /**
@@ -245,7 +214,7 @@ AnalogPin.prototype.write = function (val){
   }
 
   hw.analog_write(this.pin, val);
-}
+};
 
 
 // TM 2014-01-30 new API >>>
@@ -254,7 +223,7 @@ AnalogPin.prototype.type = 'analog';
 AnalogPin.prototype.resolution = ANALOG_RESOLUTION;
 AnalogPin.prototype.readSync = function () {
   return hw.analog_read(this.pin) / ANALOG_RESOLUTION;
-}
+};
 AnalogPin.prototype.read = function (next) {
   if (next) {
     setImmediate(next, null, hw.analog_read(this.pin) / ANALOG_RESOLUTION);
@@ -262,7 +231,7 @@ AnalogPin.prototype.read = function (next) {
   }
   // TODO deprecated:
   return hw.analog_read(this.pin);
-}
+};
 // TM <<<
 
 
@@ -288,18 +257,18 @@ process.on('interrupt', function (index, _mode, state) {
     if (mode === "change") {
 
       if (state === 1) {
-        callbacks.concat(assigned.modes['rise'].callbacks);
+        callbacks.concat(assigned.modes.rise.callbacks);
         assigned.pin.emit('change', null, 0, 'low');
         assigned.pin.emit('rise', null, 0, 'rise');
       } 
       else {
-        callbacks.concat(assigned.modes['low'].callbacks);
+        callbacks.concat(assigned.modes.low.callbacks);
         assigned.pin.emit('change', null, 0, 'low');
         assigned.pin.emit('low', null, 0, 'low');
       }
     }
     else {
-      assigned.pin.emit(mode)
+      assigned.pin.emit(mode);
     }
 
     // If it's a high or low event, clear that interrupt (should only happen once)
@@ -343,7 +312,7 @@ Pin.prototype.watch = function(mode, callback) {
 
   // Assign this pin with this trigger mode to the interrupt
   return this.assignInterrupt(mode, interrupt, callback);
-}
+};
 
 function interruptModeForType(triggerMode) {
   for (var mode in _interruptModes) {
@@ -394,12 +363,14 @@ Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
   else {
 
     // Throw the error in callback
-    callback && callback.bind(this, new Error("Unable to wait for interrupts on pin"))();
+    if (callback) {
+      callback.bind(this, new Error("Unable to wait for interrupts on pin"))();
+    }
     return -1;
   }
 
   return 1;
-}
+};
 
 function InterruptAssignment(pin, mode, callback) {
   // Save the pin object
@@ -407,11 +378,11 @@ function InterruptAssignment(pin, mode, callback) {
 
   // Create a modes obj with each possible mode
   this.modes = {};
-  this.modes["rise"] = {listeners : 0, callbacks : []};
-  this.modes["fall"] = {listeners : 0, callbacks : []};
-  this.modes["change"] = {listeners : 0, callbacks : []};
-  this.modes["high"] = {listeners : 0, callbacks : []};
-  this.modes["low"] = {listeners : 0, callbacks : []};
+  this.modes.rise = {listeners : 0, callbacks : []};
+  this.modes.fall= {listeners : 0, callbacks : []};
+  this.modes.change = {listeners : 0, callbacks : []};
+  this.modes.high = {listeners : 0, callbacks : []};
+  this.modes.low = {listeners : 0, callbacks : []};
 
   // Increment number of listeners
   this.modes[mode].listeners = 1;
@@ -435,7 +406,7 @@ InterruptAssignment.prototype.addModeListener = function(mode, callback) {
     // Add it to the array
     modeObj.callbacks.push(callback);
   }
-}
+};
 
 Pin.prototype.cancelWatch = function(mode, callback){
 
@@ -462,7 +433,9 @@ Pin.prototype.cancelWatch = function(mode, callback){
       if (success) {
 
         // Call callback with no error
-        callback && callback();
+        if (callback) {
+          callback();
+        }
 
         return 1;
       } 
@@ -470,17 +443,21 @@ Pin.prototype.cancelWatch = function(mode, callback){
       else {
 
         // Throw the error
-        callback && callback(new Error("Unable to cancel interrupt..."));
+        if (callback) {
+          callback(new Error("Unable to cancel interrupt..."));
+        }
 
         return -1;
       }
     }
   }
   else {
-    callback && callback();
+    if (callback) {
+      callback();
+    }
     return 1;
   }
-}
+};
 
 
 /**
@@ -500,8 +477,8 @@ Button.prototype.record = function(){
   var l = this;
   var lastfall = 0, lastrise = 0;
   setInterval(function () {
-    var rise = hw.interrupt_record_lastrise(inter)
-      , fall = hw.interrupt_record_lastfall(inter);
+    var rise = hw.interrupt_record_lastrise(inter), 
+       fall = hw.interrupt_record_lastfall(inter);
     if (rise != lastrise) {
       l.emit('rise', rise, fall);
     }
@@ -512,7 +489,7 @@ Button.prototype.record = function(){
     lastfall = fall;
   }, 1);
   return l;
-}
+};
 
 /**
  * Board
@@ -529,7 +506,7 @@ var I2CMode = {
   Master : hw.I2C_MASTER,
   Slave: hw.I2C_SLAVE,
   General: hw.I2C_GENERAL
-}
+};
 
 function I2C (addr, mode, port) {
   this.addr = addr;
@@ -567,10 +544,10 @@ I2C.prototype.disable = function() {
     hw.i2c_disable(hw.I2C_1);
     i2c1initialized = false;
   }
-}
+};
 
 // DEPRECATED old way of invoking I2C initialization
-I2C.prototype.initialize = function () { }
+I2C.prototype.initialize = function () { };
 
 I2C.prototype.transferSync = function (data, rxbuf_len) {
   this._initialize();
@@ -604,7 +581,7 @@ I2C.prototype.receiveSync = function (buf_len) {
 };
 
 
-I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, fn)
+I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, callback)
 {
   if (!fn) {
     fn = unused_rxbuf;
@@ -614,17 +591,21 @@ I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, fn)
   var self = this;
   setImmediate(function() {
     var rxbuf = self.transferSync(txbuf, rxbuf_len);
-    fn && fn(null, rxbuf);
+    if (callback) {
+      callback(null, rxbuf);
+    }
   });
-}
+};
 
 
-I2C.prototype.send = function (txbuf, fn)
+I2C.prototype.send = function (txbuf, callback)
 {
   var self = this;
   setImmediate(function() {
     self.sendSync(txbuf);
-    fn && fn(null);
+    if (callback) {
+      callback(null);
+    }
   });
 };
 
@@ -639,7 +620,9 @@ I2C.prototype.receive = function (buf_len, unused_rxbuf, fn)
   var self = this;
   setImmediate(function() {
     var rxbuf = self.receiveSync(buf_len, unused_rxbuf);
-    fn && fn(null, rxbuf);
+    if (callback) {
+      callback(null, rxbuf);
+    }
   });
 };
 
@@ -653,19 +636,19 @@ var UARTParity = {
   Even : hw.UART_PARITY_EVEN,
   OneStick : hw.UART_PARITY_ONE_STICK,
   ZeroStick : hw.UART_PARITY_ZERO_STICK,
-}
+};
 
 var UARTDataBits = {
   Five : hw.UART_DATABIT_5,
   Six : hw.UART_DATABIT_6,
   Seven : hw.UART_DATABIT_7,
   Eight : hw.UART_DATABIT_8,
-}
+};
 
 var UARTStopBits = {
   One : hw.UART_STOPBIT_1,
   Two : hw.UART_STOPBIT_2,
-}
+};
 
 function UART(params, port) {
 
@@ -725,12 +708,12 @@ UART.prototype.setBaudrate = function(baudrate){
   } else {
     return this.baudrate;
   }
-}
+};
 
 UART.prototype.write = function (txbuf) {
   // Send it off
   return hw.uart_send(this.uartPort, txbuf);
-}
+};
 
 UART.prototype.checkReceiveFlag = function() {
 
@@ -753,7 +736,6 @@ UART.prototype.setDataBits = function(dataBits) {
   }
 
   throw new Error("Invalid databits value");
-  return -1;
 };
 
 UART.prototype.setParity = function(parity) {
@@ -764,7 +746,6 @@ UART.prototype.setParity = function(parity) {
   }
 
   throw new Error("Invalid parity value");
-  return -1;
 };
 
 UART.prototype.setStopBits = function(stopBits){
@@ -775,7 +756,6 @@ UART.prototype.setStopBits = function(stopBits){
   }
 
   throw new Error("Invalid stopbit value");
-  return -1;
 };
 
 
@@ -821,6 +801,26 @@ _asyncSPIQueue._execute_async = function() {
   var err;
   var self = this;
 
+  function processTransferCB(errBool) {
+
+    // De-assert chip select
+    transfer.port._activeChipSelect(0);
+
+    // Continue processing transfers after calling callback
+    setImmediate(self._shiftTransfer.bind(self));
+
+    // If a callback was requested
+    if (transfer.callback) {
+      // If there was an error
+      if (errBool === 1) {
+        // Create an error object
+        err = new Error("Unable to complete SPI Transfer.");
+      }
+      // Call the callback
+      transfer.callback(err, transfer.rxbuf);
+    }
+  }
+
   // If it doesn't exist, something went wrong
   if (!transfer) {
     return -1;
@@ -832,26 +832,6 @@ _asyncSPIQueue._execute_async = function() {
 
     // Activate chip select if it was provided
     transfer.port._activeChipSelect(1);
-
-    function processTransferCB(errBool) {
-
-      // De-assert chip select
-      transfer.port._activeChipSelect(0);
-
-      // Continue processing transfers after calling callback
-      setImmediate(self._shiftTransfer.bind(self));
-
-      // If a callback was requested
-      if (transfer.callback) {
-        // If there was an error
-        if (errBool === 1) {
-          // Create an error object
-          err = new Error("Unable to complete SPI Transfer.");
-        }
-        // Call the callback
-        transfer.callback(err, transfer.rxbuf);
-      }
-    }
 
     // When the transfer is complete, process it and call callback
     process.once('spi_async_complete', processTransferCB);
@@ -917,7 +897,7 @@ function SPI (params)
   var self = this;
   setImmediate(function () {
     self.emit('ready');
-  })
+  });
 }
 
 
@@ -928,12 +908,22 @@ SPI.prototype._activeChipSelect = function (flag)
 {
   if (this.chipSelect) {
     if (this.chipSelectActive) {
-      flag ? this.chipSelect.high() : this.chipSelect.low();
+      if (flag) {
+        this.chipSelect.high();
+      }
+      else {
+        this.chipSelect.low();
+      }
     } else {
-      flag ? this.chipSelect.low() : this.chipSelect.high();
+      if (flag) {
+        this.chipSelect.low();
+      }
+      else {
+        this.chipSelect.high();
+      }
     }
   }
-}
+};
 
 SPI.prototype._initialize = function ()
 {
@@ -945,10 +935,10 @@ SPI.prototype._initialize = function ()
       this.cpha ? 1 : 0,
       this.frameMode == 'normal' ? SPIFrameMode.Normal : SPIFrameMode.Normal);
   }
-}
+};
 
 // DEPRECATED this was the old way to invoke I2C initialize
-SPI.prototype.initialize = function () { }
+SPI.prototype.initialize = function () { };
 
 
 SPI.prototype.close = SPI.prototype.end = function ()
@@ -966,7 +956,7 @@ SPI.prototype.transfer = function (txbuf, fn)
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
   return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, fn));
-}
+};
 
 SPI.prototype.send = function (txbuf, fn)
 {
@@ -987,7 +977,7 @@ SPI.prototype.receive = function (buf_len, fn)
 SPI.prototype.setBitOrder = function (bitOrder)
 {
   this.bitOrder = bitOrder;
-}
+};
 
 
 SPI.prototype.setClockSpeed = function(clockSpeed) {
@@ -996,39 +986,39 @@ SPI.prototype.setClockSpeed = function(clockSpeed) {
   } else {
     throw new Error("Invalid clockspeed value");
   }
-}
+};
 
 
 SPI.prototype.setDataMode = function (dataMode)
 {
   this.cpol = dataMode & 0x1;
   this.cpha = dataMode & 0x2;
-}
+};
 
 
 SPI.prototype.setFrameMode = function (frameMode)
 {
   this.frameMode = frameMode;
-}
+};
 
 
 SPI.prototype.setRole = function (role)
 {
   this.role = role;
-}
+};
 
 
 SPI.prototype.setChipSelectMode = function (chipSelectMode)
 {
   this.chipSelectMode = chipSelectMode;
   this.activeChipSelect(0);
-}
+};
 
 
 var SPIBitOrder = {
   MSB : 0,
   LSB : 1,
-}
+};
 
 /* 
 *   MODE         CPOL   CPHA
@@ -1080,15 +1070,15 @@ function Port (id, gpios, analogs, i2c, uart)
   // TM <<<
   // Until new takes a "this" method
   this.I2C = function (addr, mode, port) {
-    return new I2C(addr, mode, port == null ? i2c : port)
+    return new I2C(addr, mode, port === null ? i2c : port);
   };
   this.UART = function (format, port) {
-    if (uart == null) {
+    if (uart === null) {
       throw tessel_version > 1 ? 'Software UART not yet functional in firmware.' : 'Board version only supports UART on GPIO port.';
     }
-    return new UART(format, port == null ? uart : port);
+    return new UART(format, port === null ? uart : port);
   };
-};
+}
 
 // Port.prototype.I2C = function (addr, port) {
 //     return new I2C(addr, port == null ? i2c : port)
@@ -1132,11 +1122,11 @@ function Tessel() {
   
   this.leds = [null, new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
   this.led = function(n) {
-    if (board.leds[n] == null) {
-      throw "No LED at index " + n + " exists."
+    if (board.leds[n] === null) {
+      throw "No LED at index " + n + " exists.";
     }
     return board.leds[n];
-  }
+  };
   this.interrupts = [];
 
   this.ports =  {
@@ -1173,18 +1163,18 @@ function Tessel() {
 
   this.port = function (label) {
     return board.ports[label.toUpperCase()];
-  }
+  };
 
   this.sleep = function (n) {
     if (n < 1) {
       n = 1;
     }
     hw.sleep_ms(n);
-  }
+  };
 
   this.deviceId = function(){
     return hw.device_id();
-  }  
+  }; 
 
 }
 
