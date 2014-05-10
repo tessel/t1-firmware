@@ -64,7 +64,7 @@ util.inherits(Pin, EventEmitter);
 
 Pin.prototype.type = 'digital';
 
-Pin.prototype.rawDirection = function rawDirection(isOutput) {
+Pin.prototype.rawDirection = function (isOutput) {
   if (isOutput) {
     hw.digital_output(this.pin);
   } else {
