@@ -182,6 +182,14 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
 
   hw_spi_async_status_reset();
 
+  // Save the length that we're transferring
+  spi_async_status.txLength = txlen;
+  spi_async_status.rxLength = rxlen;
+  spi_async_status.txRef = txref;
+  spi_async_status.rxRef = rxref;
+  spi_async_status.transferCount = 0;
+  spi_async_status.transferError = 0;
+
   if (txlen != 0) {
      // Source Connection - unused
     tx_config.SrcConn = 0;
@@ -191,9 +199,6 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     // Configure the tx transfer on channel 0
     // TODO: Get next available channel
     hw_gpdma_transfer_config(tx_chan, &tx_config);
-
-    // Save the length that we're transferring
-    spi_async_status.txLength = txlen;
 
     // Generate the linked list structure for transmission
     spi_async_status.tx_Linked_List = hw_spi_dma_packetize(txlen, (uint32_t)txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
@@ -212,21 +217,12 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     // TODO: Get next available channel
     hw_gpdma_transfer_config(rx_chan, &rx_config);
 
-    // Save the length that we're transferring
-    spi_async_status.rxLength = rxlen;
-
     // Generate the linked list structure for receiving
     spi_async_status.rx_Linked_List = hw_spi_dma_packetize(rxlen, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), (uint32_t)rxbuf, 0);
 
     // Begin the reception
     hw_gpdma_transfer_begin(rx_chan, spi_async_status.rx_Linked_List);
   }
-
-  spi_async_status.txRef = txref;
-  spi_async_status.rxRef = rxref;
-  spi_async_status.transferCount = 0;
-  spi_async_status.transferError = 0;
-
 
   // if it's a slave pull down CS
   if (SPIx->is_slave) {
