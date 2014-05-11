@@ -152,6 +152,8 @@ struct spi_async_status_t {
   uint32_t rxLength;
   int32_t txRef;
   int32_t rxRef;
+  // Callback is a shim to allow C code to receive callbacks
+  void (*callback)();
 };
 
 // Configuration for a port
@@ -173,6 +175,11 @@ typedef struct hw_spi {
 #define SPI_MAX_DMA_SIZE 0xFFF
 
 extern volatile struct spi_async_status_t spi_async_status;
+
+// Ugly hack to allow us to get spi callbacks in C
+// By default, it will point to the event queue callback
+// Resets to default after every transfer
+void *spi_async_complete_cb;
 
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
@@ -283,7 +290,7 @@ void hw_interrupt_enable(int index, int ulPin, int mode);
 void hw_interrupt_disable(int index);
 
 int hw_interrupts_available (void);
-int hw_interrupt_watch (int ulPin, int mode, int interruptID);
+int hw_interrupt_watch (int ulPin, int mode, int interruptID, void (*callback)());
 int hw_interrupt_unwatch(int interrupt_index);
 int hw_interrupt_acquire (void);
 int hw_interrupt_assignment_query (int pin);
