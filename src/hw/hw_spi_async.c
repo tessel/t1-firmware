@@ -3,6 +3,7 @@
 #include "colony.h"
 
 void async_spi_callback();
+void default_complete_cb();
 /// The event triggered by the timer callback
 tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 
@@ -13,6 +14,7 @@ volatile struct spi_async_status_t spi_async_status = {
   .rxLength = 0,
   .tx_Linked_List = 0,
   .rx_Linked_List = 0,
+  .callback = &default_complete_cb,
 };
 
 void hw_spi_async_status_reset () {
@@ -22,6 +24,7 @@ void hw_spi_async_status_reset () {
   spi_async_status.rxLength = 0;
   spi_async_status.txRef = LUA_NOREF;
   spi_async_status.rxRef = LUA_NOREF;
+  spi_async_status.callback = &default_complete_cb;
 }
 
 void hw_spi_dma_counter (uint8_t channel){
@@ -33,7 +36,7 @@ void hw_spi_dma_counter (uint8_t channel){
     uint8_t done_count = (spi_async_status.txLength && spi_async_status.rxLength) ? 2 : 1;
     if (++spi_async_status.transferCount == done_count) {
       // Trigger the callback
-      tm_event_trigger(&async_spi_event);
+      (*spi_async_status.callback)();
     }
   }
   if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, channel)){
@@ -42,8 +45,12 @@ void hw_spi_dma_counter (uint8_t channel){
     // Register the error in our struct
     spi_async_status.transferError++;
     // Trigger the callback because there was an error
-    tm_event_trigger(&async_spi_event);
+    (*spi_async_status.callback)();
   }
+}
+
+void default_complete_cb() {
+  tm_event_trigger(&async_spi_event);
 }
 
 hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, uint32_t source, uint32_t destination, uint8_t txBool) {
@@ -180,7 +187,11 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
     rx_config.SrcConn = SSP1_RX_CONN;
   }
 
-  hw_spi_async_status_reset();
+  spi_async_status.txRef = txref;
+  spi_async_status.rxRef = rxref;
+  spi_async_status.transferCount = 0;
+  spi_async_status.transferError = 0;
+  // hw_spi_async_status_reset();
 
   // Save the length that we're transferring
   spi_async_status.txLength = txlen;
