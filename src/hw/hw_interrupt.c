@@ -47,6 +47,8 @@ void initialize_GPIO_interrupts() {
 		// Detatch any interrupts
 		hw_interrupt_disable(i);
 
+		tm_event_unref(&interrupts[i].event);
+
 		// Remove any assignments that may have been left over. 
 		interrupts[i].pin = NO_ASSIGNMENT;
 		interrupts[i].mode = NO_ASSIGNMENT;
@@ -115,6 +117,9 @@ int hw_interrupt_unwatch(int interrupt_index) {
 		// Indicate in data structure that it's a free spot
 		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
 		interrupts[interrupt_index].mode = NO_ASSIGNMENT;
+
+		tm_event_unref(&interrupts[interrupt_index].event);
+
 		return 1;
 	}
 	else {
@@ -158,6 +163,9 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index)
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_RISING);
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_FALLING);
 		}
+
+		tm_event_ref(&interrupts[interrupt_index].event);
+
 		// Return success
 		return 1;
 	}
