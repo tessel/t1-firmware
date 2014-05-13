@@ -583,8 +583,8 @@ I2C.prototype.receiveSync = function (buf_len) {
 
 I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, callback)
 {
-  if (!fn) {
-    fn = unused_rxbuf;
+  if (!callback) {
+    callback = unused_rxbuf;
     unused_rxbuf = null;
   }
 
@@ -610,10 +610,10 @@ I2C.prototype.send = function (txbuf, callback)
 };
 
 
-I2C.prototype.receive = function (buf_len, unused_rxbuf, fn)
+I2C.prototype.receive = function (buf_len, unused_rxbuf, callback)
 {
-  if (!fn) {
-    fn = unused_rxbuf;
+  if (!callback) {
+    callback = unused_rxbuf;
     unused_rxbuf = null;
   }
 
@@ -946,7 +946,7 @@ SPI.prototype.close = SPI.prototype.end = function ()
   hw.spi_disable(this.port);
 };
 
-SPI.prototype.transfer = function (txbuf, fn)
+SPI.prototype.transfer = function (txbuf, callback)
 {
   // Create a new receive buffer
   var rxbuf = new Buffer(txbuf.length);
@@ -955,22 +955,22 @@ SPI.prototype.transfer = function (txbuf, fn)
 
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, fn));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback));
 };
 
-SPI.prototype.send = function (txbuf, fn)
+SPI.prototype.send = function (txbuf, callback)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, fn));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback));
 };
 
 
-SPI.prototype.receive = function (buf_len, fn)
+SPI.prototype.receive = function (buf_len, callback)
 {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this.transfer(new Buffer(buf_len), fn);
+  this.transfer(new Buffer(buf_len), callback);
 };
 
 
