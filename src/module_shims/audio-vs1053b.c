@@ -35,7 +35,6 @@ void _queue_buffer(AudioBuffer *buffer) {
   AudioBuffer **next = &operating_buf;
   // If we don't have an operating buffer already
   if (!(*next)) {
-    TM_DEBUG("There is nothing else in the queue, starting now.");
     // Assign this buffer to the head
     *next = buffer;
 
@@ -45,7 +44,6 @@ void _queue_buffer(AudioBuffer *buffer) {
 
   // If we do already have an operating buf
   else {
-    TM_DEBUG("Already items in the queue, placing for now.");
     // Iterate to the last buf
     while (*next) { next = &(*next)->next; }
 
@@ -61,7 +59,6 @@ void _shift_buffer() {
   // If the head is already null
   if (!head) {
     // Just return
-    TM_DEBUG("Head is already null somehow");
     return;
   }
   else {
@@ -71,7 +68,6 @@ void _shift_buffer() {
     // Set the new head to the next
     operating_buf = old->next;
 
-    TM_DEBUG("Freeing the old...");
     // Clean any references to the previous transfer
     // If this is uncommented, the program crashes... but don't I need it?
     // free(old->tx_buf);
@@ -79,7 +75,6 @@ void _shift_buffer() {
 
     // If there is another buffer to play
     if (operating_buf) {
-      TM_DEBUG("New head is not null...");
       // Begin the next transfer
       _audio_watch_dreq();
     }
@@ -91,7 +86,6 @@ void _shift_buffer() {
 // SPI.initialize MUST be initialized before calling this func
 int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
-  TM_DEBUG("called with args %d %d %d", chip_select, dreq, buf_len);
   // Create a new buffer struct
   AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
   // Set the next field
@@ -120,13 +114,11 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
 
   // If we have an existing operating buffer
   if (operating_buf) {
-    TM_DEBUG("Using old interrupt id");
     // Use the same interrupt 
     new_buf->interrupt = operating_buf->interrupt;
   }
   // If this is the first audio buffer
   else {
-    TM_DEBUG("Generating new interrupt id");
     // Check if there are any more interrupts available
     if (!hw_interrupts_available()) {
       // If not, return an error code
@@ -136,13 +128,12 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
       // If there are, grab the next available interrupt
       new_buf->interrupt = hw_interrupt_acquire();
 
-      TM_DEBUG("Got a new one...%d", new_buf->interrupt);
     }
   }
 
   // Generate an ID for this stream so we know when it's complete
   new_buf->stream_id = _generate_stream_id();
-  TM_DEBUG("generated new buf. Adding to queue");
+
   _queue_buffer(new_buf);
 
   return new_buf->stream_id;
@@ -151,12 +142,18 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
 
 // Called when a SPI transaction has completed
 void _audio_spi_callback() {
-  TM_DEBUG(" SPI Callback was hit!");
   // As long as we have an operating buf
   if (operating_buf != NULL) {
+
+    // If there was an error with the transfer
+    if (spi_async_status.transferError) {
+      // Set the number of bytes to continue writing to 0
+      // This will force the completion event
+      operating_buf->remaining_bytes = 0;
+    }
+
     // Check if we have more bytes to send for this buffer
     if (operating_buf->remaining_bytes > 0) {
-      TM_DEBUG("We still have bytes remaining...");
       // Send more bytes when DREQ is low
       _audio_watch_dreq();
     }
@@ -170,12 +167,10 @@ void _audio_spi_callback() {
 
       // Pull chip select back up
       hw_digital_write(operating_buf->chip_select, 1);
-      TM_DEBUG("We're finished sending everything");
+      // Save the stream id for our event emission
       uint16_t stream_id = operating_buf->stream_id;
       // Remove this buffer from the linked list and free the memory
-      TM_DEBUG("Shifting...");
       _shift_buffer();
-      TM_DEBUG("About to emit...");
       // Emit the event that we finished playing that buffer
       _audio_emit_completion(stream_id);
     }
@@ -184,12 +179,10 @@ void _audio_spi_callback() {
 
 // Called when DREQ goes low. Data is available to be sent over SPI
 void _audio_continue_spi() {
-  TM_DEBUG("In the interrupt callback! %d", operating_buf->remaining_bytes);
   // If we have an operating buf
   if (operating_buf != NULL) {
     // Figure out how many bytes we're sending next
     uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
-    TM_DEBUG("Going to send %d bytes...", operating_buf->remaining_bytes);
     // Pull chip select low
     hw_digital_write(operating_buf->chip_select, 0);
     // Transfer the data
@@ -203,7 +196,6 @@ void _audio_continue_spi() {
 
 void _audio_watch_dreq() {
   // Start watching dreq for a low signal
-  TM_DEBUG("Dreq read %d", hw_digital_read(operating_buf->dreq));
   if (!hw_digital_read(operating_buf->dreq)) {
     // Continue sending data
     _audio_continue_spi();
@@ -211,7 +203,6 @@ void _audio_watch_dreq() {
   // If not
   else {
     // Wait for dreq to go low
-    TM_DEBUG("just waiting for a low signal on %d for interrupt %d for %d.", operating_buf->dreq, operating_buf->interrupt, TM_INTERRUPT_MODE_LOW);
     hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_LOW, operating_buf->interrupt, _audio_continue_spi);
   }
   
@@ -221,14 +212,37 @@ void _audio_emit_completion(uint16_t stream_id) {
   lua_State* L = tm_lua_state;
   if (!L) return;
 
-  TM_DEBUG("Really emitting..");
   lua_getglobal(L, "_colony_emit");
   lua_pushstring(L, "audio_complete");
+  lua_pushnumber(L, spi_async_status.transferError);
   lua_pushnumber(L, stream_id);
-  tm_checked_call(L, 2);
-  TM_DEBUG("Done being checked...");
+  tm_checked_call(L, 3);
 }
 
 uint16_t _generate_stream_id() {
   return ++master_id_gen;
+}
+
+void audio_clean() {
+
+  // Stop SPI
+  hw_spi_async_cleanup();
+
+  // Clear Interrupts
+  hw_interrupt_unwatch(operating_buf->interrupt);
+
+  // Free our entire queue 
+  for (AudioBuffer **curr = &operating_buf; *curr;) {
+    // Save previous as the current linked list item
+    AudioBuffer *prev = *curr;
+
+    // Current is now the next item
+    *curr = prev->next;
+
+    // Free the previous item
+    free(prev);
+  }
+
+  master_id_gen = 0;
+  operating_buf = NULL;
 }
