@@ -140,11 +140,9 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index, void (*callback)
 		// Assign the pin to the interrupt
 		interrupts[interrupt_index].pin = pin;
 		if (callback != 0) {
-			TM_DEBUG("callback not zero");
 			interrupts[interrupt_index].callback = callback;
 		}
 		else {
-			TM_DEBUG("callback IS zero");
 			interrupts[interrupt_index].callback = (void *)NO_ASSIGNMENT;
 		}
 		// If this is a rising interrupt
@@ -232,11 +230,9 @@ void place_awaiting_interrupt(int interrupt_id)
 	} 
 
 	if (interrupt->callback != (void *)NO_ASSIGNMENT) {
-		TM_DEBUG("Calling no assignment");
 		(*interrupt->callback)();
 	}
 	else {
-		TM_DEBUG("callback provided callback");
 		tm_event_trigger(&interrupt->event);
 	}
 	
