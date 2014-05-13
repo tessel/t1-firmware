@@ -186,7 +186,7 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
 
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 

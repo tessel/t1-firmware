@@ -128,7 +128,7 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint32_t rxref = luaL_ref(L, LUA_REGISTRYINDEX);
 	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Begin the transfer
-	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
+	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, 0);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;

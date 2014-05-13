@@ -165,7 +165,7 @@ void async_spi_callback (void) {
   tm_checked_call(L, 2);
 }
 
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref)
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
 {
   hw_spi_t *SPIx = find_spi(port);
 
@@ -191,7 +191,14 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   spi_async_status.rxRef = rxref;
   spi_async_status.transferCount = 0;
   spi_async_status.transferError = 0;
-  // hw_spi_async_status_reset();
+
+  // This allows C hooks to be provided as callbacks
+  if (callback) {
+    spi_async_status.callback = callback;
+  }
+  else {
+    spi_async_status.callback = &default_complete_cb;
+  }
 
   // Save the length that we're transferring
   spi_async_status.txLength = txlen;
