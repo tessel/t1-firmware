@@ -148,11 +148,10 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   return new_buf->stream_id;
 }
 
+
 // Called when a SPI transaction has completed
 void _audio_spi_callback() {
   TM_DEBUG(" SPI Callback was hit!");
-  // Pull chip select back high again
-  hw_digital_write(operating_buf->chip_select, 1);
   // As long as we have an operating buf
   if (operating_buf != NULL) {
     // Check if we have more bytes to send for this buffer
@@ -163,6 +162,14 @@ void _audio_spi_callback() {
     }
     // We've completed playing all the bytes for this buffer
     else {
+
+      // We need to wait for the transaction to totally finish
+      // The DMA interrupt is fired too early by NXP so we need to
+      // poll the BSY register until we can continue
+      while (SSP_GetStatus(LPC_SSP0, SSP_STAT_BUSY)){};
+
+      // Pull chip select back up
+      hw_digital_write(operating_buf->chip_select, 1);
       TM_DEBUG("We're finished sending everything");
       uint16_t stream_id = operating_buf->stream_id;
       // Remove this buffer from the linked list and free the memory
@@ -182,6 +189,7 @@ void _audio_continue_spi() {
   if (operating_buf != NULL) {
     // Figure out how many bytes we're sending next
     uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
+    TM_DEBUG("Going to send %d bytes...", operating_buf->remaining_bytes);
     // Pull chip select low
     hw_digital_write(operating_buf->chip_select, 0);
     // Transfer the data

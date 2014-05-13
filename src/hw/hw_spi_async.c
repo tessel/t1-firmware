@@ -28,7 +28,7 @@ void hw_spi_async_status_reset () {
 }
 
 void hw_spi_dma_counter (uint8_t channel){
-  // Check counter terminal status
+  // Check counter terminal IR
   if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, channel)){
     // Clear terminate counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, channel);
