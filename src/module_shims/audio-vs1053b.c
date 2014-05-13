@@ -107,10 +107,14 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   new_buf->chip_select = chip_select;
   // Set the chip select pin as an output
   hw_digital_output(new_buf->chip_select);
+  // Write the data select as high initially
+  hw_digital_write(new_buf->chip_select, 1);
   // Set the dreq field
   new_buf->dreq = dreq;
   // Set DREQ as an input
   hw_digital_input(new_buf->dreq);
+  // Set a pull up
+  hw_digital_write(new_buf->dreq, 1);
 
   // If we have an existing operating buffer
   if (operating_buf) {
