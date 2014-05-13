@@ -49,73 +49,73 @@ _ramfunc void our_SSP_ClearIntPending(LPC_SSPn_Type *SSPx, uint32_t IntType)
 	SSPx->ICR = IntType;
 }
 
-_ramfunc void SSP0_IRQHandler(void)
-{
-	/* check if RX FIFO contains data */
-//	while (SSP_GetStatus(SSPDEV_M, SSP_STAT_RXFIFO_NOTEMPTY) == SET)
-//	{
-//		tmp = SSP_ReceiveData(SSPDEV_M);
-//		if ((pRdBuf_M!= NULL) && (RdIdx_M < DatLen_M))
-//		{
-//			*(pRdBuf_M + RdIdx_M) = (uint8_t) tmp;
-//		}
-//		RdIdx_M++;
-//	}
+// _ramfunc void SSP0_IRQHandler(void)
+// {
+// 	/* check if RX FIFO contains data */
+// //	while (SSP_GetStatus(SSPDEV_M, SSP_STAT_RXFIFO_NOTEMPTY) == SET)
+// //	{
+// //		tmp = SSP_ReceiveData(SSPDEV_M);
+// //		if ((pRdBuf_M!= NULL) && (RdIdx_M < DatLen_M))
+// //		{
+// //			*(pRdBuf_M + RdIdx_M) = (uint8_t) tmp;
+// //		}
+// //		RdIdx_M++;
+// //	}
 
-	/* Check if TX FIFO is not full */
-	while ((SSPDEV_M->SR & SSP_STAT_TXFIFO_NOTFULL))
-	{
-		if (tm_highspeed_buf != NULL)
-		{
-			SSPDEV_M->DR = SSP_DR_BITMASK(tm_highspeed_buf[tm_highspeed_buf_idx]);
-		}
-		else
-		{
-			SSPDEV_M->DR = SSP_DR_BITMASK(IDLE_CHAR);
-		}
-		if ((++tm_highspeed_buf_idx) >= tm_highspeed_buf_len) {
-			tm_highspeed_buf_idx = 0;
-		}
-	}
+// 	/* Check if TX FIFO is not full */
+// 	while ((SSPDEV_M->SR & SSP_STAT_TXFIFO_NOTFULL))
+// 	{
+// 		if (tm_highspeed_buf != NULL)
+// 		{
+// 			SSPDEV_M->DR = SSP_DR_BITMASK(tm_highspeed_buf[tm_highspeed_buf_idx]);
+// 		}
+// 		else
+// 		{
+// 			SSPDEV_M->DR = SSP_DR_BITMASK(IDLE_CHAR);
+// 		}
+// 		if ((++tm_highspeed_buf_idx) >= tm_highspeed_buf_len) {
+// 			tm_highspeed_buf_idx = 0;
+// 		}
+// 	}
 
-	our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, ENABLE);
+// 	our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, ENABLE);
 
-//	/* There're more data to send */
-//	if (WrIdx_M < DatLen_M)
-//	{
-//		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, ENABLE);
-//	}
-//	/* Otherwise */
-//	else
-//	{
-//		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, DISABLE);
-//	}
+// //	/* There're more data to send */
+// //	if (WrIdx_M < DatLen_M)
+// //	{
+// //		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, ENABLE);
+// //	}
+// //	/* Otherwise */
+// //	else
+// //	{
+// //		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_TX, DISABLE);
+// //	}
 
-	/* Clear all interrupt */
-	our_SSP_ClearIntPending(SSPDEV_M, SSP_INTCLR_ROR);
-	our_SSP_ClearIntPending(SSPDEV_M, SSP_INTCLR_RT);
+// 	/* Clear all interrupt */
+// 	our_SSP_ClearIntPending(SSPDEV_M, SSP_INTCLR_ROR);
+// 	our_SSP_ClearIntPending(SSPDEV_M, SSP_INTCLR_RT);
 
-//	/* There're more data to receive */
-//	if (RdIdx_M < DatLen_M)
-//	{
-//		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_ROR, ENABLE);
-//		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RT, ENABLE);
-//		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RX, ENABLE);
-//	}
-//	/* Otherwise */
-//	else
-//	{
-//		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_ROR, DISABLE);
-//		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RT, DISABLE);
-//		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RX, DISABLE);
-//	}
+// //	/* There're more data to receive */
+// //	if (RdIdx_M < DatLen_M)
+// //	{
+// //		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_ROR, ENABLE);
+// //		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RT, ENABLE);
+// //		SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RX, ENABLE);
+// //	}
+// //	/* Otherwise */
+// //	else
+// //	{
+// //		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_ROR, DISABLE);
+// //		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RT, DISABLE);
+// //		our_SSP_IntConfig(SSPDEV_M, SSP_INTCFG_RX, DISABLE);
+// //	}
 
-	/* Set Flag if both Read and Write completed */
-//	if ((WrIdx_M == DatLen_M) && (RdIdx_M == DatLen_M))
-//	{
-//		complete_M = TRUE;
-//	}
-}
+// 	/* Set Flag if both Read and Write completed */
+// //	if ((WrIdx_M == DatLen_M) && (RdIdx_M == DatLen_M))
+// //	{
+// //		complete_M = TRUE;
+// //	}
+// }
 
 ///*-------------------------PRIVATE FUNCTIONS------------------------------*/
 ///*********************************************************************//**
@@ -193,7 +193,7 @@ void hw_highspeedsignal_update (uint8_t *buf, size_t buf_len)
 //		printf(" :: " BYTETOBINARYPATTERN "\n", BYTETOBINARY(tm_highspeed_buf[i]));
 //	}
 
-	SSP0_IRQHandler();
+	// SSP0_IRQHandler();
 }
 
 int initialized = 0;
