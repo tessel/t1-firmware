@@ -83,6 +83,89 @@ void _shift_buffer() {
   }
 }
 
+// Called when a SPI transaction has completed
+void _audio_spi_callback() {
+  // As long as we have an operating buf
+  if (operating_buf != NULL) {
+
+    // If there was an error with the transfer
+    if (spi_async_status.transferError) {
+      // Set the number of bytes to continue writing to 0
+      // This will force the completion event
+      operating_buf->remaining_bytes = 0;
+    }
+
+    // Check if we have more bytes to send for this buffer
+    if (operating_buf->remaining_bytes > 0) {
+      // Send more bytes when DREQ is low
+      _audio_watch_dreq();
+    }
+    // We've completed playing all the bytes for this buffer
+    else {
+
+      // We need to wait for the transaction to totally finish
+      // The DMA interrupt is fired too early by NXP so we need to
+      // poll the BSY register until we can continue
+      while (SSP_GetStatus(LPC_SSP0, SSP_STAT_BUSY)){};
+
+      // Pull chip select back up
+      hw_digital_write(operating_buf->chip_select, 1);
+      // Save the stream id for our event emission
+      uint16_t stream_id = operating_buf->stream_id;
+      // Remove this buffer from the linked list and free the memory
+      _shift_buffer();
+      // Emit the event that we finished playing that buffer
+      _audio_emit_completion(stream_id);
+    }
+  }
+}
+
+// Called when DREQ goes low. Data is available to be sent over SPI
+void _audio_continue_spi() {
+  // If we have an operating buf
+  if (operating_buf != NULL) {
+    // Figure out how many bytes we're sending next
+    uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
+    // Pull chip select low
+    hw_digital_write(operating_buf->chip_select, 0);
+    // Transfer the data
+    hw_spi_transfer(SPI_PORT, to_send, 0, operating_buf->tx_buf, NULL, -2, -2, &_audio_spi_callback);
+    // Update our buffer position
+    operating_buf->tx_buf += to_send;
+    // Reduce the number of bytes remaining
+    operating_buf->remaining_bytes -= to_send;
+  }
+}
+
+void _audio_watch_dreq() {
+  // Start watching dreq for a low signal
+  if (hw_digital_read(operating_buf->dreq)) {
+    // Continue sending data
+    _audio_continue_spi();
+  }
+  // If not
+  else {
+    // Wait for dreq to go low
+    hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
+  }
+  
+}
+
+void _audio_emit_completion(uint16_t stream_id) {
+  lua_State* L = tm_lua_state;
+  if (!L) return;
+
+  lua_getglobal(L, "_colony_emit");
+  lua_pushstring(L, "audio_complete");
+  lua_pushnumber(L, spi_async_status.transferError);
+  lua_pushnumber(L, stream_id);
+  tm_checked_call(L, 3);
+}
+
+uint16_t _generate_stream_id() {
+  return ++master_id_gen;
+}
+
 // SPI.initialize MUST be initialized before calling this func
 int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
@@ -140,90 +223,6 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   _queue_buffer(new_buf);
 
   return new_buf->stream_id;
-}
-
-
-// Called when a SPI transaction has completed
-void _audio_spi_callback() {
-  // As long as we have an operating buf
-  if (operating_buf != NULL) {
-
-    // If there was an error with the transfer
-    if (spi_async_status.transferError) {
-      // Set the number of bytes to continue writing to 0
-      // This will force the completion event
-      operating_buf->remaining_bytes = 0;
-    }
-
-    // Check if we have more bytes to send for this buffer
-    if (operating_buf->remaining_bytes > 0) {
-      // Send more bytes when DREQ is low
-      _audio_watch_dreq();
-    }
-    // We've completed playing all the bytes for this buffer
-    else {
-
-      // We need to wait for the transaction to totally finish
-      // The DMA interrupt is fired too early by NXP so we need to
-      // poll the BSY register until we can continue
-      while (SSP_GetStatus(LPC_SSP0, SSP_STAT_BUSY)){};
-
-      // Pull chip select back up
-      hw_digital_write(operating_buf->chip_select, 1);
-      // Save the stream id for our event emission
-      uint16_t stream_id = operating_buf->stream_id;
-      // Remove this buffer from the linked list and free the memory
-      _shift_buffer();
-      // Emit the event that we finished playing that buffer
-      _audio_emit_completion(stream_id);
-    }
-  }
-}
-
-// Called when DREQ goes low. Data is available to be sent over SPI
-void _audio_continue_spi() {
-  // If we have an operating buf
-  if (operating_buf != NULL) {
-    // Figure out how many bytes we're sending next
-    uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
-    // Pull chip select low
-    // hw_digital_write(operating_buf->chip_select, 0);
-    // Transfer the data
-    hw_spi_transfer(SPI_PORT, to_send, 0, operating_buf->tx_buf, NULL, -2, -2, &_audio_spi_callback);
-    // Update our buffer position
-    operating_buf->tx_buf += to_send;
-    // Reduce the number of bytes remaining
-    operating_buf->remaining_bytes -= to_send;
-  }
-}
-
-void _audio_watch_dreq() {
-  // Start watching dreq for a low signal
-  if (hw_digital_read(operating_buf->dreq)) {
-    // Continue sending data
-    _audio_continue_spi();
-  }
-  // If not
-  else {
-    // Wait for dreq to go low
-    hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
-  }
-  
-}
-
-void _audio_emit_completion(uint16_t stream_id) {
-  lua_State* L = tm_lua_state;
-  if (!L) return;
-
-  lua_getglobal(L, "_colony_emit");
-  lua_pushstring(L, "audio_complete");
-  lua_pushnumber(L, spi_async_status.transferError);
-  lua_pushnumber(L, stream_id);
-  tm_checked_call(L, 3);
-}
-
-uint16_t _generate_stream_id() {
-  return ++master_id_gen;
 }
 
 void audio_clean() {
