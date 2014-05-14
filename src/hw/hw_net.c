@@ -99,15 +99,30 @@ uint32_t hw_net_dnsserver ()
 	return *((uint32_t *) aliasable_ip);
 }
 
-// int tm_net_rssi ()
-// {
-//   uint8_t results[64];
-//   int res = wlan_ioctl_get_scan_results(10000, results);
-//   if (res == 0) {
-//     return results[4 + 4] & 0x7F; // lower 7 bits
-//   }
-//   return res;
-// }
+uint8_t hw_net_rssi ()
+{
+  uint8_t results[50];
+  int res = wlan_ioctl_get_scan_results(10000, results);
+
+  if (res == -1){
+  	TM_DEBUG("RSSI check failed. Aborting");
+  	return 0;
+  } else if (results[4] == 0){
+  	TM_DEBUG("WARNING: Using cached results");
+  } else if (results[4] == 2) {
+  	TM_DEBUG("No results. Are you connected to wifi?");
+  	return 0;
+  } else if ( (results[8] & 1) == 0) {
+  	TM_DEBUG("RSSI results are not valid. Aborting.");
+  	return 0;
+  }
+
+  // otherwise results are valid
+  // TM_DEBUG("Found %lu networks", results[0] | results[1] << 8 | results[2] << 16 | results[3] << 24);
+  // TM_DEBUG("RSSI: %d", results[8] - 1);
+
+  return results[8] - 1;
+}
 
 
 int hw_net_mac (uint8_t mac[MAC_ADDR_LEN])
