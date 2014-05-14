@@ -35,6 +35,7 @@ void _queue_buffer(AudioBuffer *buffer) {
   AudioBuffer **next = &operating_buf;
   // If we don't have an operating buffer already
   if (!(*next)) {
+    TM_DEBUG("Empty queue. Starting execution");
     // Assign this buffer to the head
     *next = buffer;
 
@@ -44,6 +45,7 @@ void _queue_buffer(AudioBuffer *buffer) {
 
   // If we do already have an operating buf
   else {
+    TM_DEBUG("queue contains somethin', adding to the end.");
     // Iterate to the last buf
     while (*next) { next = &(*next)->next; }
 
@@ -62,6 +64,7 @@ void _shift_buffer() {
     return;
   }
   else {
+    TM_DEBUG("Freeing completed");
     // Save the ref to the head
     AudioBuffer *old = head;
 
@@ -75,6 +78,7 @@ void _shift_buffer() {
 
     // If there is another buffer to play
     if (operating_buf) {
+      TM_DEBUG("Starting next...");
       // Begin the next transfer
       _audio_watch_dreq();
     }
@@ -116,6 +120,10 @@ void _audio_spi_callback() {
       _shift_buffer();
       // Emit the event that we finished playing that buffer
       _audio_emit_completion(stream_id);
+
+      if (!operating_buf) {
+        audio_clean();
+      }
     }
   }
 }
@@ -190,9 +198,12 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   new_buf->chip_select = chip_select;
   // Set the chip select pin as an output
   hw_digital_output(new_buf->chip_select);
-  // // Write the data select as high initially
-  hw_digital_write(new_buf->chip_select, 1);
-
+  // Write the data select as high initially
+  // if we don't have an operation going on already 
+  if (!operating_buf) {
+    hw_digital_write(new_buf->chip_select, 1);  
+  }
+  
   // Set the dreq field
   new_buf->dreq = dreq;
   // Set DREQ as an input
