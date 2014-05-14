@@ -107,14 +107,13 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   new_buf->chip_select = chip_select;
   // Set the chip select pin as an output
   hw_digital_output(new_buf->chip_select);
-  // Write the data select as high initially
+  // // Write the data select as high initially
   hw_digital_write(new_buf->chip_select, 1);
+
   // Set the dreq field
   new_buf->dreq = dreq;
   // Set DREQ as an input
   hw_digital_input(new_buf->dreq);
-  // Set a pull up
-  hw_digital_write(new_buf->dreq, 1);
 
   // If we have an existing operating buffer
   if (operating_buf) {
@@ -188,26 +187,26 @@ void _audio_continue_spi() {
     // Figure out how many bytes we're sending next
     uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
     // Pull chip select low
-    hw_digital_write(operating_buf->chip_select, 0);
+    // hw_digital_write(operating_buf->chip_select, 0);
     // Transfer the data
     hw_spi_transfer(SPI_PORT, to_send, 0, operating_buf->tx_buf, NULL, -2, -2, &_audio_spi_callback);
     // Update our buffer position
     operating_buf->tx_buf += to_send;
-    // Reduce the number of butes remaining
+    // Reduce the number of bytes remaining
     operating_buf->remaining_bytes -= to_send;
   }
 }
 
 void _audio_watch_dreq() {
   // Start watching dreq for a low signal
-  if (!hw_digital_read(operating_buf->dreq)) {
+  if (hw_digital_read(operating_buf->dreq)) {
     // Continue sending data
     _audio_continue_spi();
   }
   // If not
   else {
     // Wait for dreq to go low
-    hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_LOW, operating_buf->interrupt, _audio_continue_spi);
+    hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
   }
   
 }
