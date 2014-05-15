@@ -19,6 +19,9 @@ typedef struct AudioBuffer{
   uint16_t stream_id;
 } AudioBuffer;
 
+// State definitions
+enum State { PLAYING, STOPPED, PAUSED };
+
 // Callbacks for SPI and GPIO Interrupt
 void _audio_spi_callback();
 void _audio_continue_spi();
@@ -31,21 +34,23 @@ void _shift_buffer();
 void _audio_watch_dreq();
 void _audio_emit_completion(uint16_t stream_id);
 uint16_t _generate_stream_id();
+void _audio_flush_buffer();
 
 // Methods for controlling the device
 void _writeSciRegister16(uint8_t address_byte, uint16_t data);
 uint16_t _readSciRegister16(uint8_t address_byte);
 
 AudioBuffer *operating_buf = NULL;
-
+// Generates "unique" values for each pending stream
 uint16_t master_id_gen = 0;
+// The current state of the mp3 player
+enum State current_state = STOPPED;
 
 void _queue_buffer(AudioBuffer *buffer) {
 
   AudioBuffer **next = &operating_buf;
   // If we don't have an operating buffer already
   if (!(*next)) {
-    TM_DEBUG("Empty queue. Starting execution");
     // Assign this buffer to the head
     *next = buffer;
 
@@ -55,7 +60,6 @@ void _queue_buffer(AudioBuffer *buffer) {
 
   // If we do already have an operating buf
   else {
-    TM_DEBUG("queue contains somethin', adding to the end.");
     // Iterate to the last buf
     while (*next) { next = &(*next)->next; }
 
@@ -74,7 +78,6 @@ void _shift_buffer() {
     return;
   }
   else {
-    TM_DEBUG("Freeing completed");
     // Save the ref to the head
     AudioBuffer *old = head;
 
@@ -88,7 +91,6 @@ void _shift_buffer() {
 
     // If there is another buffer to play
     if (operating_buf) {
-      TM_DEBUG("Starting next...");
       // Begin the next transfer
       _audio_watch_dreq();
     }
@@ -97,6 +99,22 @@ void _shift_buffer() {
   }
 }
 
+void _audio_flush_buffer() {
+  // Free our entire queue 
+  for (AudioBuffer **curr = &operating_buf; *curr;) {
+    // Save previous as the current linked list item
+    AudioBuffer *prev = *curr;
+
+    // Current is now the next item
+    *curr = prev->next;
+
+    // Free the previous item
+    free(prev);
+  }
+
+  master_id_gen = 0;
+  operating_buf = NULL;
+}
 // Called when a SPI transaction has completed
 void _audio_spi_callback() {
   // As long as we have an operating buf
@@ -133,7 +151,7 @@ void _audio_spi_callback() {
       _audio_emit_completion(stream_id);
 
       if (!operating_buf) {
-        audio_clean();
+        _audio_flush_buffer();
       }
     }
   }
@@ -188,6 +206,9 @@ uint16_t _generate_stream_id() {
 // SPI.initialize MUST be initialized before calling this func
 int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
+  if (operating_buf) {
+    audio_stop_buffer();
+  }
   // Create a new buffer struct
   AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
   // Set the next field
@@ -252,57 +273,65 @@ int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq,
   // Generate an ID for this stream so we know when it's complete
   new_buf->stream_id = _generate_stream_id();
 
+  current_state = PLAYING;
+
   _queue_buffer(new_buf);
 
   return new_buf->stream_id;
 }
 
-void audio_resume() {
-
-}
-
-void audio_pause() {
-
-}
-
-void audio_stop() {
-
-  // Write a 1 to bit 3 of SCI Mode
-  uint16_t mode = _readSciRegister16(SCI_MODE);
-
-  TM_DEBUG("READ Mode: %d", mode);
-
-  TM_DEBUG("Result of write should be %d", mode | SM_CANCEL);
-
-  _writeSciRegister16(SCI_MODE, mode | SM_CANCEL);
-
-  mode = _readSciRegister16(SCI_MODE);
-
-  TM_DEBUG("READ Mode after write: %d", mode);
-}
-
-void audio_clean() {
+int8_t audio_stop_buffer() {
 
   // Stop SPI
+  if (!operating_buf || current_state == STOPPED) {
+    return -1;
+  }
+
+    // Stop SPI
   hw_spi_async_cleanup();
 
   // Clear Interrupts
   hw_interrupt_unwatch(operating_buf->interrupt);
 
-  // Free our entire queue 
-  for (AudioBuffer **curr = &operating_buf; *curr;) {
-    // Save previous as the current linked list item
-    AudioBuffer *prev = *curr;
+  // Clean out the buffer
+  _audio_flush_buffer();
 
-    // Current is now the next item
-    *curr = prev->next;
+  current_state = STOPPED;
 
-    // Free the previous item
-    free(prev);
+  return 0;
+
+}
+
+int8_t audio_pause_buffer() {
+
+  if (!operating_buf || current_state == PAUSED || current_state == STOPPED) {
+    return -1;
   }
 
-  master_id_gen = 0;
-  operating_buf = NULL;
+  // Stop watching for DREQ (so SPI will stop continuing)
+  hw_interrupt_unwatch(operating_buf->interrupt);
+
+  current_state = PAUSED;
+
+  return 0;
+}
+
+int8_t audio_resume_buffer() {
+
+  // Start watching for dreq going low
+  if (!operating_buf || current_state != PAUSED ) {
+    return -1;
+  }
+
+  current_state = PLAYING;
+
+  hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
+
+  return 0;
+}
+
+uint8_t audio_get_state() {
+  return (uint8_t)current_state;
 }
 
 uint16_t _readSciRegister16(uint8_t address_byte) {

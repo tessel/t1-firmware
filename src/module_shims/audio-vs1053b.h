@@ -13,4 +13,10 @@ void audio_pause();
 // Stop playing a buffer free the memory
 void audio_stop(); 
 // Stops any audio playing and frees memory
-void audio_clean();
+int8_t audio_stop_buffer();
+// Stops music playback
+int8_t audio_pause_buffer();
+// Resumes music playback after pause
+int8_t audio_resume_buffer();
+// Get the current operating state of the mp3 player
+uint8_t audio_get_state();
