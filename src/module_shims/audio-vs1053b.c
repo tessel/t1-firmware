@@ -8,6 +8,8 @@
 #define WRITE_INSTRUCTION 0x02
 #define READ_INSTRUCTION 0x03
 
+#define DEBUG
+
 typedef struct AudioBuffer{
   struct AudioBuffer *next;
   uint8_t *tx_buf;
@@ -54,12 +56,20 @@ void _queue_buffer(AudioBuffer *buffer) {
     // Assign this buffer to the head
     *next = buffer;
 
+    #ifdef DEBUG
+    TM_DEBUG("First buffer in queue. Beginning execution immediately."); 
+    #endif
+
     // Start watching for a low DREQ
     _audio_watch_dreq();
   }
 
   // If we do already have an operating buf
   else {
+
+    #ifdef DEBUG
+    TM_DEBUG("Placing at the end of the queue"); 
+    #endif
     // Iterate to the last buf
     while (*next) { next = &(*next)->next; }
 
@@ -69,37 +79,50 @@ void _queue_buffer(AudioBuffer *buffer) {
 }
 
 void _shift_buffer() {
-    
-  AudioBuffer *head = operating_buf;
+  #ifdef DEBUG
+  TM_DEBUG("Shifting buffer."); 
+  #endif
 
   // If the head is already null
-  if (!head) {
+  if (!operating_buf) {
     // Just return
     return;
   }
   else {
-    // Save the ref to the head
-    AudioBuffer *old = head;
+    // WHY DOES THIS CAUSE IT TO BREAK?
+    if (!operating_buf->next) {
+      audio_stop_buffer();
+    }
+    else {
+      // Save the ref to the head
+      AudioBuffer *old = operating_buf;
 
-    // Set the new head to the next
-    operating_buf = old->next;
+      // Set the new head to the next
+      operating_buf = old->next;
+      // Clean any references to the previous transfer
+      // If this is uncommented, the program crashes... but don't I need it?
+      // free(old->tx_buf);
+      free(old);
 
-    // Clean any references to the previous transfer
-    // If this is uncommented, the program crashes... but don't I need it?
-    // free(old->tx_buf);
-    free(old);
-
-    // If there is another buffer to play
-    if (operating_buf) {
+      #ifdef DEBUG
+      TM_DEBUG("Playing next item in queue"); 
+      #endif
       // Begin the next transfer
       _audio_watch_dreq();
     }
-
-    return;
   }
 }
 
 void _audio_flush_buffer() {
+
+  #ifdef DEBUG
+  TM_DEBUG("Flushing buffer."); 
+  #endif
+
+  uint16_t mode = _readSciRegister16(SCI_MODE);
+
+  _writeSciRegister16(SCI_MODE, mode | (SM_CANCEL));
+
   // Free our entire queue 
   for (AudioBuffer **curr = &operating_buf; *curr;) {
     // Save previous as the current linked list item
@@ -117,6 +140,7 @@ void _audio_flush_buffer() {
 }
 // Called when a SPI transaction has completed
 void _audio_spi_callback() {
+
   // As long as we have an operating buf
   if (operating_buf != NULL) {
 
@@ -147,10 +171,6 @@ void _audio_spi_callback() {
       audio_stop();
       // Remove this buffer from the linked list and free the memory
       _shift_buffer();
-
-      if (!operating_buf) {
-        _audio_flush_buffer();
-      }
       // Emit the event that we finished playing that buffer
       _audio_emit_completion(stream_id);
     }
@@ -189,6 +209,9 @@ void _audio_watch_dreq() {
 }
 
 void _audio_emit_completion(uint16_t stream_id) {
+  #ifdef DEBUG
+  TM_DEBUG("Emitting completion"); 
+  #endif
   lua_State* L = tm_lua_state;
   if (!L) return;
 
@@ -206,7 +229,12 @@ uint16_t _generate_stream_id() {
 // SPI.initialize MUST be initialized before calling this func
 int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
+  #ifdef DEBUG
+  TM_DEBUG("Playing buffer"); 
+  #endif
+
   if (operating_buf) {
+    TM_DEBUG("Buffer already operating... stopping output");
     audio_stop_buffer();
   }
 
@@ -216,12 +244,19 @@ int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq,
 // SPI.initialize MUST be initialized before calling this func
 int8_t audio_queue_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
+  #ifdef DEBUG
+  TM_DEBUG("Queueing buffer, Args %d %d %d %d", command_select, data_select, dreq, buf_len); 
+  #endif
   // Create a new buffer struct
   AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
   // Set the next field
   new_buf->next = 0;
   // Malloc the space for the txbuf
   new_buf->tx_buf = malloc(buf_len);
+
+  #ifdef DEBUG
+  TM_DEBUG("Buffer Address %p", new_buf->tx_buf); 
+  #endif
 
   // If the malloc failed, return an error
   if (new_buf->tx_buf == NULL) {
@@ -260,19 +295,31 @@ int8_t audio_queue_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf,
 
   // If we have an existing operating buffer
   if (operating_buf) {
+    #ifdef DEBUG
+    TM_DEBUG("Using same interrupt %d", operating_buf->interrupt); 
+    #endif
     // Use the same interrupt 
     new_buf->interrupt = operating_buf->interrupt;
   }
   // If this is the first audio buffer
   else {
+    #ifdef DEBUG
+    TM_DEBUG("Generating new interrupt..."); 
+    #endif
     // Check if there are any more interrupts available
     if (!hw_interrupts_available()) {
+      #ifdef DEBUG
+      TM_DEBUG("Error: Unable to generate new interrupt!"); 
+      #endif
       // If not, return an error code
       return -2;
     }
     else {
       // If there are, grab the next available interrupt
       new_buf->interrupt = hw_interrupt_acquire();
+      #ifdef DEBUG
+      TM_DEBUG("New Interrupt acquired %d", new_buf->interrupt); 
+      #endif
 
     }
   }
@@ -289,10 +336,17 @@ int8_t audio_queue_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf,
 
 int8_t audio_stop_buffer() {
 
-  // Stop SPI
+  #ifdef DEBUG
+  TM_DEBUG("Stopping buffer"); 
+  #endif
+
   if (!operating_buf || current_state == STOPPED) {
     return -1;
   }
+
+  uint16_t mode = _readSciRegister16(SCI_MODE);
+
+  _writeSciRegister16(SCI_MODE, mode | (SM_CANCEL));
 
     // Stop SPI
   hw_spi_async_cleanup();
@@ -311,6 +365,10 @@ int8_t audio_stop_buffer() {
 
 int8_t audio_pause_buffer() {
 
+  #ifdef DEBUG
+  TM_DEBUG("Pausing buffer"); 
+  #endif
+
   if (!operating_buf || current_state == PAUSED || current_state == STOPPED) {
     return -1;
   }
@@ -324,6 +382,9 @@ int8_t audio_pause_buffer() {
 }
 
 int8_t audio_resume_buffer() {
+  #ifdef DEBUG
+  TM_DEBUG("Pausing buffer"); 
+  #endif
 
   // Start watching for dreq going low
   if (!operating_buf || current_state != PAUSED ) {
