@@ -12,6 +12,10 @@ void audio_resume();
 void audio_pause();
 // Stop playing a buffer free the memory
 void audio_stop(); 
+// Play a buffer. Will stop any currently playing buffer first.
+int8_t audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len);
+// The same as play except it will append the buffer to a currently playing buffer if there is one (used for streams)
+int8_t audio_queue_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len);
 // Stops any audio playing and frees memory
 int8_t audio_stop_buffer();
 // Stops music playback
