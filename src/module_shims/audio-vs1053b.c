@@ -209,6 +209,13 @@ int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq,
   if (operating_buf) {
     audio_stop_buffer();
   }
+
+  return audio_queue_buffer(chip_select, dreq, buf, buf_len);
+}
+
+// SPI.initialize MUST be initialized before calling this func
+int8_t audio_queue_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
+
   // Create a new buffer struct
   AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
   // Set the next field
