@@ -534,11 +534,38 @@ static int l_audio_play_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-	const uint8_t* buf = colony_tobuffer(L, ARG1 + 3, &buf_len);
-	
-	int r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
+
+	const uint8_t* buf = colony_tobuffer(L, ARG1+2, &buf_len);
+
+	int r;
+	if (buf_len) {
+		r = audio_play_buffer(spi_cs, dreq, buf, buf_len);
+	}
+	else {
+		r = audio_resume_buffer();
+	}
+
 	lua_pushnumber(L, r);
 
+	return 1;
+}
+
+static int l_audio_stop_buffer(lua_State* L) {
+	int r = audio_stop_buffer();
+	lua_pushnumber(L, r);
+
+	return 1;
+}
+
+static int l_audio_pause_buffer(lua_State* L) {
+	int r = audio_pause_buffer();
+	lua_pushnumber(L, r);
+
+	return 1;
+}
+
+static int l_audio_get_state(lua_State* L) {
+	lua_pushnumber(L, audio_get_state());
 	return 1;
 }
 
@@ -617,7 +644,10 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// module shims
 		// audio
-		{ "audio_play_buffer", l_audio_play_buffer},
+		{ "audio_play_buffer", l_audio_play_buffer },
+		{ "audio_stop_buffer", l_audio_stop_buffer },
+		{ "audio_pause_buffer", l_audio_pause_buffer },
+		{ "audio_get_state", l_audio_get_state },
 
 		// End of array (must be last)
 		{ NULL, NULL }

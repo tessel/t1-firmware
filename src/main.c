@@ -630,7 +630,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		// Clean up our SPI structs and dereference our lua objects
 		hw_spi_async_cleanup();
 		// Stop any audio playback and clean up memory
-		audio_clean();
+		audio_stop_buffer();
 
 		initialize_GPIO_interrupts();
 		tessel_gpio_init(0);
