@@ -3,11 +3,17 @@
 #define AUDIO_CHUNK_SIZE 32
 #define SPI_PORT 0
 
+#define SCI_MODE 0x00
+#define SM_CANCEL 1 << 0x03
+#define WRITE_INSTRUCTION 0x02
+#define READ_INSTRUCTION 0x03
+
 typedef struct AudioBuffer{
   struct AudioBuffer *next;
   uint8_t *tx_buf;
   int32_t remaining_bytes;
-  uint8_t chip_select;
+  uint8_t command_select;
+  uint8_t data_select;
   uint8_t dreq;
   uint8_t interrupt;
   uint16_t stream_id;
@@ -25,6 +31,10 @@ void _shift_buffer();
 void _audio_watch_dreq();
 void _audio_emit_completion(uint16_t stream_id);
 uint16_t _generate_stream_id();
+
+// Methods for controlling the device
+void _writeSciRegister16(uint8_t address_byte, uint16_t data);
+uint16_t _readSciRegister16(uint8_t address_byte);
 
 AudioBuffer *operating_buf = NULL;
 
@@ -113,9 +123,10 @@ void _audio_spi_callback() {
       while (SSP_GetStatus(LPC_SSP0, SSP_STAT_BUSY)){};
 
       // Pull chip select back up
-      hw_digital_write(operating_buf->chip_select, 1);
+      hw_digital_write(operating_buf->data_select, 1);
       // Save the stream id for our event emission
       uint16_t stream_id = operating_buf->stream_id;
+      audio_stop();
       // Remove this buffer from the linked list and free the memory
       _shift_buffer();
       // Emit the event that we finished playing that buffer
@@ -135,7 +146,7 @@ void _audio_continue_spi() {
     // Figure out how many bytes we're sending next
     uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
     // Pull chip select low
-    hw_digital_write(operating_buf->chip_select, 0);
+    hw_digital_write(operating_buf->data_select, 0);
     // Transfer the data
     hw_spi_transfer(SPI_PORT, to_send, 0, operating_buf->tx_buf, NULL, -2, -2, &_audio_spi_callback);
     // Update our buffer position
@@ -175,7 +186,7 @@ uint16_t _generate_stream_id() {
 }
 
 // SPI.initialize MUST be initialized before calling this func
-int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
+int audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len) {
 
   // Create a new buffer struct
   AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
@@ -195,13 +206,23 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   new_buf->remaining_bytes = buf_len;
 
   // Set the chip select field
-  new_buf->chip_select = chip_select;
+  new_buf->data_select = data_select;
   // Set the chip select pin as an output
-  hw_digital_output(new_buf->chip_select);
+  hw_digital_output(new_buf->data_select);
   // Write the data select as high initially
   // if we don't have an operation going on already 
   if (!operating_buf) {
-    hw_digital_write(new_buf->chip_select, 1);  
+    hw_digital_write(new_buf->data_select, 1);  
+  }
+
+  // Set the command select field
+  new_buf->command_select = command_select;
+  // Set the command select pin as an output
+  hw_digital_output(new_buf->command_select);
+  // Write the command select as high initially
+  // if we don't have an operation going on already 
+  if (!operating_buf) {
+    hw_digital_write(new_buf->command_select, 1);  
   }
   
   // Set the dreq field
@@ -236,6 +257,30 @@ int audio_play_buffer(uint8_t chip_select, uint8_t dreq, const uint8_t *buf, uin
   return new_buf->stream_id;
 }
 
+void audio_resume() {
+
+}
+
+void audio_pause() {
+
+}
+
+void audio_stop() {
+
+  // Write a 1 to bit 3 of SCI Mode
+  uint16_t mode = _readSciRegister16(SCI_MODE);
+
+  TM_DEBUG("READ Mode: %d", mode);
+
+  TM_DEBUG("Result of write should be %d", mode | SM_CANCEL);
+
+  _writeSciRegister16(SCI_MODE, mode | SM_CANCEL);
+
+  mode = _readSciRegister16(SCI_MODE);
+
+  TM_DEBUG("READ Mode after write: %d", mode);
+}
+
 void audio_clean() {
 
   // Stop SPI
@@ -258,4 +303,57 @@ void audio_clean() {
 
   master_id_gen = 0;
   operating_buf = NULL;
+}
+
+uint16_t _readSciRegister16(uint8_t address_byte) {
+  uint16_t reg_val = 0;
+
+  if (operating_buf) {
+    //Wait for DREQ to go high indicating IC is available
+    while (!hw_digital_read(operating_buf->dreq)) ; 
+
+    // Assert the control line
+    hw_digital_write(operating_buf->command_select, 0);
+
+    //SCI consists of instruction byte, address byte, and 16-bit data word.
+
+    const uint8_t tx[] = {READ_INSTRUCTION, address_byte, 0xFF, 0xFF};
+    uint8_t rx[sizeof(tx)];
+
+    hw_spi_transfer_sync(SPI_PORT, tx, rx, sizeof(tx), NULL);
+
+    // Wait for DREQ to go high indicating command is complete
+    while (!hw_digital_read(operating_buf->dreq));
+
+     // De-assert the control line
+    hw_digital_write(operating_buf->command_select, 1);
+
+    // Return the last two bytes as a 16 bit number
+    reg_val = (rx[2] << 8) | rx[3];
+
+    return reg_val;
+  }
+
+  return reg_val;
+}
+
+void _writeSciRegister16(uint8_t address_byte, uint16_t data) {
+  if (operating_buf) {
+    //Wait for DREQ to go high indicating IC is available
+    while (!hw_digital_read(operating_buf->dreq)) ; 
+
+    // Assert the control line
+    hw_digital_write(operating_buf->command_select, 0);
+
+    //SCI consists of instruction byte, address byte, and 16-bit data word.
+    const uint8_t tx[] = {WRITE_INSTRUCTION, address_byte, data >> 8, data & 0xFF};
+
+    hw_spi_transfer_sync(SPI_PORT, tx, NULL, sizeof(tx), NULL);
+
+    // Wait for DREQ to go high indicating command is complete
+    while (!hw_digital_read(operating_buf->dreq));
+
+     // De-assert the control line
+    hw_digital_write(operating_buf->command_select, 1);
+  }
 }
