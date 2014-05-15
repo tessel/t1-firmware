@@ -147,12 +147,12 @@ void _audio_spi_callback() {
       audio_stop();
       // Remove this buffer from the linked list and free the memory
       _shift_buffer();
-      // Emit the event that we finished playing that buffer
-      _audio_emit_completion(stream_id);
 
       if (!operating_buf) {
         _audio_flush_buffer();
       }
+      // Emit the event that we finished playing that buffer
+      _audio_emit_completion(stream_id);
     }
   }
 }
