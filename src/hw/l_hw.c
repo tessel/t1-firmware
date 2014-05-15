@@ -474,6 +474,11 @@ static int l_hw_net_is_connected(lua_State* L)
 	return 1;
 }
 
+static int l_hw_net_rssi(lua_State* L)
+{
+	lua_pushnumber(L, hw_net_rssi());
+	return 1;
+}
 
 static int l_hw_net_local_ip(lua_State* L)
 {
@@ -579,6 +584,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// net
 		{ "is_connected", l_hw_net_is_connected },
+		{ "rssi", l_hw_net_rssi },
 		{ "local_ip", l_hw_net_local_ip },
 
 		// device id

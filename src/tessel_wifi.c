@@ -70,6 +70,7 @@ void tessel_wifi_check(uint8_t output){
 		ip = hw_net_defaultgateway();
 		TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF);
 		TM_DEBUG("Connected to WiFi!");
+		TM_DEBUG("RSSI: %d", hw_net_rssi());
 		TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 	} else {
 		if (output) TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
