@@ -530,12 +530,13 @@ static int l_usb_send(lua_State* L)
 // Module Shims
 
 static int l_audio_play_buffer(lua_State* L) {
-	uint8_t spi_cs = (uint8_t)lua_tonumber(L, ARG1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1+1);
+	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
+	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
+	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-	const uint8_t* buf = colony_tobuffer(L, ARG1+2, &buf_len);
+	const uint8_t* buf = colony_tobuffer(L, ARG1 + 3, &buf_len);
 	
-	int r = audio_play_buffer(spi_cs, dreq, buf, buf_len);
+	int r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
 	lua_pushnumber(L, r);
 
 	return 1;
