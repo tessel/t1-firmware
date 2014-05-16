@@ -32,13 +32,13 @@ typedef struct {
 static void interrupt_callback(tm_event* event);
 
 GPIO_Interrupt interrupts[] = {	
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
-	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, (void *)NO_ASSIGNMENT},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
+	{TM_EVENT_INIT(interrupt_callback), NO_ASSIGNMENT, NO_ASSIGNMENT, NO_ASSIGNMENT, NULL},
 };
 
 // When push is cancelled and board is reset, reset all interrupts and num available
@@ -118,6 +118,7 @@ int hw_interrupt_unwatch(int interrupt_index) {
 		// Indicate in data structure that it's a free spot
 		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
 		interrupts[interrupt_index].mode = NO_ASSIGNMENT;
+		interrupts[interrupt_index].callback = NULL;
 
 		tm_event_unref(&interrupts[interrupt_index].event);
 
@@ -139,12 +140,8 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index, void (*callback)
 
 		// Assign the pin to the interrupt
 		interrupts[interrupt_index].pin = pin;
-		if (callback != 0) {
-			interrupts[interrupt_index].callback = callback;
-		}
-		else {
-			interrupts[interrupt_index].callback = (void *)NO_ASSIGNMENT;
-		}
+		interrupts[interrupt_index].callback = callback;
+
 		// If this is a rising interrupt
 		if (mode == TM_INTERRUPT_MODE_RISING) {
 			// Attach the rising interrupt to the pin
@@ -229,7 +226,7 @@ void place_awaiting_interrupt(int interrupt_id)
 		interrupt->state = 0;
 	} 
 
-	if (interrupt->callback != (void *)NO_ASSIGNMENT) {
+	if (interrupt->callback != NULL) {
 		(*interrupt->callback)();
 	}
 	else {
