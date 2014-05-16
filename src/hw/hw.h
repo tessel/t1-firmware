@@ -41,7 +41,6 @@ int hw_net_has_ip (void);
 int hw_net_online_status (void);
 void hw_net_get_curr_ip(uint8_t * buff);
 void hw_net_get_cc_ver(uint8_t * buff);
-uint8_t hw_net_rssi();
 
 uint32_t hw_net_defaultgateway ();
 uint32_t hw_net_dnsserver ();
