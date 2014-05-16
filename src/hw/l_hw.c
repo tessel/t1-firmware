@@ -128,7 +128,7 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint32_t rxref = luaL_ref(L, LUA_REGISTRYINDEX);
 	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Begin the transfer
-	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, 0);
+	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
@@ -530,12 +530,11 @@ static int l_audio_play_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-
-	const uint8_t* buf = colony_tobuffer(L, ARG1+2, &buf_len);
+	const uint8_t* buf = colony_tobuffer(L, ARG1 + 3, &buf_len);
 
 	int r;
 	if (buf_len) {
-		r = audio_play_buffer(spi_cs, dreq, buf, buf_len);
+		r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
 	}
 	else {
 		r = audio_resume_buffer();
@@ -547,12 +546,13 @@ static int l_audio_play_buffer(lua_State* L) {
 }
 
 static int l_audio_queue_buffer(lua_State* L) {
-	uint8_t spi_cs = (uint8_t)lua_tonumber(L, ARG1);
+	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
+	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1+1);
 	size_t buf_len = 0;
 	const uint8_t* buf = colony_tobuffer(L, ARG1+2, &buf_len);
 
-	int r = audio_queue_buffer(spi_cs, dreq, buf, buf_len);
+	int r = audio_queue_buffer(xcs, dcs, dreq, buf, buf_len);
 
 	lua_pushnumber(L, r);
 
@@ -575,6 +575,34 @@ static int l_audio_pause_buffer(lua_State* L) {
 
 static int l_audio_get_state(lua_State* L) {
 	lua_pushnumber(L, audio_get_state());
+	return 1;
+}
+
+static int l_audio_start_recording(lua_State* L) {
+	lua_pushnumber(L, audio_get_state());
+
+	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
+	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
+	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
+	size_t buf_len = 0;
+	const uint8_t* buf = colony_tobuffer(L, ARG1 + 2, &buf_len);
+
+	int16_t r = audio_start_recording(xcs, dreq, (char *)buf);
+
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_audio_stop_recording(lua_State* L) {
+	lua_pushnumber(L, audio_get_state());
+
+	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
+	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
+	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
+
+	int16_t r = audio_stop_recording(xcs, dreq);
+
+	lua_pushnumber(L, r);
 	return 1;
 }
 
@@ -658,6 +686,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "audio_stop_buffer", l_audio_stop_buffer },
 		{ "audio_pause_buffer", l_audio_pause_buffer },
 		{ "audio_get_state", l_audio_get_state },
+		{ "audio_start_recording", l_audio_start_recording },
+		{ "audio_stop_recording", l_audio_stop_recording },
 
 		// End of array (must be last)
 		{ NULL, NULL }

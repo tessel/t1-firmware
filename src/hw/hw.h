@@ -176,11 +176,6 @@ typedef struct hw_spi {
 
 extern volatile struct spi_async_status_t spi_async_status;
 
-// Ugly hack to allow us to get spi callbacks in C
-// By default, it will point to the event queue callback
-// Resets to default after every transfer
-void *spi_async_complete_cb;
-
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
 int hw_spi_enable (size_t port);
