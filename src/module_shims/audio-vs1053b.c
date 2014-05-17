@@ -8,7 +8,8 @@
 typedef struct AudioBuffer{
   struct AudioBuffer *next;
   uint8_t *buffer;
-  int32_t remaining_bytes;
+  uint32_t remaining_bytes;
+  uint32_t buffer_position;
   uint8_t command_select;
   uint8_t data_select;
   uint8_t dreq;
@@ -50,6 +51,8 @@ uint16_t _readSciRegister16(uint8_t address_byte);
 
 tm_event shift_buffer_event = TM_EVENT_INIT(_shift_buffer);
 tm_event read_recording_event = TM_EVENT_INIT(_recording_register_check);
+
+// Buffer for loading data into before passing into runtime
 uint8_t *double_buff = NULL;
 
 AudioBuffer *operating_buf = NULL;
@@ -103,19 +106,22 @@ void _shift_buffer() {
     uint16_t stream_id = operating_buf->stream_id;
 
     if (!operating_buf->next) {
-
+      #ifdef DEBUG
+      TM_DEBUG("Final item in teh queue complete. Flushing all buffers"); 
+      #endif
       audio_stop_buffer();
     }
     else {
-
+      #ifdef DEBUG
+      TM_DEBUG("Loading next buffer"); 
+      #endif
       // Save the ref to the head
       AudioBuffer *old = operating_buf;
 
       // Set the new head to the next
       operating_buf = old->next;
       // Clean any references to the previous transfer
-      // If this is uncommented, the program crashes... but don't I need it?
-      // free(old->buffer);
+      free(old->buffer);
       free(old);
 
       #ifdef DEBUG
@@ -199,9 +205,9 @@ void _audio_continue_spi() {
     // Pull chip select low
     hw_digital_write(operating_buf->data_select, 0);
     // Transfer the data
-    hw_spi_transfer(SPI_PORT, to_send, 0, operating_buf->buffer, NULL, -2, -2, &_audio_spi_callback);
+    hw_spi_transfer(SPI_PORT, to_send, 0, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, -2, -2, &_audio_spi_callback);
     // Update our buffer position
-    operating_buf->buffer += to_send;
+    operating_buf->buffer_position += to_send;
     // Reduce the number of bytes remaining
     operating_buf->remaining_bytes -= to_send;
   }
@@ -280,6 +286,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   memcpy(new_buf->buffer, buffer, buf_len);
   // Set the length field
   new_buf->remaining_bytes = buf_len;
+  new_buf->buffer_position = 0;
 
   // Set the chip select field
   new_buf->data_select = data_select;
@@ -398,7 +405,7 @@ int8_t audio_pause_buffer() {
 
 int8_t audio_resume_buffer() {
   #ifdef DEBUG
-  TM_DEBUG("Pausing buffer"); 
+  TM_DEBUG("Resume buffer"); 
   #endif
 
   // Start watching for dreq going low
@@ -417,7 +424,7 @@ uint8_t audio_get_state() {
   return (uint8_t)current_state;
 }
 
-int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t buf_ref) {
+int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref) {
 
   if (operating_buf) {
     TM_DEBUG("Buffer already operating... stopping previous buffer.");
@@ -426,7 +433,6 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
   #ifdef DEBUG
   TM_DEBUG("Input to start recording: %d %d %s", command_select, dreq, plugin_dir);
-  TM_DEBUG("Size of fill buf %d", sizeof(fill_buf));
   #endif
 
   // Create a new buffer struct
@@ -437,7 +443,8 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   recording->remaining_bytes = 0;
   recording->buffer = fill_buf;
   recording->buffer_ref = buf_ref;
-  double_buff = malloc(sizeof(fill_buf));
+  recording->remaining_bytes = fill_buf_len;
+  double_buff = (uint8_t *)malloc(sizeof(fill_buf_len));
 
   if (double_buff == NULL) {
     free(recording);
@@ -512,6 +519,8 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
   while (!hw_digital_read(recording->dreq));
 
+  tm_event_ref(&read_recording_event);
+
   // Start a timer to read data every so often
   _startRIT();
 
@@ -521,11 +530,13 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 }
 
 int8_t audio_stop_recording() {
+
   if (current_state != RECORDING) {
     return -1;
   }
 
   // Stop the timer
+  TM_DEBUG("Stopping the timer");
   _stopRIT();
 
   // Tell the vs1053 to stop gathering data
@@ -534,42 +545,62 @@ int8_t audio_stop_recording() {
   // If we have an operating buf (which we should)
   if (operating_buf) {
     // Free the lua reference
+    TM_DEBUG("Removing references...");
     luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
 
+    tm_event_unref(&read_recording_event);
+
+    // Read as many bytes as possible (or length of buffer)
+    TM_DEBUG("Reading last recorded data...");
+    uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+
+    TM_DEBUG("Memcpy");
+    memcpy(operating_buf->buffer, double_buff, num_read);
+
+    current_state = STOPPED;
+
+    TM_DEBUG("free 1");
+    // Free the operating buffer
+    free(operating_buf);
+
+    TM_DEBUG("free 2");
+    TM_DEBUG("Attempting to free pointer at %p", double_buff);
     // Free the fill buffer
-    if (double_buff != NULL) {
-      free(double_buff);
-    }
+    // free(double_buff);
+
+    lua_State* L = tm_lua_state;
+    if (!L) return -1;
+
+    TM_DEBUG("Just before emission");
+    lua_getglobal(L, "_colony_emit");
+    lua_pushstring(L, "audio_complete");
+    lua_pushnumber(L, num_read);
+    tm_checked_call(L, 2);
+    TM_DEBUG("Emission complete");
   }
-
-  // Emit once more with final data
-
-  current_state = STOPPED;
 
   return 0;
 }
 
 void _recording_register_check(void) {
 
-  TM_DEBUG("Okay, event routing is working...");
   if (operating_buf) {
-    // read HCDAT1 to see how many bytes are available
-    uint32_t num_read = _read_recorded_data(double_buff, sizeof(double_buff));
+    // Read as many bytes as possible (or length of buffer)
+    uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
 
-    memcpy(operating_buf->buffer, double_buff, num_read);
-      
-    lua_State* L = tm_lua_state;
-    if (!L) return;
+    // If we read anything
+    if (num_read) {
+      // Copy the data into our fill buffer
+      memcpy(operating_buf->buffer, double_buff, num_read);
 
-    lua_getglobal(L, "_colony_emit");
-    lua_pushstring(L, "audio_data");
-    tm_checked_call(L, 1);
+      lua_State* L = tm_lua_state;
+      if (!L) return;
 
-    // See how many bytes are left in "reading" buffer
-
-    // Fill as many bytes of that one as we can
-
-    // If we hit the limit, emit the data and switch buffers
+      lua_getglobal(L, "_colony_emit");
+      lua_pushstring(L, "audio_data");
+      lua_pushnumber(L, num_read);
+      tm_checked_call(L, 2);
+    }
   }
 }
 
@@ -580,17 +611,26 @@ uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
   uint32_t num_to_read = _readSciRegister16(VS1053_REG_HDAT1);
 
   TM_DEBUG("%d bytes available", num_to_read);
-
   // Read that many bytes
   if (num_to_read > len) {
-    num_to_read = 48000;
+    num_to_read = len;
   } 
 
   uint16_t raw;
-  for (uint16_t i = 0; i < num_to_read; i+=2) {
+  uint16_t i = 0;
+
+  while (i < num_to_read) {
     raw = _readSciRegister16(VS1053_REG_HDAT0);
+
     data[i] = raw >> 8;
     data[i + 1] = raw & 0xFF;
+
+    if (num_to_read-i > 1) {
+      i+=2;
+    }
+    else {
+      i++;
+    }
   }
 
   return num_to_read;
