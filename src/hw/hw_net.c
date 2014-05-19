@@ -188,26 +188,42 @@ int hw_net_block_until_readable (int ulSocket, int timeout)
   return 0;
 }
 
+const unsigned long wifi_intervals[16] = {
+	2000, 2000, 2000, 2000,
+	2000, 2000, 2000, 2000,
+	2000, 2000, 2000, 2000,
+	2000, 2000, 2000, 2000
+};
+
 void hw_net_initialize (void)
 {
 	CC3000_START;
 	SpiInit(4e6);
-	hw_wait_us(100);
+	hw_wait_us(10);
 
-//	TM_COMMAND('w', "Calling wlan_init\n");
 	wlan_init(CC3000_UsynchCallback, NULL, NULL, NULL, ReadWlanInterruptPin,
 	WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
 
-//	TM_COMMAND('w',"Calling wlan_start...\n");
-//	tm_sleep_ms(100);
 	wlan_start(0);
-//	TM_COMMAND('w',"wlan started\n");
-//
-//	// Reset all the previous configuration
-//	TM_COMMAND('w',"setting conn policy\n");
-//	wlan_ioctl_set_connection_policy(0, 0, 0);
-//	TM_COMMAND('w',"deleting profiles\n");
-//	wlan_ioctl_del_profile(255);
+
+	int r = wlan_ioctl_set_connection_policy(0, 0, 0);
+	if (r != 0) {
+		TM_DEBUG("Fail setting policy %i", r);
+	}
+
+	r = wlan_ioctl_set_scan_params(10000, 100, 100, 5, 0x7FF, -100, 0, 205, wifi_intervals);
+	if (r != 0) {
+		TM_DEBUG("Fail setting scan params %i", r);
+	}
+
+	r = wlan_ioctl_set_connection_policy(0, true, true);
+	if (r != 0) {
+		TM_DEBUG("Fail setting connection policy %i", r);
+	}
+
+	wlan_stop();
+	hw_wait_ms(10);
+	wlan_start(0);
 
 //	tm_sleep_ms(100);
 //	TM_COMMAND('w',"setting event mask\n");
@@ -265,6 +281,7 @@ int strcicmp(char const *a, char const *b)
 //  WLAN_SEC_WPA or WLAN_SEC_WPA2
 int hw_net_connect (const char *security_type, const char *ssid, const char *keys){
   CC3000_START;
+
   int security = WLAN_SEC_WPA2;
   char * security_print = "wpa2";
   if (strcicmp(security_type, "wpa") == 0){
@@ -277,6 +294,7 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
     security = WLAN_SEC_UNSEC;
     security_print = "unsecure";
   }
+
   TM_DEBUG("Attempting to connect with security type %s... ", security_print);
   int connected = wlan_connect(security, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
   if (connected != 0) {

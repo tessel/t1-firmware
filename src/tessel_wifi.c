@@ -20,8 +20,6 @@
 #include "tm.h"
 #include "utility/wlan.h"
 
-unsigned long wifi_intervals[16] = { 2000 };
-
 int wifi_initialized = 0;
 
 
@@ -37,8 +35,6 @@ void tessel_wifi_enable ()
 {
 	if (!wifi_initialized) {
 		hw_net_initialize();
-		hw_net_config(0, TESSEL_FASTCONNECT, !TESSEL_FASTCONNECT);
-		wlan_ioctl_set_scan_params(10000, 20, 30, 2, 0x7FF, -100, 0, 205, wifi_intervals);
 		wifi_initialized = 1;
 		tm_net_initialize_dhcp_server();
 	} else {
