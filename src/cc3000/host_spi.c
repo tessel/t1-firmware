@@ -92,16 +92,6 @@ unsigned char tSpiReadHeader[] = {READ, 0, 0, 0, 0};
 //foor spi bus loop
 int loc = 0; 
 
-char ssid[] = "";                     // your network SSID (name) 
-unsigned char keys[] = "";       // your network key
-// c4:10:8a:57:8e:68
-unsigned char bssid[] = {0xc4, 0x10, 0x8a, 0x57, 0x8c, 0x18};       // your network key
-char device_name[] = "bobby";
-static const char aucCC3000_prefix[] = {'T', 'T', 'T'};
-static const unsigned char smartconfigkey[] = {0x73,0x6d,0x61,0x72,0x74,0x63,0x6f,0x6e,0x66,0x69,0x67,0x41,0x45,0x53,0x31,0x36};
-
-//00:11:95:41:38:65
-// unsigned char bssid[] = "000000";
 int keyIndex = 0; 
 unsigned char printOnce = 1;
 
