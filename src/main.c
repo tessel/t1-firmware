@@ -249,10 +249,15 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 					break;
 				}
 
+				int rssi = 0;
+				if (results[8] & 0x1) {
+					rssi = results[8] >> 1;
+				}
+
 				char* nameptr = (char*) &results[0 + 4 + 4 + 1 + 1 + 2];
 				unsigned char namebuf[33] = { 0 };
 				memcpy(namebuf, nameptr, 32);
-				tm_logf('V', "\t%s", namebuf);
+				tm_logf('V', "\t%s (%i/127)", namebuf, rssi);
 			}
 
 			if (hw_net_is_connected()) {
