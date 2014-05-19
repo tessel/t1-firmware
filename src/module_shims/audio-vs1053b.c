@@ -73,6 +73,8 @@ void _queue_buffer(AudioBuffer *buffer) {
     TM_DEBUG("First buffer in queue. Beginning execution immediately."); 
     #endif
 
+    tm_event_ref(&shift_buffer_event);
+
     // Start watching for a low DREQ
     _audio_watch_dreq();
   }
@@ -107,7 +109,7 @@ void _shift_buffer() {
 
     if (!operating_buf->next) {
       #ifdef DEBUG
-      TM_DEBUG("Final item in teh queue complete. Flushing all buffers"); 
+      TM_DEBUG("Final item in the queue complete. Flushing all buffers"); 
       #endif
       audio_stop_buffer();
     }
@@ -160,6 +162,8 @@ void _audio_flush_buffer() {
 
   master_id_gen = 0;
   operating_buf = NULL;
+
+  tm_event_unref(&shift_buffer_event);
 }
 // Called when a SPI transaction has completed
 void _audio_spi_callback() {
@@ -205,7 +209,7 @@ void _audio_continue_spi() {
     // Pull chip select low
     hw_digital_write(operating_buf->data_select, 0);
     // Transfer the data
-    hw_spi_transfer(SPI_PORT, to_send, 0, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, -2, -2, &_audio_spi_callback);
+    hw_spi_transfer(SPI_PORT, to_send, 0, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, LUA_NOREF, LUA_NOREF, &_audio_spi_callback);
     // Update our buffer position
     operating_buf->buffer_position += to_send;
     // Reduce the number of bytes remaining
@@ -362,7 +366,7 @@ int8_t audio_stop_buffer() {
   TM_DEBUG("Stopping buffer"); 
   #endif
 
-  if (!operating_buf || current_state == STOPPED) {
+  if (!operating_buf || current_state == STOPPED || current_state == RECORDING) {
     return -1;
   }
 
@@ -444,7 +448,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   recording->buffer = fill_buf;
   recording->buffer_ref = buf_ref;
   recording->remaining_bytes = fill_buf_len;
-  double_buff = (uint8_t *)malloc(sizeof(fill_buf_len));
+  double_buff = malloc(fill_buf_len);
 
   if (double_buff == NULL) {
     free(recording);
@@ -535,8 +539,11 @@ int8_t audio_stop_recording() {
     return -1;
   }
 
+  #ifdef DEBUG
+  TM_DEBUG("Actually stopping recording"); 
+  #endif
+
   // Stop the timer
-  TM_DEBUG("Stopping the timer");
   _stopRIT();
 
   // Tell the vs1053 to stop gathering data
@@ -545,40 +552,43 @@ int8_t audio_stop_recording() {
   // If we have an operating buf (which we should)
   if (operating_buf) {
     // Free the lua reference
-    TM_DEBUG("Removing references...");
-    luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
+    if (operating_buf->buffer_ref != LUA_NOREF) {
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
+    }
 
-    tm_event_unref(&read_recording_event);
+    if (read_recording_event.ref) {
+      tm_event_unref(&read_recording_event);
+    }
+    
 
     // Read as many bytes as possible (or length of buffer)
-    TM_DEBUG("Reading last recorded data...");
     uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
 
-    TM_DEBUG("Memcpy");
+    // If there was a spi read error
+    if (num_read == 0xFFFF) {
+      // set num read to 0
+      num_read = 0;
+    }
+
     memcpy(operating_buf->buffer, double_buff, num_read);
 
     current_state = STOPPED;
 
-    TM_DEBUG("free 1");
     // Free the operating buffer
     free(operating_buf);
 
-    TM_DEBUG("free 2");
-    TM_DEBUG("Attempting to free pointer at %p", double_buff);
     // Free the fill buffer
-    // free(double_buff);
+    free(double_buff);
 
     lua_State* L = tm_lua_state;
     if (!L) return -1;
 
-    TM_DEBUG("Just before emission");
     lua_getglobal(L, "_colony_emit");
     lua_pushstring(L, "audio_complete");
     lua_pushnumber(L, num_read);
     tm_checked_call(L, 2);
-    TM_DEBUG("Emission complete");
   }
-
+  
   return 0;
 }
 
@@ -587,9 +597,8 @@ void _recording_register_check(void) {
   if (operating_buf) {
     // Read as many bytes as possible (or length of buffer)
     uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
-
     // If we read anything
-    if (num_read) {
+    if (num_read && num_read != 0xFFFF) {
       // Copy the data into our fill buffer
       memcpy(operating_buf->buffer, double_buff, num_read);
 
@@ -781,4 +790,9 @@ void _writeSciRegister16(uint8_t address_byte, uint16_t data) {
      // De-assert the control line
     hw_digital_write(operating_buf->command_select, 1);
   }
+}
+
+void audio_reset() {
+  audio_stop_buffer();
+  audio_stop_recording();
 }
