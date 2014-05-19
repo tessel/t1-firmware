@@ -617,9 +617,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 
 		int returncode = tm_runtime_run(argv[1], argv, 2);
 
-#if !COLONY_STATE_CACHE
-		colony_runtime_close();
-#endif
 		tm_fs_destroy(tm_fs_root);
 		tm_fs_root = NULL;
 
@@ -627,13 +624,17 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		hw_uart_disable(UART2);
 		hw_uart_disable(UART3);
 
-		// Clean up our SPI structs and dereference our lua objects
+				// Clean up our SPI structs and dereference our lua objects
 		hw_spi_async_cleanup();
-		// Stop any audio playback and clean up memory
-		audio_stop_buffer();
+		// Stop any audio playback/recording and clean up memory
+		audio_reset();
 
 		initialize_GPIO_interrupts();
 		tessel_gpio_init(0);
+
+#if !COLONY_STATE_CACHE
+		colony_runtime_close();
+#endif
 
 		TM_COMMAND('S', "%d", -returncode);
 		TM_DEBUG("Script ended with return code %d.", returncode);

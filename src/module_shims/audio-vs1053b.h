@@ -73,3 +73,6 @@ uint8_t audio_get_state();
 int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref);
 // Stop recording sound
 int8_t audio_stop_recording();
+
+// Stop all playback and recording (used after ctrl+c)
+void audio_reset();
