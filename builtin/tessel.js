@@ -549,35 +549,19 @@ I2C.prototype.disable = function() {
 // DEPRECATED old way of invoking I2C initialization
 I2C.prototype.initialize = function () { };
 
+// DEPRECATED
 I2C.prototype.transferSync = function (data, rxbuf_len) {
-  this._initialize();
-  if (this.mode == hw.I2C_SLAVE) {
-    // TODO should be i2c_slave_transfer_blocking
-    return hw.i2c_slave_transfer(this.i2c_port, data, rxbuf_len);
-  } else {
-    // TODO should be i2c_master_transfer_blocking
-    return hw.i2c_master_transfer(this.i2c_port, this.addr, data, rxbuf_len);
-  }
+  throw new Error('I2C#transferSync is removed. Please use I2C#transfer.');
 };
 
+// DEPRECATED
 I2C.prototype.sendSync = function (data) {
-  this._initialize();
-  if (this.mode == hw.I2C_SLAVE) {
-    return hw.i2c_slave_send(this.i2c_port, data);
-  } else {
-    return hw.i2c_master_send(this.i2c_port, this.addr, data);
-  }
+  throw new Error('I2C#sendSync is removed. Please use I2C#send.');
 };
 
+// DEPRECATED
 I2C.prototype.receiveSync = function (buf_len) {
-  this._initialize();
-  if (this.mode == hw.I2C_SLAVE) {
-    // TODO should be i2c_slave_transfer_blocking
-    return hw.i2c_slave_receive(this.i2c_port, '', buf_len);
-  } else {
-    // TODO should be i2c_master_receive_blocking
-    return hw.i2c_master_receive(this.i2c_port, this.addr, buf_len);
-  }
+  throw new Error('I2C#receiveSync is removed. Please use I2C#receive.');
 };
 
 
@@ -590,10 +574,14 @@ I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, callback)
 
   var self = this;
   setImmediate(function() {
-    var rxbuf = self.transferSync(txbuf, rxbuf_len);
-    if (callback) {
-      callback(null, rxbuf);
+    self._initialize();
+    if (self.mode == hw.I2C_SLAVE) {
+      var ret = hw.i2c_slave_transfer(self.i2c_port, data, rxbuf_len);
+    } else {
+      var ret = hw.i2c_master_transfer(self.i2c_port, self.addr, data, rxbuf_len);
     }
+    var err = ret[0], rxbuf = ret[1];
+    callback && callback(err, rxbuf);
   });
 };
 
@@ -602,15 +590,18 @@ I2C.prototype.send = function (txbuf, callback)
 {
   var self = this;
   setImmediate(function() {
-    self.sendSync(txbuf);
-    if (callback) {
-      callback(null);
+    self._initialize();
+    if (self.mode == hw.I2C_SLAVE) {
+      var err = hw.i2c_slave_send(self.i2c_port, data);
+    } else {
+      var err = hw.i2c_master_send(self.i2c_port, self.addr, data);
     }
+    callback && callback(err);
   });
 };
 
 
-I2C.prototype.receive = function (buf_len, unused_rxbuf, callback)
+I2C.prototype.receive = function (rxbuf_len, unused_rxbuf, callback)
 {
   if (!callback) {
     callback = unused_rxbuf;
@@ -619,10 +610,14 @@ I2C.prototype.receive = function (buf_len, unused_rxbuf, callback)
 
   var self = this;
   setImmediate(function() {
-    var rxbuf = self.receiveSync(buf_len, unused_rxbuf);
-    if (callback) {
-      callback(null, rxbuf);
+    self._initialize();
+    if (self.mode == hw.I2C_SLAVE) {
+      var ret = hw.i2c_slave_receive(self.i2c_port, '', rxbuf_len);
+    } else {
+      var ret = hw.i2c_master_receive(self.i2c_port, self.addr, rxbuf_len);
     }
+    var err = ret[0], rxbuf = ret[1];
+    callback && callback(err, rxbuf);
   });
 };
 

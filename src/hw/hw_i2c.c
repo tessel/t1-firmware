@@ -89,7 +89,8 @@ int hw_i2c_master_transfer (uint32_t port, uint32_t addr, const uint8_t *txbuf, 
 	transferMCfg.tx_count = 0;
 	transferMCfg.rx_count = 0;
 	transferMCfg.retransmissions_count = 0;
-	return I2C_MasterTransferData((LPC_I2Cn_Type*) port, &transferMCfg, I2C_TRANSFER_POLLING);
+	int status = I2C_MasterTransferData((LPC_I2Cn_Type*) port, &transferMCfg, I2C_TRANSFER_POLLING);
+  return status == SUCCESS ? 0 : 1;
 }
 
 int hw_i2c_master_send (uint32_t port, uint32_t addr, const uint8_t *txbuf, size_t txbuf_len)

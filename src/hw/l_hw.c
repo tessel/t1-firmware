@@ -235,9 +235,11 @@ static int l_hw_i2c_master_transfer (lua_State* L)
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
 	memset(rxbuf, 0, rxbuf_len);
-	hw_i2c_master_transfer(port, address, txbuf, txbuf_len, rxbuf, rxbuf_len);
+	int res = hw_i2c_master_transfer(port, address, txbuf, txbuf_len, rxbuf, rxbuf_len);
 
-	return 1;
+	lua_pushnumber(L, res);
+	lua_insert(L, -2);
+	return 2;
 }
 
 
@@ -249,9 +251,11 @@ static int l_hw_i2c_master_receive (lua_State* L)
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
 	memset(rxbuf, 0, rxbuf_len);
-	hw_i2c_master_receive(port, address, rxbuf, rxbuf_len);
+	int res = hw_i2c_master_receive(port, address, rxbuf, rxbuf_len);
 
-	return 1;
+	lua_pushnumber(L, res);
+	lua_insert(L, -2);
+	return 2;
 }
 
 
