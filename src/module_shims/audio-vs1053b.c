@@ -75,6 +75,9 @@ void _queue_buffer(AudioBuffer *buffer) {
 
     tm_event_ref(&shift_buffer_event);
 
+    TM_DEBUG("Current Mode before playback %d", _readSciRegister16(VS1053_REG_MODE));
+    _writeSciRegister16(VS1053_REG_MODE, 18432);
+
     // Start watching for a low DREQ
     _audio_watch_dreq();
   }
@@ -256,7 +259,8 @@ int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dr
   TM_DEBUG("Playing buffer"); 
   #endif
 
-  if (operating_buf) {
+
+  if (operating_buf && current_state != RECORDING) {
     TM_DEBUG("Buffer already operating... stopping output");
     audio_stop_buffer();
   }
@@ -266,6 +270,11 @@ int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dr
 
 // SPI.initialize MUST be initialized before calling this func
 int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
+
+  // If we are in the midst of recording, and play/queue is called, return an error
+  if (current_state == RECORDING) {
+    return -1;
+  }
 
   #ifdef DEBUG
   TM_DEBUG("Queueing buffer, Args %d %d %d %d", command_select, data_select, dreq, buf_len); 
@@ -283,7 +292,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
 
   // If the malloc failed, return an error
   if (new_buf->buffer == NULL) {
-    return -1;
+    return -3;
   }
 
   // Copy over the bytes from the provided buffer
@@ -353,6 +362,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   // Generate an ID for this stream so we know when it's complete
   new_buf->stream_id = _generate_stream_id();
 
+  TM_DEBUG("Set to playing....");
   current_state = PLAYING;
 
   _queue_buffer(new_buf);
@@ -416,7 +426,7 @@ int8_t audio_resume_buffer() {
   if (!operating_buf || current_state != PAUSED ) {
     return -1;
   }
-
+  TM_DEBUG("Set to resume playinh");
   current_state = PLAYING;
 
   hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
@@ -480,8 +490,10 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   
   // Soft reset
   _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
-  // Wait 100 ms for it to reset
-  hw_wait_ms(100);
+  // Wait for it to reset
+  hw_wait_us(2);
+    // Wait for dreq to come high again
+  while (!hw_digital_read(operating_buf->dreq));
 
   // Set our application address to 0
   _writeSciRegister16(VS1053_SCI_AIADDR, 0x00);
@@ -501,7 +513,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
   if (addr == 0xFFFF || addr != 0x34) {
     TM_DEBUG("It was an invalid file...");
-    return -1;
+    return -2;
   }
 
   // TODO: Check if Mic or Line in
@@ -535,6 +547,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
 int8_t audio_stop_recording() {
 
+  TM_DEBUG("Current state: %d", current_state);
   if (current_state != RECORDING) {
     return -1;
   }
@@ -546,8 +559,38 @@ int8_t audio_stop_recording() {
   // Stop the timer
   _stopRIT();
 
-  // Tell the vs1053 to stop gathering data
-  _writeSciRegister16(VS1053_SCI_AICTRL3, 1);
+  // For stopping procedure, see http://www.vlsi.fi/fileadmin/software/VS10XX/vs1053-vorbis-encoder-170c.zip
+
+  // Tell the vs1053 to stop gathering data by setting the first bit of VS1053_SCI_AICTRL3
+  _writeSciRegister16(VS1053_SCI_AICTRL3, _readSciRegister16(VS1053_SCI_AICTRL3) | (1 << 0));
+
+  // Keep reading until the 1st bit (not zeroth) of VS1053_SCI_AICTRL3 is flipped
+  uint32_t num_read = 0;
+  uint32_t just_read = 0;
+  while (!(_readSciRegister16(VS1053_SCI_AICTRL3) & (1 << 1))) {
+    just_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+    if ((num_read + just_read) < operating_buf->remaining_bytes) {
+      memcpy((operating_buf->buffer + num_read), double_buff, just_read);
+    }
+    else {
+      break;
+    }
+  }
+
+  // Read VS1053_SCI_AICTRL3 twice
+  // If bit 2 is set in the second read, drop the last read byte
+  _readSciRegister16(VS1053_SCI_AICTRL3);
+  uint8_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
+  if (drop & (1 << 2)) num_read--;
+
+
+  // Soft reset
+  _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
+  // Wait for the reset to finish
+  hw_wait_us(2);
+  // Wait for dreq to come high again
+  while (!hw_digital_read(operating_buf->dreq)){};
+
 
   // If we have an operating buf (which we should)
   if (operating_buf) {
@@ -555,27 +598,19 @@ int8_t audio_stop_recording() {
     if (operating_buf->buffer_ref != LUA_NOREF) {
       luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
     }
-
+    // Free the event reference
     if (read_recording_event.ref) {
       tm_event_unref(&read_recording_event);
     }
-    
 
-    // Read as many bytes as possible (or length of buffer)
-    uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
-
-    // If there was a spi read error
-    if (num_read == 0xFFFF) {
-      // set num read to 0
-      num_read = 0;
-    }
-
+    // Transfer over all the memory we just sent over
     memcpy(operating_buf->buffer, double_buff, num_read);
 
     current_state = STOPPED;
 
     // Free the operating buffer
     free(operating_buf);
+    operating_buf = NULL;
 
     // Free the fill buffer
     free(double_buff);
@@ -583,12 +618,14 @@ int8_t audio_stop_recording() {
     lua_State* L = tm_lua_state;
     if (!L) return -1;
 
+    TM_DEBUG("Completely finished with recording...");
     lua_getglobal(L, "_colony_emit");
     lua_pushstring(L, "audio_complete");
     lua_pushnumber(L, num_read);
     tm_checked_call(L, 2);
+    TM_DEBUG("Finished emissions");
   }
-  
+
   return 0;
 }
 
@@ -600,15 +637,18 @@ void _recording_register_check(void) {
     // If we read anything
     if (num_read && num_read != 0xFFFF) {
       // Copy the data into our fill buffer
+      TM_DEBUG("Memcpy");
       memcpy(operating_buf->buffer, double_buff, num_read);
 
       lua_State* L = tm_lua_state;
       if (!L) return;
 
+      TM_DEBUG("Emitting");
       lua_getglobal(L, "_colony_emit");
       lua_pushstring(L, "audio_data");
       lua_pushnumber(L, num_read);
       tm_checked_call(L, 2);
+      TM_DEBUG("Done emitting");
     }
   }
 }
@@ -641,7 +681,7 @@ uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
       i++;
     }
   }
-
+  TM_DEBUG("Returning num read");
   return num_to_read;
 }
 
