@@ -202,7 +202,13 @@ function AnalogPin (pin) {
   this.pinmode = 'input';
 }
 
-AnalogPin.prototype.write = function (val){
+var ANALOG_RESOLUTION = 1024;
+
+AnalogPin.prototype.type = 'analog';
+
+AnalogPin.prototype.resolution = ANALOG_RESOLUTION;
+
+AnalogPin.prototype.write = function (val) {
   if (tessel_version <= 2 && this.pin != hw.PIN_E_A4) {
     return console.warn("Only A4 can write analog signals");
   } else if (tessel_version == 3 && this.pin != hw.PIN_E_A1){
@@ -216,23 +222,14 @@ AnalogPin.prototype.write = function (val){
   hw.analog_write(this.pin, val);
 };
 
-
-// TM 2014-01-30 new API >>>
-var ANALOG_RESOLUTION = 1024;
-AnalogPin.prototype.type = 'analog';
-AnalogPin.prototype.resolution = ANALOG_RESOLUTION;
 AnalogPin.prototype.readSync = function () {
+  console.warn('analogpin.readSync() is deprecated. Use analogpin.read() instead.');
+  return this.read();
+};
+
+AnalogPin.prototype.read = function (next) {
   return hw.analog_read(this.pin) / ANALOG_RESOLUTION;
 };
-AnalogPin.prototype.read = function (next) {
-  if (next) {
-    setImmediate(next, null, hw.analog_read(this.pin) / ANALOG_RESOLUTION);
-    return;
-  }
-  // TODO deprecated:
-  return hw.analog_read(this.pin);
-};
-// TM <<<
 
 
 /**
