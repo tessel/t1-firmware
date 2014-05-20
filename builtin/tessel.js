@@ -215,10 +215,7 @@ AnalogPin.prototype.write = function (val) {
     return console.warn("Only A1 can write analog signals");
   }
 
-  if (val < 0 || val > 1024) {
-    return console.warn("Analog values must be between 0 and 1024");
-  }
-
+  val = (val < 0 ? 0 : (val > 1 ? 1 : val)) * ANALOG_RESOLUTION;
   hw.analog_write(this.pin, val);
 };
 
@@ -1047,23 +1044,17 @@ var SPIChipSelectMode = {
  * Ports
  */
 
-function Port (id, gpios, analogs, i2c, uart)
+function Port (id, digitals, analogs, i2c, uart)
 {
   this.id = id;
 
-  this._gpios = gpios;
-  this._analogs = analogs || [];
+  this.digital = digitals.slice();
+  this.analogs = analogs.slice();
 
-  // TM 2014-01-30 new API >>>
-  this.digital = gpios;
-  for (var i = 0; i < analogs.length; i++) {
-    this.analog[i] = analogs[i];
-  }
-  // TM <<<
-  // Until new takes a "this" method
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
   };
+
   this.UART = function (format, port) {
     if (uart === null) {
       throw tessel_version > 1 ? 'Software UART not yet functional in firmware.' : 'Board version only supports UART on GPIO port.';
@@ -1093,14 +1084,6 @@ Port.prototype.pinOutput = function (n) {
 
 Port.prototype.digitalWrite = function (n, val) {
   hw.digital_write(n, val ? hw.HIGH : hw.LOW);
-};
-
-Port.prototype.gpio = function (n) {
-  return this._gpios[n];
-};
-
-Port.prototype.analog = function (n) {
-  return this._analogs[n];
 };
 
 function Tessel() {
