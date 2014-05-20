@@ -1069,7 +1069,7 @@ function Port (id, gpios, analogs, i2c, uart)
   };
   this.UART = function (format, port) {
     if (uart === null) {
-      throw tessel_version > 1 ? 'Software UART not yet functional in firmware.' : 'Board version only supports UART on GPIO port.';
+      throw tessel_version > 1 ? 'Software UART not yet functional for this port. You must use module port A, B, or D.' : 'Board version only supports UART on GPIO port.';
     }
     return new UART(format, port === null ? uart : port);
   };
