@@ -541,7 +541,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
 int8_t audio_stop_recording(bool flush) {
 
-  if (current_state != RECORDING) {
+  if (!operating_buf || current_state != RECORDING) {
     return -1;
   }
 
