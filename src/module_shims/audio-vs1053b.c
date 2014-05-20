@@ -580,8 +580,8 @@ int8_t audio_stop_recording(bool flush) {
     // Read VS1053_SCI_AICTRL3 twice
     // If bit 2 is set in the second read, drop the last read byte
     _readSciRegister16(VS1053_SCI_AICTRL3);
-    uint8_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
-    if (drop & (1 << 2)) num_read--;
+    _readSciRegister16(VS1053_SCI_AICTRL3);
+    // if (drop & (1 << 2)) num_read--;
   }
 
   // Soft reset
@@ -632,6 +632,11 @@ void _recording_register_check(void) {
     // If we read anything
     if (num_read && num_read != 0xFFFF) {
       // Copy the data into our fill buffer
+      TM_DEBUG("We just read:", num_read, double_buff);
+
+      for (uint32_t i = 0; i < num_read; i++) {
+        TM_DEBUG("Byte %d is %x", i, double_buff[i]);
+      }
       memcpy(operating_buf->buffer, double_buff, num_read);
 
       lua_State* L = tm_lua_state;
@@ -643,6 +648,8 @@ void _recording_register_check(void) {
       tm_checked_call(L, 2);
     }
   }
+
+  audio_stop_recording(true);
 }
 
 // Reads up to len bytes of recorded data
