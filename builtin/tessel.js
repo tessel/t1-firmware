@@ -202,37 +202,31 @@ function AnalogPin (pin) {
   this.pinmode = 'input';
 }
 
-AnalogPin.prototype.write = function (val){
+var ANALOG_RESOLUTION = 1024;
+
+AnalogPin.prototype.type = 'analog';
+
+AnalogPin.prototype.resolution = ANALOG_RESOLUTION;
+
+AnalogPin.prototype.write = function (val) {
   if (tessel_version <= 2 && this.pin != hw.PIN_E_A4) {
     return console.warn("Only A4 can write analog signals");
   } else if (tessel_version == 3 && this.pin != hw.PIN_E_A1){
     return console.warn("Only A1 can write analog signals");
   }
 
-  if (val < 0 || val > 1024) {
-    return console.warn("Analog values must be between 0 and 1024");
-  }
-
+  val = (val < 0 ? 0 : (val > 1 ? 1 : val)) * ANALOG_RESOLUTION;
   hw.analog_write(this.pin, val);
 };
 
-
-// TM 2014-01-30 new API >>>
-var ANALOG_RESOLUTION = 1024;
-AnalogPin.prototype.type = 'analog';
-AnalogPin.prototype.resolution = ANALOG_RESOLUTION;
 AnalogPin.prototype.readSync = function () {
+  console.warn('analogpin.readSync() is deprecated. Use analogpin.read() instead.');
+  return this.read();
+};
+
+AnalogPin.prototype.read = function (next) {
   return hw.analog_read(this.pin) / ANALOG_RESOLUTION;
 };
-AnalogPin.prototype.read = function (next) {
-  if (next) {
-    setImmediate(next, null, hw.analog_read(this.pin) / ANALOG_RESOLUTION);
-    return;
-  }
-  // TODO deprecated:
-  return hw.analog_read(this.pin);
-};
-// TM <<<
 
 
 /**
@@ -1050,23 +1044,17 @@ var SPIChipSelectMode = {
  * Ports
  */
 
-function Port (id, gpios, analogs, i2c, uart)
+function Port (id, digitals, analogs, i2c, uart)
 {
   this.id = id;
 
-  this._gpios = gpios;
-  this._analogs = analogs || [];
+  this.digital = digitals.slice();
+  this.analogs = analogs.slice();
 
-  // TM 2014-01-30 new API >>>
-  this.digital = gpios;
-  for (var i = 0; i < analogs.length; i++) {
-    this.analog[i] = analogs[i];
-  }
-  // TM <<<
-  // Until new takes a "this" method
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
   };
+
   this.UART = function (format, port) {
     if (uart === null) {
       throw tessel_version > 1 ? 'Software UART not yet functional for this port. You must use module port A, B, or D.' : 'Board version only supports UART on GPIO port.';
@@ -1096,14 +1084,6 @@ Port.prototype.pinOutput = function (n) {
 
 Port.prototype.digitalWrite = function (n, val) {
   hw.digital_write(n, val ? hw.HIGH : hw.LOW);
-};
-
-Port.prototype.gpio = function (n) {
-  return this._gpios[n];
-};
-
-Port.prototype.analog = function (n) {
-  return this._analogs[n];
 };
 
 function Tessel() {
