@@ -231,7 +231,7 @@ void _audio_watch_dreq() {
   }
   // If not
   else {
-    // Wait for dreq to go low
+    // Wait for dreq to go high
     hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
   }
   
@@ -294,6 +294,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
 
   // If the malloc failed, return an error
   if (new_buf->buffer == NULL) {
+    free(new_buf);
     return -3;
   }
 
@@ -305,23 +306,23 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
 
   // Set the chip select field
   new_buf->data_select = data_select;
-  // Set the chip select pin as an output
-  hw_digital_output(new_buf->data_select);
   // Write the data select as high initially
   // if we don't have an operation going on already 
   if (!operating_buf) {
     hw_digital_write(new_buf->data_select, 1);  
   }
+  // Set the chip select pin as an output
+  hw_digital_output(new_buf->data_select);
 
   // Set the command select field
   new_buf->command_select = command_select;
-  // Set the command select pin as an output
-  hw_digital_output(new_buf->command_select);
   // Write the command select as high initially
   // if we don't have an operation going on already 
   if (!operating_buf) {
     hw_digital_write(new_buf->command_select, 1);  
   }
+  // Set the command select pin as an output
+  hw_digital_output(new_buf->command_select);
   
   // Set the dreq field
   new_buf->dreq = dreq;
@@ -347,6 +348,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
       TM_DEBUG("Error: Unable to generate new interrupt!"); 
       #endif
       // If not, free the allocated memory
+      free(new_buf->buffer);
       free(new_buf);
       // Return an error code
       return -2;
@@ -701,7 +703,7 @@ void RIT_IRQHandler(void)
   tm_event_trigger(&read_recording_event);
 }
 
-// Code modified from Lada Ada's lib
+// Code modified from Adafruit's lib
 uint16_t _loadPlugin(const char *plugin_dir) {
 
   if (operating_buf) {
@@ -712,7 +714,8 @@ uint16_t _loadPlugin(const char *plugin_dir) {
     // Open the file from the root directory
     int success = tm_fs_open(&fd, tm_fs_root, plugin_dir, TM_RDONLY);
 
-    if (success == -EEXIST) {
+    if (success != 0) {
+
       return 0xFFFF;
     }
 
@@ -725,6 +728,7 @@ uint16_t _loadPlugin(const char *plugin_dir) {
     const uint32_t end = (uint32_t)plugin + tm_fs_length(&fd);
 
     if (*plugin++!= 'P' || *plugin++ != '&' || *plugin++ != 'H') {
+      tm_fs_close(&fd);
       return 0xFFFF;
     }
 
