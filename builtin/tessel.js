@@ -1167,6 +1167,15 @@ board.led[3] = board.leds[3];
 board.led[4] = board.leds[4];
 // TM <<<
 
+// sendfile
+process.sendfile = function (filename, buf) {
+  process.binding('hw').usb_send(0x4113, require('_structured_clone').serialize({
+    filename: filename,
+    buffer: buf
+  }));
+};
+
+
 module.exports.I2CMode = I2CMode;
 module.exports.SPIBitOrder = SPIBitOrder;
 module.exports.SPIDataMode = SPIDataMode;
