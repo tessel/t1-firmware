@@ -199,6 +199,7 @@
         'src/variants/lpc18xx/variant.c',
 
         'src/tm/tm_net.c',
+        'src/tm/tm_random.c',
         'src/tm/tm_uptime.c',
 
         'src/sdram/sdram_init.c',
