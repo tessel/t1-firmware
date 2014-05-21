@@ -116,10 +116,10 @@ static int l_hw_spi_transfer(lua_State* L)
 	const uint8_t* rxbuf = NULL;
 
 	if (txlen != 0) {
-		txbuf = colony_tobuffer(L, ARG1 + 3, NULL);
+		txbuf = colony_toconstdata(L, ARG1 + 3, NULL);
 	}
 	if (rxlen != 0) {
-		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
+		rxbuf = colony_toconstdata(L, ARG1 + 4, NULL);
 	}
 	// Create refs to tx and rx so they aren't gc'ed in the meantime
 	// rxRef must come first because it's on the top of the stack
@@ -179,7 +179,7 @@ static int l_hw_i2c_slave_transfer (lua_State* L)
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 2);
 
 	size_t txbuf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &txbuf_len);
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &txbuf_len);
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
 	memset(rxbuf, 0, rxbuf_len);
@@ -197,7 +197,7 @@ static int l_hw_i2c_slave_send (lua_State* L)
 	//  uint32_t address = (uint32_t) lua_tonumber(L, ARG1+1);
 
 	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &buf_len);
 
 	int res = hw_i2c_slave_send(port, txbuf, buf_len);
 	lua_pushnumber(L, res);
@@ -231,7 +231,7 @@ static int l_hw_i2c_master_transfer (lua_State* L)
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 3);
 
 	size_t txbuf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 2, &txbuf_len);
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 2, &txbuf_len);
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
 	memset(rxbuf, 0, rxbuf_len);
@@ -266,7 +266,7 @@ static int l_hw_i2c_master_send (lua_State* L)
 	uint32_t address = (uint32_t)lua_tonumber(L, ARG1 + 1);
 
 	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 2, &buf_len);
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 2, &buf_len);
 
 	int res = hw_i2c_master_send(port, address, txbuf, buf_len);
 	lua_pushnumber(L, res);
@@ -309,7 +309,7 @@ static int l_hw_uart_send(lua_State* L)
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 
 	size_t buf_len = 0;
-	const uint8_t* txbuf = colony_tobuffer(L, ARG1 + 1, &buf_len);
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &buf_len);
 
 	uint8_t bytes = hw_uart_send(port, txbuf, buf_len);
 
