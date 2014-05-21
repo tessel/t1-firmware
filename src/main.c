@@ -679,21 +679,21 @@ int main (void)
 
 	// Do a light show in 300ms.
 	#define LIGHTSHOWDELAY 37500
-	hw_digital_write(LED2, 1);
-	hw_wait_us(LIGHTSHOWDELAY);
-	hw_digital_write(LED1, 1);
+	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_wait_us(LIGHTSHOWDELAY);
 	hw_digital_write(CC3K_CONN_LED, 1);
 	hw_wait_us(LIGHTSHOWDELAY);
-	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(LED1, 1);
 	hw_wait_us(LIGHTSHOWDELAY);
-	hw_digital_write(LED2, 0);
+	hw_digital_write(LED2, 1);
 	hw_wait_us(LIGHTSHOWDELAY);
-	hw_digital_write(LED1, 0);
+	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_wait_us(LIGHTSHOWDELAY);
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_wait_us(LIGHTSHOWDELAY);
-	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(LED1, 0);
+	hw_wait_us(LIGHTSHOWDELAY);
+	hw_digital_write(LED2, 0);
 	hw_wait_us(LIGHTSHOWDELAY);
 
 #if TESSEL_WIFI && TESSEL_FASTCONNECT
