@@ -530,7 +530,7 @@ static int l_audio_play_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-	const uint8_t* buf = colony_tobuffer(L, ARG1 + 3, &buf_len);
+	const uint8_t* buf = colony_toconstdata(L, ARG1 + 3, &buf_len);
 
 	int r;
 	if (buf_len) {
@@ -550,7 +550,7 @@ static int l_audio_queue_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-	const uint8_t* buf = colony_tobuffer(L, ARG1+3, &buf_len);
+	const uint8_t* buf = colony_toconstdata(L, ARG1+3, &buf_len);
 
 	int r = audio_queue_buffer(xcs, dcs, dreq, buf, buf_len);
 
@@ -582,9 +582,9 @@ static int l_audio_start_recording(lua_State* L) {
 	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
 	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	const uint8_t* dir_name = colony_tobuffer(L, ARG1 + 2, NULL);
+	const uint8_t* dir_name = colony_toconstdata(L, ARG1 + 2, NULL);
 	size_t buf_len;
-	uint8_t *buf = colony_tobuffer_dynamic(L, ARG1+3, &buf_len);
+	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
 	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 	uint8_t micInput = (uint8_t)lua_tonumber(L, ARG1 + 4);
 	int8_t r = audio_start_recording(xcs, dreq, (char *)dir_name, buf, buf_len, buf_ref, micInput);
@@ -594,7 +594,7 @@ static int l_audio_start_recording(lua_State* L) {
 }
 
 static int l_audio_stop_recording(lua_State* L) {
-	int16_t r = audio_stop_recording(true);
+	int16_t r = audio_stop_recording();
 
 	lua_pushnumber(L, r);
 	return 1;
