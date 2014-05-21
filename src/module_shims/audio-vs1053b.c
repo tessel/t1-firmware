@@ -61,7 +61,11 @@ uint16_t master_id_gen = 0;
 // The current state of the mp3 player
 enum State current_state = STOPPED;
 
+uint32_t queue_length = 0;
+
 void _queue_buffer(AudioBuffer *buffer) {
+
+  TM_DEBUG("ADD: %d items in the queue", ++queue_length);
 
   AudioBuffer **next = &operating_buf;
   // If we don't have an operating buffer already
@@ -97,6 +101,8 @@ void _shift_buffer() {
   #ifdef DEBUG
   TM_DEBUG("Shifting buffer."); 
   #endif
+
+  TM_DEBUG("SHIFT: %d items in the queue", --queue_length);
 
   // If the head is already null
   if (!operating_buf) {
@@ -239,7 +245,7 @@ void _audio_emit_completion(uint16_t stream_id) {
   if (!L) return;
 
   lua_getglobal(L, "_colony_emit");
-  lua_pushstring(L, "audio_complete");
+  lua_pushstring(L, "audio_playback_complete");
   lua_pushnumber(L, spi_async_status.transferError);
   lua_pushnumber(L, stream_id);
   tm_checked_call(L, 3);
@@ -607,9 +613,8 @@ int8_t audio_stop_recording() {
     lua_State* L = tm_lua_state;
 
     if (!L) return -1;
-
     lua_getglobal(L, "_colony_emit");
-    lua_pushstring(L, "audio_complete");
+    lua_pushstring(L, "audio_recording_complete");
     lua_pushnumber(L, num_read);
     tm_checked_call(L, 2);
   }
@@ -631,7 +636,7 @@ void _recording_register_check(void) {
       if (!L) return;
 
       lua_getglobal(L, "_colony_emit");
-      lua_pushstring(L, "audio_data");
+      lua_pushstring(L, "audio_recording_data");
       lua_pushnumber(L, num_read);
       tm_checked_call(L, 2);
     }
@@ -643,6 +648,10 @@ void _recording_register_check(void) {
 uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
 
   uint32_t num_to_read = _readSciRegister16(VS1053_REG_HDAT1);
+
+  #ifdef DEBUG
+  TM_DEBUG("There are %d bytes available to read", num_to_read);
+  #endif
 
   // If there are more bytes to read than the size of the
   // allowed, we only read the allowed
