@@ -494,7 +494,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 
 		// Populate filesystem.
 		TM_DEBUG("Populating filesystem...");
-		tm_fs_root = tm_fs_dir_create();
+		tm_fs_root = tm_fs_dir_create_entry();
 		ret = tm_fs_mount_tar(tm_fs_root, ".", script_buf, script_buf_size);
 
 		if (ret != 0) {
