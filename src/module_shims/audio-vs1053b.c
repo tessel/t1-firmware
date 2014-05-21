@@ -725,7 +725,13 @@ uint16_t _loadPlugin(const char *plugin_dir) {
 
     // Grab a pointer to the file
     const uint8_t *plugin = tm_fs_contents(&fd);
-    const uint32_t end = (uint32_t)plugin + tm_fs_length(&fd);
+    const uint32_t length = tm_fs_length(&fd);
+    // Make sure the length is at least 3
+    if (length < 3) {
+      tm_fs_close(&fd);
+      return 0xFFFF
+    }
+    const uint32_t end = (uint32_t)plugin + length;
 
     if (*plugin++!= 'P' || *plugin++ != '&' || *plugin++ != 'H') {
       tm_fs_close(&fd);
