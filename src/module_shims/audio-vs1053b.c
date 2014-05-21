@@ -371,7 +371,7 @@ int8_t audio_stop_buffer() {
   TM_DEBUG("Stopping buffer"); 
   #endif
 
-  if (!operating_buf || current_state == STOPPED || current_state == RECORDING) {
+  if (!operating_buf || current_state == RECORDING) {
     return -1;
   }
 
@@ -400,7 +400,7 @@ int8_t audio_pause_buffer() {
   TM_DEBUG("Pausing buffer"); 
   #endif
 
-  if (!operating_buf || current_state == PAUSED || current_state == STOPPED) {
+  if (!operating_buf || current_state == STOPPED) {
     return -1;
   }
 
@@ -433,10 +433,10 @@ uint8_t audio_get_state() {
   return (uint8_t)current_state;
 }
 
-int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref) {
+int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref, uint8_t mic_input) {
 
-  if (operating_buf) {
-    audio_stop_buffer();
+  if (current_state != STOPPED) {
+    return -3;
   }
 
   #ifdef DEBUG
@@ -510,9 +510,13 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
     return -2;
   }
 
-  // TODO: Check if Mic or Line in
-  // This command only sets it to mic
-  _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW);
+  // Check if Mic or Line in
+  if (mic_input) {
+    _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW);
+  }
+  else {
+    _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
+  }
 
   /* Rec level: 1024 = 1. If 0, use AGC */
   _writeSciRegister16(VS1053_SCI_AICTRL0, 1024);
@@ -552,37 +556,36 @@ int8_t audio_stop_recording(bool flush) {
   // Stop the timer
   _stopRIT();
 
+  flush++;
   // For stopping procedure, see http://www.vlsi.fi/fileadmin/software/VS10XX/vs1053-vorbis-encoder-170c.zip
-
   // Tell the vs1053 to stop gathering data by setting the first bit of VS1053_SCI_AICTRL3
   _writeSciRegister16(VS1053_SCI_AICTRL3, _readSciRegister16(VS1053_SCI_AICTRL3) | (1 << 0));
 
   // Keep reading until the 1st bit (not zeroth) of VS1053_SCI_AICTRL3 is flipped
 
-  uint32_t num_read = 0;
-  uint32_t just_read = 0;
-  uint32_t retries = 0;
-  const uint32_t max_retries = 20;
-  if (flush) {
-    while (!(_readSciRegister16(VS1053_SCI_AICTRL3) & (1 << 1)) && retries < max_retries) {
-      retries++;
-      just_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
-      if ((num_read + just_read) < operating_buf->remaining_bytes) {
-        memcpy((operating_buf->buffer + num_read), double_buff, just_read);
-        num_read += just_read;
-      }
-      else {
-        break;
-      }
-      hw_wait_us(100);
+  uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+
+
+  TM_DEBUG("Flushed a total of %d bytes", num_read);
+
+  // Read VS1053_SCI_AICTRL3 twice
+  // If bit 2 is set in the second read, drop the last read byte
+  _readSciRegister16(VS1053_SCI_AICTRL3);
+  uint16_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
+
+  if (num_read) {
+    if (drop & (1 << 2)) {
+      // The last byte we copy should only be the second to last byte
+      TM_DEBUG("switching %d with %d", double_buff[num_read-2], double_buff[num_read-1]);
+      double_buff[num_read-2] = double_buff[num_read-1];
+      num_read--;
     }
 
-    // Read VS1053_SCI_AICTRL3 twice
-    // If bit 2 is set in the second read, drop the last read byte
-    _readSciRegister16(VS1053_SCI_AICTRL3);
-    _readSciRegister16(VS1053_SCI_AICTRL3);
-    // if (drop & (1 << 2)) num_read--;
+    memcpy(operating_buf->buffer, double_buff, num_read);
   }
+
+  TM_DEBUG("First byte to send is %d", double_buff[0]);
+  TM_DEBUG("Last byte to send is %d", double_buff[num_read-1]);
 
   // Soft reset
   _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
@@ -590,6 +593,8 @@ int8_t audio_stop_recording(bool flush) {
   hw_wait_us(2);
   // Wait for dreq to come high again
   while (!hw_digital_read(operating_buf->dreq)){};
+
+  TM_DEBUG("Just curious %d", _read_recorded_data(NULL, (operating_buf->remaining_bytes-num_read)));
 
 
   // If we have an operating buf (which we should)
@@ -634,9 +639,8 @@ void _recording_register_check(void) {
       // Copy the data into our fill buffer
       TM_DEBUG("We just read:", num_read, double_buff);
 
-      for (uint32_t i = 0; i < num_read; i++) {
-        TM_DEBUG("Byte %d is %x", i, double_buff[i]);
-      }
+      TM_DEBUG("First byte to send is %d", double_buff[0]);
+      TM_DEBUG("Last byte to send is %d", double_buff[num_read-1]);
       memcpy(operating_buf->buffer, double_buff, num_read);
 
       lua_State* L = tm_lua_state;
@@ -648,19 +652,18 @@ void _recording_register_check(void) {
       tm_checked_call(L, 2);
     }
   }
-
-  audio_stop_recording(true);
 }
 
-// Reads up to len bytes of recorded data
+// Reads up to len 8-bit words of recorded data
 // Returns a 1 if there was more data available
 uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
 
   uint32_t num_to_read = _readSciRegister16(VS1053_REG_HDAT1);
 
   // Read that many bytes
-  if (num_to_read > len) {
-    num_to_read = len;
+  if (num_to_read > (len * 2)) {
+    TM_DEBUG("It's too big, we're downsizing...");
+    num_to_read = len/2;
   } 
 
   uint16_t raw;

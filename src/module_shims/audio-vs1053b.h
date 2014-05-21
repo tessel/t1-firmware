@@ -9,7 +9,7 @@
 
 #define AUDIO_CHUNK_SIZE 32
 #define SPI_PORT 0
-#define REC_READ_PERIOD 500
+#define REC_READ_PERIOD 10
 
 #define VS1053_SCI_READ 0x03
 #define VS1053_SCI_WRITE 0x02
@@ -70,7 +70,7 @@ int8_t audio_resume_buffer();
 // Get the current operating state of the mp3 player
 uint8_t audio_get_state();
 // Load a plugin and start recording sound
-int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref);
+int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref, uint8_t mic_input);
 // Stop recording sound
 int8_t audio_stop_recording(bool flush);
 
