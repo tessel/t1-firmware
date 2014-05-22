@@ -1044,12 +1044,12 @@ var SPIChipSelectMode = {
  * Ports
  */
 
-function Port (id, digitals, analogs, i2c, uart)
+function Port (id, digital, analog, i2c, uart)
 {
   this.id = id;
 
-  this.digital = digitals.slice();
-  this.analogs = analogs.slice();
+  this.digital = digital.slice();
+  this.analog = analog.slice();
 
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
