@@ -263,7 +263,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/Debug/ldscript_rom_gnu.ld',
+        '-T<!(pwd)/src/ldscript_rom_gnu.ld',
         '-lm',
         '-lc',
         '-lnosys',
