@@ -192,23 +192,6 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   spi_async_status.transferCount = 0;
   spi_async_status.transferError = 0;
 
-  if (txlen != 0) {
-     // Source Connection - unused
-    tx_config.SrcConn = 0;
-    // Transfer type
-    tx_config.TransferType = m2p;
-
-    // Configure the tx transfer on channel 0
-    // TODO: Get next available channel
-    hw_gpdma_transfer_config(tx_chan, &tx_config);
-
-    // Generate the linked list structure for transmission
-    spi_async_status.tx_Linked_List = hw_spi_dma_packetize(txlen, txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
-
-    // Begin the transmission
-    hw_gpdma_transfer_begin(tx_chan, spi_async_status.tx_Linked_List);
-  }
-
   if (rxlen != 0) {
     // Destination connection - unused
     rx_config.DestConn = 0;
@@ -224,6 +207,23 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
 
     // Begin the reception
     hw_gpdma_transfer_begin(rx_chan, spi_async_status.rx_Linked_List);
+  }
+
+  if (txlen != 0) {
+     // Source Connection - unused
+    tx_config.SrcConn = 0;
+    // Transfer type
+    tx_config.TransferType = m2p;
+
+    // Configure the tx transfer on channel 0
+    // TODO: Get next available channel
+    hw_gpdma_transfer_config(tx_chan, &tx_config);
+
+    // Generate the linked list structure for transmission
+    spi_async_status.tx_Linked_List = hw_spi_dma_packetize(txlen, txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
+
+    // Begin the transmission
+    hw_gpdma_transfer_begin(tx_chan, spi_async_status.tx_Linked_List);
   }
 
   // if it's a slave pull down CS
