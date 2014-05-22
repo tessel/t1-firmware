@@ -113,18 +113,22 @@ static int l_hw_spi_transfer(lua_State* L)
 	size_t rxlen = (size_t)lua_tonumber(L, ARG1 + 2);
 
 	const uint8_t* txbuf = NULL;
-	const uint8_t* rxbuf = NULL;
+	uint8_t* rxbuf = NULL;
 
+	uint32_t txref = LUA_NOREF;
 	if (txlen != 0) {
 		txbuf = colony_toconstdata(L, ARG1 + 3, NULL);
+		lua_pushvalue(L, ARG1 + 3);
+		txref = luaL_ref(L, LUA_REGISTRYINDEX);
 	}
+
+	uint32_t rxref = LUA_NOREF;
 	if (rxlen != 0) {
-		rxbuf = colony_toconstdata(L, ARG1 + 4, NULL);
+		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
+		lua_pushvalue(L, ARG1 + 4);
+		rxref = luaL_ref(L, LUA_REGISTRYINDEX);
 	}
-	// Create refs to tx and rx so they aren't gc'ed in the meantime
-	// rxRef must come first because it's on the top of the stack
-	uint32_t rxref = luaL_ref(L, LUA_REGISTRYINDEX);
-	uint32_t txref = luaL_ref(L, LUA_REGISTRYINDEX);
+
 	// Begin the transfer
 	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref);
 	// Push a success code onto the stack
