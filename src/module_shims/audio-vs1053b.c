@@ -49,7 +49,6 @@ void _writeSciRegister16(uint8_t address_byte, uint16_t data);
 uint16_t _readSciRegister16(uint8_t address_byte);
 
 
-tm_event shift_buffer_event = TM_EVENT_INIT(_shift_buffer);
 tm_event read_recording_event = TM_EVENT_INIT(_recording_register_check);
 
 // Buffer for loading data into before passing into runtime
@@ -76,8 +75,6 @@ void _queue_buffer(AudioBuffer *buffer) {
     #ifdef DEBUG
     TM_DEBUG("First buffer in queue. Beginning execution immediately."); 
     #endif
-
-    tm_event_ref(&shift_buffer_event);
 
     // Start watching for a low DREQ
     _audio_watch_dreq();
@@ -168,58 +165,38 @@ void _audio_flush_buffer() {
 
   master_id_gen = 0;
   operating_buf = NULL;
-
-  tm_event_unref(&shift_buffer_event);
-}
-// Called when a SPI transaction has completed
-void _audio_spi_callback() {
-
-  // As long as we have an operating buffer
-  if (operating_buf != NULL) {
-
-    // If there was an error with the transfer
-    if (spi_async_status.transferError) {
-      // Set the number of bytes to continue writing to 0
-      // This will force the completion event
-      operating_buf->remaining_bytes = 0;
-    }
-
-    // Check if we have more bytes to send for this buffer
-    if (operating_buf->remaining_bytes > 0) {
-      // Send more bytes when DREQ is low
-      _audio_watch_dreq();
-    }
-    // We've completed playing all the bytes for this buffer
-    else {
-
-      // We need to wait for the transaction to totally finish
-      // The DMA interrupt is fired too early by NXP so we need to
-      // poll the BSY register until we can continue
-      while (SSP_GetStatus(LPC_SSP0, SSP_STAT_BUSY)){};
-
-      // Pull chip select back up
-      hw_digital_write(operating_buf->data_select, 1);
-
-      // Remove this buffer from the linked list and free the memory
-      tm_event_trigger(&shift_buffer_event);
-    }
-  }
 }
 
 // Called when DREQ goes low. Data is available to be sent over SPI
 void _audio_continue_spi() {
   // If we have an operating buffer
   if (operating_buf != NULL) {
-    // Figure out how many bytes we're sending next
-    uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
-    // Pull chip select low
-    hw_digital_write(operating_buf->data_select, 0);
-    // Transfer the data
-    hw_spi_transfer(SPI_PORT, to_send, 0, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, LUA_NOREF, LUA_NOREF, &_audio_spi_callback);
-    // Update our buffer position
-    operating_buf->buffer_position += to_send;
-    // Reduce the number of bytes remaining
-    operating_buf->remaining_bytes -= to_send;
+
+    // While dreq is held high and we have more bytes to send
+    while (hw_digital_read(operating_buf->dreq) && operating_buf->remaining_bytes > 0) {
+      // Figure out how many bytes we're sending next
+      uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
+      // Pull chip select low
+      hw_digital_write(operating_buf->data_select, 0);
+      // Transfer the data
+      hw_spi_transfer_sync(SPI_PORT, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, to_send, NULL);
+      // Update our buffer position
+      operating_buf->buffer_position += to_send;
+      // Reduce the number of bytes remaining
+      operating_buf->remaining_bytes -= to_send;
+      // Pull chip select back up
+      hw_digital_write(operating_buf->data_select, 1);
+    }
+
+    // If there are no bytes left
+    if (operating_buf->remaining_bytes <= 0) {
+      // Shift the buffer and emit the finished event
+      _shift_buffer();
+    }
+    else {
+      // Wait for dreq to go high again
+      _audio_watch_dreq();
+    }
   }
 }
 
@@ -234,7 +211,6 @@ void _audio_watch_dreq() {
     // Wait for dreq to go high
     hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
   }
-  
 }
 
 void _audio_emit_completion(uint16_t stream_id) {
@@ -364,13 +340,23 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   }
 
   // Generate an ID for this stream so we know when it's complete
-  new_buf->stream_id = _generate_stream_id();
+  // We have to assign it to a local value before the struct
+  // because the struct may be dealloc'ed before _queue_buffer returns
+  uint8_t stream_id = _generate_stream_id();
+  new_buf->stream_id = stream_id;
 
   current_state = PLAYING;
 
+  // It is possible for this to simply return if
+  // The number of queued bytes is small enough 
+  // that it doesn't have to wait for a gpio interrupt
   _queue_buffer(new_buf);
 
-  return new_buf->stream_id;
+  if (operating_buf == NULL) {
+    return 0; 
+  }
+
+  return stream_id;
 }
 
 int8_t audio_stop_buffer() {
@@ -729,8 +715,9 @@ uint16_t _loadPlugin(const char *plugin_dir) {
     // Make sure the length is at least 3
     if (length < 3) {
       tm_fs_close(&fd);
-      return 0xFFFF
+      return 0xFFFF;
     }
+
     const uint32_t end = (uint32_t)plugin + length;
 
     if (*plugin++!= 'P' || *plugin++ != '&' || *plugin++ != 'H') {
