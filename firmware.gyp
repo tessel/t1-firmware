@@ -278,14 +278,11 @@
         'src',
         'src/cc3000',
         'src/cc3000/utility',
-        'src/debug',
         'src/hw',
-        'src/otp',
         'src/sdram',
         'src/sys',
         'src/test',
         'src/tm',
-        'src/vcom/inc',
         'src/variants/lpc18xx',
       ]
     },
@@ -469,9 +466,7 @@
         'src/sys',
         'src/test',
         'src/tm',
-        'src/vcom/inc',
         'src/variants/lpc18xx',
-        'lpc18xx/usb_rom',
       ]
     },
 
@@ -544,9 +539,7 @@
         'src/sys',
         'src/test',
         'src/tm',
-        'src/vcom/inc',
         'src/variants/lpc18xx',
-        'lpc18xx/usb_rom',
       ]
     },
 
@@ -611,14 +604,11 @@
         'src/cc3000',
         'src/cc3000/utility',
         'src/hw',
-        'src/otp',
         'src/sdram',
         'src/sys',
         'src/test',
         'src/tm',
-        'src/vcom/inc',
         'src/variants/lpc18xx',
-        'lpc18xx/usb_rom',
       ]
     },
 
