@@ -123,9 +123,11 @@ void hw_spi_async_cancel_transfers () {
 }
 
 void hw_spi_async_cleanup () {
-  // Unreference our buffers so they can be garbage collected
-  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, spi_async_status.txRef);
-  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, spi_async_status.rxRef);
+  if (tm_lua_state != 0) {
+    // Unreference our buffers so they can be garbage collected
+    luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, spi_async_status.txRef);
+    luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, spi_async_status.rxRef);
+  }
   
   // Free our linked list 
   free(spi_async_status.tx_Linked_List);
