@@ -598,7 +598,7 @@ static int l_audio_start_recording(lua_State* L) {
 }
 
 static int l_audio_stop_recording(lua_State* L) {
-	int16_t r = audio_stop_recording();
+	int16_t r = audio_stop_recording(true);
 
 	lua_pushnumber(L, r);
 	return 1;

@@ -48,9 +48,6 @@ uint32_t _read_recorded_data(uint8_t *data, uint32_t len);
 void _writeSciRegister16(uint8_t address_byte, uint16_t data);
 uint16_t _readSciRegister16(uint8_t address_byte);
 
-
-tm_event read_recording_event = TM_EVENT_INIT(_recording_register_check);
-
 // Buffer for loading data into before passing into runtime
 uint8_t *double_buff = NULL;
 
@@ -527,8 +524,6 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
   while (!hw_digital_read(recording->dreq));
 
-  tm_event_ref(&read_recording_event);
-
   // Start a timer to read data every so often
   _startRIT();
 
@@ -537,7 +532,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   return 0;
 }
 
-int8_t audio_stop_recording() {
+int8_t audio_stop_recording(bool flush) {
 
   if (!operating_buf || current_state != RECORDING) {
     return -1;
@@ -585,10 +580,6 @@ int8_t audio_stop_recording() {
     if (operating_buf->buffer_ref != LUA_NOREF) {
       luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
     }
-    // Free the event reference
-    if (read_recording_event.ref) {
-      tm_event_unref(&read_recording_event);
-    }
 
     current_state = STOPPED;
 
@@ -598,13 +589,16 @@ int8_t audio_stop_recording() {
 
     // Free the fill buffer
     free(double_buff);
-    lua_State* L = tm_lua_state;
 
-    if (!L) return -1;
-    lua_getglobal(L, "_colony_emit");
-    lua_pushstring(L, "audio_recording_complete");
-    lua_pushnumber(L, num_read);
-    tm_checked_call(L, 2);
+    if (flush) {
+      lua_State* L = tm_lua_state;
+      if (!L) return -1;
+
+      lua_getglobal(L, "_colony_emit");
+      lua_pushstring(L, "audio_recording_complete");
+      lua_pushnumber(L, num_read);
+      tm_checked_call(L, 2);
+    }
   }
 
   return 0;
@@ -686,7 +680,7 @@ void _stopRIT(void) {
 void RIT_IRQHandler(void)
 {
   RIT_GetIntStatus(LPC_RITIMER);
-  tm_event_trigger(&read_recording_event);
+  _recording_register_check();
 }
 
 // Code modified from Adafruit's lib
@@ -825,5 +819,5 @@ void _writeSciRegister16(uint8_t address_byte, uint16_t data) {
 
 void audio_reset() {
   audio_stop_buffer();
-  audio_stop_recording();
+  audio_stop_recording(false);
 }
