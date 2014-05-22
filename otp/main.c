@@ -72,6 +72,10 @@ int otp_board_version() {
   return (*((uint32_t *) 0x4004503C) >> 28);
 }
 
+void SysTick_Handler (void)
+{
+}
+
 extern unsigned tessel_boot_bin_len;
 extern uint8_t tessel_boot_bin[];
 
