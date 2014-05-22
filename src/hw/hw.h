@@ -116,7 +116,7 @@ typedef struct {
 void hw_gpdma_init(void);
 uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *channelConfig);
 void hw_gpdma_transfer_begin(uint32_t channelNum, hw_GPDMA_Linked_List_Type *firstLLI);
-uint32_t hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type);
+void* hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type);
 void hw_gpdma_cancel_transfer(uint32_t channelNum);
 
 // SPI
@@ -179,7 +179,7 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
 
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, const uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref);
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 

@@ -96,8 +96,8 @@ uint8_t TM_DMAMUX_Config(uint32_t connection_number)
   return channel;
 }
 
-uint32_t hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type) {
-  return (uint32_t)GPDMA_Connections[type];
+void* hw_gpdma_get_lli_conn_address(hw_GPDMA_Conn_Type type) {
+  return (void*) GPDMA_Connections[type];
 }
 
 uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *channelConfig) {
