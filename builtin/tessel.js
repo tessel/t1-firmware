@@ -570,9 +570,9 @@ I2C.prototype.transfer = function (txbuf, rxbuf_len, unused_rxbuf, callback)
   setImmediate(function() {
     self._initialize();
     if (self.mode == hw.I2C_SLAVE) {
-      var ret = hw.i2c_slave_transfer(self.i2c_port, data, rxbuf_len);
+      var ret = hw.i2c_slave_transfer(self.i2c_port, txbuf, rxbuf_len);
     } else {
-      var ret = hw.i2c_master_transfer(self.i2c_port, self.addr, data, rxbuf_len);
+      var ret = hw.i2c_master_transfer(self.i2c_port, self.addr, txbuf, rxbuf_len);
     }
     var err = ret[0], rxbuf = ret[1];
     callback && callback(err, rxbuf);
@@ -586,9 +586,9 @@ I2C.prototype.send = function (txbuf, callback)
   setImmediate(function() {
     self._initialize();
     if (self.mode == hw.I2C_SLAVE) {
-      var err = hw.i2c_slave_send(self.i2c_port, data);
+      var err = hw.i2c_slave_send(self.i2c_port, txbuf);
     } else {
-      var err = hw.i2c_master_send(self.i2c_port, self.addr, data);
+      var err = hw.i2c_master_send(self.i2c_port, self.addr, txbuf);
     }
     callback && callback(err);
   });
