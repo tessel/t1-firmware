@@ -752,14 +752,104 @@ UART.prototype.setStopBits = function(stopBits){
  * SPI
  */
 
-var _asyncSPIQueue = [];
+// Queue of pending transfers and locks
+var _asyncSPIQueue = new AsyncSPIQueue();
+// Simple ID generator for locks
+var _masterLockGen = 0;
+
+function AsyncSPIQueue() {
+  if (!_asyncSPIQueue) {
+    _asyncSPIQueue = this;
+  }
+  else {
+    return _asyncSPIQueue;
+  }
+
+  this.transfers = [];
+  this.locks = [];
+}
+
+function SPILock(port) 
+{
+  this.id = ++_masterLockGen;
+  this.port = port;
+}
+
+util.inherits(SPILock, EventEmitter);
+
+SPILock.prototype.release = function(callback) 
+{
+  _asyncSPIQueue._deregisterLock(this, callback);
+}
+
+SPILock.prototype.rawTransfer = function(data, callback) {
+
+}
+
+SPILock.prototype.rawReceive = function(data, callback) {
+
+}
+
+SPILock.prototype.rawSend = function(data, callback) {
+
+}
+
+_asyncSPIQueue._deregisterLock = function(lock, callback) {
+  var self = this;
+
+  // Remove this lock from the queue
+  self.locks.shift();
+
+  // Set immediate to ready the next lock
+  if (self.locks.length) {
+    setImmediate(function() {
+      self.locks[0].emit('ready');
+    });
+  }
+  // If we have remaining transfers to take care of
+  else if (self.transfers.length > 0) {
+    // Process the next one
+    self._execute_async();
+  }
+
+  // Call the callback
+  if (callback) {
+    callback();
+  }
+}
+
+_asyncSPIQueue._registerLock = function(lock) {
+  // If there are no locks in the queue yet
+  // And no pending transfers
+  if (!this.locks.length && !this.transfers.length) {
+    // Let the callback know we're ready
+    setImmediate(function() {
+      lock.emit('ready');
+    });
+  }
+
+  // Add the lock to the lock queue
+  this.locks.push(lock);
+}
+
+_asyncSPIQueue.acquireLock = function(port, callback)
+{
+  // Create a lock
+  var lock = new SPILock(port);
+
+  // Wait for an event that tells us to go
+  lock.once('ready', callback.bind(self, null, lock));
+
+  // Add it to our array of locks
+  _asyncSPIQueue._registerLock(lock);
+}
 
 _asyncSPIQueue._pushTransfer = function(transfer) {
   // Push the transfer into the queue
-  this.push(transfer);
+  this.transfers.push(transfer);
 
   // If it's the only thing in the queue
-  if (this.length === 1) {
+  if (this.transfers.length === 1) {
     // Start executing
     return this._execute_async();
   }
@@ -767,20 +857,10 @@ _asyncSPIQueue._pushTransfer = function(transfer) {
   return 0;
 };
 
-_asyncSPIQueue._shiftTransfer = function() {
-  // Pop the item from the head
-  this.shift();
-
-  // If we have remaining items
-  if (this.length > 0) {
-    // Process the next one
-    this._execute_async();
-  }
-};
 
 _asyncSPIQueue._execute_async = function() {
   // Grab the transfer at the head of the queue
-  var transfer = this[0];
+  var transfer = this.transfers[0];
   var err;
   var self = this;
 
@@ -789,8 +869,26 @@ _asyncSPIQueue._execute_async = function() {
     // De-assert chip select
     transfer.port._activeChipSelect(0);
 
-    // Continue processing transfers after calling callback
-    setImmediate(self._shiftTransfer.bind(self));
+    self.transfers.shift();
+
+    // If we have a lock pending...
+    if (self.locks.length) {
+      // Tell it that after we complete here
+      // It has control of the SPI bus
+      setImmediate(function() {
+        self.locks[0].emit('ready');
+      });
+    }
+    else {
+      // Continue processing transfers after calling callback
+      setImmediate(function nextTransfer() {
+          // If we have remaining items
+          if (self.transfers.length > 0) {
+            // Process the next one
+            self._execute_async();
+          }
+      });
+    }
 
     // If a callback was requested
     if (transfer.callback) {
@@ -941,6 +1039,7 @@ SPI.prototype.transfer = function (txbuf, callback)
   // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
+  console.log('queueing normal transfer...');
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
   return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback));
@@ -1001,6 +1100,12 @@ SPI.prototype.setChipSelectMode = function (chipSelectMode)
   this.chipSelectMode = chipSelectMode;
   this.activeChipSelect(0);
 };
+
+SPI.prototype.lock = function(callback)
+{
+  // acquire a lock and return it
+  _asyncSPIQueue.acquireLock(this, callback);
+}
 
 
 var SPIBitOrder = {
