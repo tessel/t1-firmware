@@ -765,7 +765,13 @@ function AsyncSPIQueue() {
     return _asyncSPIQueue;
   }
 
-  this.transfers = [];
+  // Transfers is a dict of pending transfers
+  // The key is either a lock object (if there are any current locks)
+  // or the string "unlocked"
+  this.transfers = {unlocked : []};
+
+  // Locks is an array of currently active and pending locks
+  // Only the zeroeth element has a lock on the SPI Bus
   this.locks = [];
 }
 
@@ -780,19 +786,32 @@ util.inherits(SPILock, EventEmitter);
 SPILock.prototype.release = function(callback) 
 {
   _asyncSPIQueue._deregisterLock(this, callback);
-}
+};
 
-SPILock.prototype.rawTransfer = function(data, callback) {
+SPILock.prototype.rawTransfer = function(txbuf, callback) {
+   // Create a new receive buffer
+  var rxbuf = new Buffer(txbuf.length);
+  // Fill it with 0 to avoid any confusion
+  rxbuf.fill(0);
 
-}
-
-SPILock.prototype.rawReceive = function(data, callback) {
-
-}
+  // Push it into the queue to be completed
+  // Returns a -1 on error and 0 on successful queueing
+  // Set the raw property to true
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this.port, txbuf, rxbuf, callback, this.id));
+};
 
 SPILock.prototype.rawSend = function(data, callback) {
+  // Push the transfer into the queue. Don't bother receiving any bytes
+  // Returns a -1 on error and 0 on successful queueing
+  // Set the raw property to true
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this.port, txbuf, null, callback, this.id));
+};
 
-}
+SPILock.prototype.rawReceive = function(data, callback) {
+// We have to transfer bytes for DMA to tick the clock
+  // Returns a -1 on error and 0 on successful queueing
+  this._pushTransferRaw(new Buffer(buf_len), callback);
+};
 
 _asyncSPIQueue._deregisterLock = function(lock, callback) {
   var self = this;
@@ -800,28 +819,31 @@ _asyncSPIQueue._deregisterLock = function(lock, callback) {
   // Remove this lock from the queue
   self.locks.shift();
 
+  // Delete the lock's transfers (even if some haven't been sent!) 
+  delete self.transfers[lock];
+
   // Set immediate to ready the next lock
   if (self.locks.length) {
     setImmediate(function() {
       self.locks[0].emit('ready');
     });
   }
-  // If we have remaining transfers to take care of
-  else if (self.transfers.length > 0) {
+  // If we have remaining unlocked transfers to take care of
+  else if (self.transfers.unlocked.length > 0) {
     // Process the next one
-    self._execute_async();
+    self._execute_async(self.transfers.unlocked);
   }
 
   // Call the callback
   if (callback) {
     callback();
   }
-}
+};
 
 _asyncSPIQueue._registerLock = function(lock) {
   // If there are no locks in the queue yet
   // And no pending transfers
-  if (!this.locks.length && !this.transfers.length) {
+  if (!this.locks.length && !this.transfers.unlocked.length) {
     // Let the callback know we're ready
     setImmediate(function() {
       lock.emit('ready');
@@ -830,7 +852,10 @@ _asyncSPIQueue._registerLock = function(lock) {
 
   // Add the lock to the lock queue
   this.locks.push(lock);
-}
+
+  // // Create a queue for this lock's transfers
+  this.transfers[lock.id] = [];
+};
 
 _asyncSPIQueue.acquireLock = function(port, callback)
 {
@@ -838,29 +863,44 @@ _asyncSPIQueue.acquireLock = function(port, callback)
   var lock = new SPILock(port);
 
   // Wait for an event that tells us to go
-  lock.once('ready', callback.bind(self, null, lock));
+  if (callback) lock.once('ready', callback.bind(lock, null, lock));
 
   // Add it to our array of locks
   _asyncSPIQueue._registerLock(lock);
-}
+};
 
 _asyncSPIQueue._pushTransfer = function(transfer) {
-  // Push the transfer into the queue
-  this.transfers.push(transfer);
+
+  // Is this transfer being pushed into a lock'queue
+  // or the general unlocked queue?
+  var queue = transfer.lockOwner ? 
+              this.transfers[transfer.lockOwner] :
+              this.transfers.unlocked;
+
+  // Push the transfer into the correct queue
+  queue.push(transfer);
 
   // If it's the only thing in the queue
-  if (this.transfers.length === 1) {
-    // Start executing
-    return this._execute_async();
+  if (queue.length === 1) {
+    // and we don't have any active locks
+    if (!this.locks.length) {
+      // Start executing
+      return this._execute_async(queue);
+    }
+    // Or the lock at the head is the lock of this transfer
+    else if (this.locks[0].id == transfer.lockOwner) {
+      // Start execution
+      return this._execute_async(queue);
+    }
   }
 
   return 0;
 };
 
-
-_asyncSPIQueue._execute_async = function() {
+_asyncSPIQueue._execute_async = function(transferQueue) {
   // Grab the transfer at the head of the queue
-  var transfer = this.transfers[0];
+  // But don't shift until after it's processed
+  var transfer = transferQueue[0];
   var err;
   var self = this;
 
@@ -869,25 +909,22 @@ _asyncSPIQueue._execute_async = function() {
     // De-assert chip select
     transfer.port._activeChipSelect(0);
 
-    self.transfers.shift();
+    // Get the recently completed transfer
+    var completed = transferQueue.shift();
 
-    // If we have a lock pending...
-    if (self.locks.length) {
+    // If this was a pending transfer that completed
+    // just after we added one or more locks
+    if (!completed.lockOwner && self.locks.length) {
       // Tell it that after we complete here
-      // It has control of the SPI bus
+      // The first lock has control of the SPI bus
       setImmediate(function() {
         self.locks[0].emit('ready');
       });
     }
-    else {
+    // If we have more transfers in this particular queue
+    else if (transferQueue.length) {
       // Continue processing transfers after calling callback
-      setImmediate(function nextTransfer() {
-          // If we have remaining items
-          if (self.transfers.length > 0) {
-            // Process the next one
-            self._execute_async();
-          }
-      });
+      setImmediate(self._execute_async.bind(self, transferQueue));
     }
 
     // If a callback was requested
@@ -922,11 +959,12 @@ _asyncSPIQueue._execute_async = function() {
   }
 };
 
-function AsyncSPITransfer(port, txbuf, rxbuf, callback) {
+function AsyncSPITransfer(port, txbuf, rxbuf, callback, lockOwner) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
   this.callback = callback;
+  this.lockOwner = lockOwner;
 }
 
 // SPI parameters may be changed by different invocations,
@@ -1039,17 +1077,16 @@ SPI.prototype.transfer = function (txbuf, callback)
   // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
-  console.log('queueing normal transfer...');
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback, false));
 };
 
 SPI.prototype.send = function (txbuf, callback)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback, false));
 };
 
 
@@ -1105,7 +1142,7 @@ SPI.prototype.lock = function(callback)
 {
   // acquire a lock and return it
   _asyncSPIQueue.acquireLock(this, callback);
-}
+};
 
 
 var SPIBitOrder = {
