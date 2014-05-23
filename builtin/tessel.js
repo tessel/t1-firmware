@@ -752,12 +752,6 @@ UART.prototype.setStopBits = function(stopBits){
  * SPI
  */
 
-// SPI parameters may be changed by different invocations,
-// cache which SPI was used most recently to update parameters
-// only when necessary.
-
-var _currentSPI = null;
-
 var _asyncSPIQueue = [];
 
 _asyncSPIQueue._pushTransfer = function(transfer) {
@@ -836,6 +830,11 @@ function AsyncSPITransfer(port, txbuf, rxbuf, callback) {
   this.rxbuf = rxbuf;
   this.callback = callback;
 }
+
+// SPI parameters may be changed by different invocations,
+// cache which SPI was used most recently to update parameters
+// only when necessary.
+var _currentSPI = null;
 
 function SPI (params)
 { 
