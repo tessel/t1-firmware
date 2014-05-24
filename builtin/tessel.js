@@ -835,7 +835,10 @@ SPILock.prototype.rawSend = function(txbuf, callback) {
 SPILock.prototype.rawReceive = function(buf_len, callback) {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this.rawTransfer(new Buffer(buf_len), callback);
+  var txbuf = new Buffer(buf_len);
+  txbuf.fill(0);
+
+  this.rawTransfer(txbuf, callback);
 };
 
 _asyncSPIQueue._deregisterLock = function(lock, callback) {
@@ -1099,7 +1102,10 @@ SPI.prototype.receive = function (buf_len, callback)
 {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this.transfer(new Buffer(buf_len), callback);
+  var txbuf = new Buffer(buf_len);
+  txbuf.fill(0);
+  
+  this.transfer(txbuf, callback);
 };
 
 
