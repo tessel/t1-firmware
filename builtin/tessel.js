@@ -908,9 +908,7 @@ _asyncSPIQueue._execute_async = function() {
     var completed = self.transfers.shift();
 
     // De-assert chip select
-    if (!completed.raw) {
-      transfer.port._activeChipSelect(0);
-    }
+    transfer.port._activeChipSelect(0);
 
     // If this was a pending transfer that completed
     // just after we added one or more locks
@@ -949,9 +947,7 @@ _asyncSPIQueue._execute_async = function() {
     transfer.port._initialize();
 
     // Activate chip select if it was provided
-    if (!transfer.raw) {
-      transfer.port._activeChipSelect(1);
-    }
+    transfer.port._activeChipSelect(1);
 
     // When the transfer is complete, process it and call callback
     process.once('spi_async_complete', processTransferCB);
