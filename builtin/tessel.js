@@ -1280,7 +1280,7 @@ function Tessel() {
     ),
   };
 
-  this.button = new Button(hw.BUTTON);
+  this.button = new Pin(hw.BUTTON);
 
   this.port = function (label) {
     return board.ports[label.toUpperCase()];
