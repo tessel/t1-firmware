@@ -825,14 +825,14 @@ SPILock.prototype.rawTransfer = function(txbuf, callback) {
   this._rawTransaction(txbuf, rxbuf, callback);
 };
 
-SPILock.prototype.rawSend = function(data, callback) {
+SPILock.prototype.rawSend = function(txbuf, callback) {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
   // Set the raw property to true
   this._rawTransaction(txbuf, null, callback);
 };
 
-SPILock.prototype.rawReceive = function(data, callback) {
+SPILock.prototype.rawReceive = function(buf_len, callback) {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
   this.rawTransfer(new Buffer(buf_len), callback);
