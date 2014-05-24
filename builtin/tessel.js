@@ -786,29 +786,56 @@ SPILock.prototype.release = function(callback)
   _asyncSPIQueue._deregisterLock(this, callback);
 };
 
+SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
+
+  function rawComplete(errBool) {
+    // If a callback was requested
+    if (callback) {
+      // If there was an error
+      if (errBool === 1) {
+        // Create an error object
+        err = new Error("Unable to complete SPI Transfer.");
+      }
+      // Call the callback
+      callback(err, rxbuf);
+    }
+  }
+
+  // When the transfer is complete, process it and call callback
+  process.once('spi_async_complete', rawComplete);
+
+  // Begin the transfer
+  var ret = hw.spi_transfer(this.port, txbuf.length, rxbuf ? rxbuf.length : 0, txbuf, rxbuf);
+
+  if (ret < 0) {
+    process.removeListener('spi_async_complete', rawComplete);
+
+    if (callback) {
+      callback(new Error("Previous SPI transfer is in the middle of sending."));
+    }
+  }
+};
+
 SPILock.prototype.rawTransfer = function(txbuf, callback) {
    // Create a new receive buffer
   var rxbuf = new Buffer(txbuf.length);
   // Fill it with 0 to avoid any confusion
   rxbuf.fill(0);
 
-  // Push it into the queue to be completed
-  // Returns a -1 on error and 0 on successful queueing
-  // Set the raw property to true
-  return _asyncSPIQueue._pushTransferRaw(new AsyncSPITransfer(this.port, txbuf, rxbuf, callback, true));
+  this._rawTransaction(txbuf, rxbuf, callback);
 };
 
 SPILock.prototype.rawSend = function(data, callback) {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
   // Set the raw property to true
-  return _asyncSPIQueue._pushTransferRaw(new AsyncSPITransfer(this.port, txbuf, null, callback, true));
+  this._rawTransaction(txbuf, null, callback);
 };
 
 SPILock.prototype.rawReceive = function(data, callback) {
-// We have to transfer bytes for DMA to tick the clock
+  // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this._pushTransferRaw(new Buffer(buf_len), callback);
+  this.rawTransfer(new Buffer(buf_len), callback);
 };
 
 _asyncSPIQueue._deregisterLock = function(lock, callback) {
@@ -875,26 +902,6 @@ _asyncSPIQueue._pushTransfer = function(transfer) {
   return 0;
 };
 
-_asyncSPIQueue._pushTransferRaw = function(rawTransfer) {
-  var numRaw;
-
-  for (numRaw = 0; numRaw < this.transfers.length; numRaw++) {
-    // If this is a pending raw transfer
-    if (this.transfers[numRaw].raw) {
-      continue;
-    }
-    // Found the last raw transfer
-    break;
-  }
-
-  this.transfers.splice(numRaw, 0, rawTransfer);
-
-  if (++numRaw === 1) {
-    // Start executing
-    return this._execute_async();
-  }
-}
-
 _asyncSPIQueue._execute_async = function() {
   // Grab the transfer at the head of the queue
   // But don't shift until after it's processed
@@ -953,7 +960,7 @@ _asyncSPIQueue._execute_async = function() {
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-     return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+    return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
   }
 };
 
