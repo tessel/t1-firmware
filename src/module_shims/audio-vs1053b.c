@@ -547,10 +547,27 @@ int8_t audio_stop_recording(bool flush) {
 
   // For stopping procedure, see http://www.vlsi.fi/fileadmin/software/VS10XX/vs1053-vorbis-encoder-170c.zip
   // Tell the vs1053 to stop gathering data by setting the first bit of VS1053_SCI_AICTRL3
-  _writeSciRegister16(VS1053_SCI_AICTRL3, 1);
+  _writeSciRegister16(VS1053_SCI_AICTRL3, _readSciRegister16(VS1053_SCI_AICTRL3) | 1);
 
   // Keep reading until the 1st bit (not zeroth) of VS1053_SCI_AICTRL3 is flipped
-  uint32_t num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+  uint32_t num_read = 0;
+
+  TM_DEBUG("Final Words...");
+  while (!(_readSciRegister16(VS1053_SCI_AICTRL3) & (1 << 1))) {
+    num_read += _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+  }
+
+  TM_DEBUG("Flushed.");
+
+  _readSciRegister16(VS1053_SCI_AICTRL3);
+  uint16_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
+  TM_DEBUG("Drop %d", drop);
+  if (num_read) {
+    if ((drop & (1 << 2))) {
+      TM_DEBUG("Minus word");
+      num_read--;
+    }
+  }
 
   if (num_read > 0) {
     memcpy(operating_buf->buffer, double_buff, num_read);
@@ -618,53 +635,37 @@ void _recording_register_check(void) {
 // Returns a 1 if there was more data available
 uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
 
-  uint32_t words = _readSciRegister16(VS1053_REG_HDAT1);
-
   // Convert num to read to the number of bytes to read (as opposed to 16-bit words)
-  uint32_t bytes_to_read = words * 2;
+  uint32_t bytes_to_read = _readSciRegister16(VS1053_REG_HDAT1) * 2;
 
-  #ifdef DEBUG
-  TM_DEBUG("There are %d bytes available to read", bytes_to_read);
-  #endif
+  if (bytes_to_read > 0) {
 
-  // If there are more bytes to read than the size of the
-  // allowed, we only read the allowed
-  if (bytes_to_read > len) {
-    TM_DEBUG("WARNING: RECORDING BYTES WERE LOST...");
-    bytes_to_read = len;
-  } 
+    #ifdef DEBUG
+    TM_DEBUG("There are %d bytes available to read", bytes_to_read);
+    #endif
 
-  uint16_t raw;
-  uint16_t i = 0;
+    // If there are more bytes to read than the size of the
+    // allowed, we only read the allowed
+    if (bytes_to_read > len) {
+      TM_DEBUG("WARNING: RECORDING BYTES WERE LOST...");
+      bytes_to_read = len;
+    } 
 
-  while (i < (bytes_to_read)) {
-    raw = _readSciRegister16(VS1053_REG_HDAT0);
+    uint16_t raw;
+    uint16_t i = 0;
 
-    data[i] = raw >> 8;
-    data[i + 1] = raw & 0xFF;
-
-    if (bytes_to_read-i > 1) {
-      i+=2;
-    }
-    else {
-      i++;
-    }
-  }
-
-    // Read VS1053_SCI_AICTRL3 twice
-  // If bit 2 is set in the second read, drop the last read byte
-  _readSciRegister16(VS1053_SCI_AICTRL3);
-  uint16_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
-  TM_DEBUG("Drop %d", drop);
-  if (bytes_to_read) {
-    if ((drop & (1 << 2))) {
-      // The last byte we copy should only be the second to last byte
-      TM_DEBUG("Reduction...");
+    while (i < (bytes_to_read-1)) {
       raw = _readSciRegister16(VS1053_REG_HDAT0);
-      TM_DEBUG("READ %d", raw);
-      data[i] = raw & 0xFF;
-      // double_buff[num_to_read-2] = double_buff[num_to_read-1];
-      bytes_to_read++;
+
+      data[i] = raw >> 8;
+      data[i + 1] = raw & 0xFF;
+
+      if (bytes_to_read-i > 1) {
+        i+=2;
+      }
+      else {
+        i++;
+      }
     }
   }
 
