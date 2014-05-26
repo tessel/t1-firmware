@@ -61,7 +61,9 @@ uint32_t queue_length = 0;
 
 void _queue_buffer(AudioBuffer *buffer) {
 
+  #ifdef DEBUG
   TM_DEBUG("ADD: %d items in the queue", ++queue_length);
+  #endif
 
   AudioBuffer **next = &operating_buf;
   // If we don't have an operating buffer already
@@ -93,10 +95,8 @@ void _queue_buffer(AudioBuffer *buffer) {
 
 void _shift_buffer() {
   #ifdef DEBUG
-  TM_DEBUG("Shifting buffer."); 
-  #endif
-
   TM_DEBUG("SHIFT: %d items in the queue", --queue_length);
+  #endif
 
   // If the head is already null
   if (!operating_buf) {
@@ -162,6 +162,7 @@ void _audio_flush_buffer() {
 
   master_id_gen = 0;
   operating_buf = NULL;
+  queue_length = 0;
 }
 
 // Called when DREQ goes low. Data is available to be sent over SPI
@@ -232,11 +233,11 @@ uint16_t _generate_stream_id() {
 int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
 
   #ifdef DEBUG
-  TM_DEBUG("Playing buffer"); 
+  TM_DEBUG("Playing buffer, Current state:%d", current_state); 
   #endif
 
 
-  if (operating_buf && current_state != RECORDING) {
+  if (operating_buf && current_state != STOPPED && current_state != RECORDING) {
     audio_stop_buffer();
   }
 
@@ -359,7 +360,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
 int8_t audio_stop_buffer() {
 
   #ifdef DEBUG
-  TM_DEBUG("Stopping buffer"); 
+  TM_DEBUG("Stopping buffer. Current state:%d", current_state); 
   #endif
 
   if (!operating_buf || current_state == RECORDING) {
@@ -378,6 +379,11 @@ int8_t audio_stop_buffer() {
 
   // Clean out the buffer
   _audio_flush_buffer();
+
+  // Soft reset
+  _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
+  // Wait for the reset to finish
+  hw_wait_us(2);
 
   current_state = STOPPED;
 
@@ -545,31 +551,26 @@ int8_t audio_stop_recording(bool flush) {
   // Stop the timer
   _stopRIT();
 
+  // Read before closing down recording...
+  // num_read = _read_recorded_data(double_buff, operating_buf->remaining_bytes);
   // For stopping procedure, see http://www.vlsi.fi/fileadmin/software/VS10XX/vs1053-vorbis-encoder-170c.zip
   // Tell the vs1053 to stop gathering data by setting the first bit of VS1053_SCI_AICTRL3
   _writeSciRegister16(VS1053_SCI_AICTRL3, _readSciRegister16(VS1053_SCI_AICTRL3) | 1);
+  hw_wait_us(10);
 
-  // Keep reading until the 1st bit (not zeroth) of VS1053_SCI_AICTRL3 is flipped
   uint32_t num_read = 0;
-
-  TM_DEBUG("Final Words...");
+  // Keep reading until the 1st bit (not zeroth) of VS1053_SCI_AICTRL3 is flipped
   while (!(_readSciRegister16(VS1053_SCI_AICTRL3) & (1 << 1))) {
-    num_read += _read_recorded_data(double_buff, operating_buf->remaining_bytes);
+    num_read += _read_recorded_data((double_buff + num_read), (operating_buf->remaining_bytes - num_read));
   }
-
-  TM_DEBUG("Flushed.");
 
   _readSciRegister16(VS1053_SCI_AICTRL3);
   uint16_t drop = _readSciRegister16(VS1053_SCI_AICTRL3);
-  TM_DEBUG("Drop %d", drop);
-  if (num_read) {
+  if (num_read > 0) {
     if ((drop & (1 << 2))) {
-      TM_DEBUG("Minus word");
       num_read--;
     }
-  }
 
-  if (num_read > 0) {
     memcpy(operating_buf->buffer, double_buff, num_read);
   }
 
@@ -647,7 +648,6 @@ uint32_t _read_recorded_data(uint8_t *data, uint32_t len) {
     // If there are more bytes to read than the size of the
     // allowed, we only read the allowed
     if (bytes_to_read > len) {
-      TM_DEBUG("WARNING: RECORDING BYTES WERE LOST...");
       bytes_to_read = len;
     } 
 
@@ -829,6 +829,10 @@ void _writeSciRegister16(uint8_t address_byte, uint16_t data) {
 }
 
 void audio_reset() {
-  audio_stop_buffer();
-  audio_stop_recording(false);
+  if (current_state == PAUSED || current_state == PLAYING) {
+    audio_stop_buffer();
+  }
+  else if (current_state == RECORDING) {
+    audio_stop_recording(false);
+  }
 }
