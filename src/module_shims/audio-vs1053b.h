@@ -9,7 +9,7 @@
 
 #define AUDIO_CHUNK_SIZE 32
 #define SPI_PORT 0
-#define REC_READ_PERIOD 10
+#define REC_READ_PERIOD 150
 
 #define VS1053_SCI_READ 0x03
 #define VS1053_SCI_WRITE 0x02
