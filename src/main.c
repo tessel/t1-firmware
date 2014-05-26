@@ -273,6 +273,9 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
 			while(1);
 		}
+		else if (cmd == 'n') {
+			colony_ipc_emit("stdin", buf, size);
+		}
 		else {
 			// Invalid?
 			script_buf_lock = SCRIPT_EMPTY;
