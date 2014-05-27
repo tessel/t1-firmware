@@ -59,7 +59,7 @@ function verifyParams (possible, provided) {
 var pinModes = {
   pullup: hw.PIN_PULLUP,
   pulldown: hw.PIN_PULLDOWN,
-  default: hw.PIN_DEFAULT
+  none: hw.PIN_DEFAULT
 }
 
 function Pin (pin) {
@@ -71,30 +71,36 @@ util.inherits(Pin, EventEmitter);
 Pin.prototype.type = 'digital';
 Pin.prototype.resolution = 1;
 
-Pin.prototype.mode = function(mode){
-  if (!mode){
-    var mode = hw.digital_get_mode(this.pin);
+Pin.prototype.pull = function(mode){
+  if (!mode) {
+    mode = 'none';
+  }
 
-    if (mode == pinModes.pullup) {
-      return 'pullup';
-    } else if (mode == pinModes.pulldown) {
-      return 'pulldown'
-    } else if (mode == pinModes.default){
-      return 'default';
-    } else {
-      console.warn('Pin mode is unsupported:', mode);
-      return mode;
-    }
-
-    return null;
-  } 
+  mode = mode.toLowerCase();
 
   if (Object.keys(pinModes).indexOf(mode.toLowerCase()) == -1) {
-    throw new Error("Pin modes can only be 'pullup', 'pulldown', or 'default'");
+    throw new Error("Pin modes can only be 'pullup', 'pulldown', or 'none'");
   }
 
   hw.digital_set_mode(this.pin, pinModes[mode]);
   return this;
+}
+
+Pin.prototype.mode = function(){
+  var mode = hw.digital_get_mode(this.pin);
+
+  if (mode == pinModes.pullup) {
+    return 'pullup';
+  } else if (mode == pinModes.pulldown) {
+    return 'pulldown'
+  } else if (mode == pinModes.none){
+    return 'none';
+  } else {
+    console.warn('Pin mode is unsupported:', mode);
+    return mode;
+  }
+
+  return null;
 }
 
 Pin.prototype.rawDirection = function rawDirection(isOutput) {
@@ -1236,7 +1242,7 @@ function Port (id, digital, analog, i2c, uart)
   this.digital = digital.slice();
   this.analog = analog.slice();
   this.pin = {};
-  var pinMap = {};
+  var pinMap = null;
   if (id.toUpperCase() == 'GPIO') {
     
     pinMap = { 'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4

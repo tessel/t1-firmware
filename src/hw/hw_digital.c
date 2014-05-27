@@ -14,7 +14,7 @@ extern "C" {
 #define GPIO_INPUT 0x00
 #define GPIO_OUTPUT 0x01
 
-uint8_t hw_digital_set_mode (uint8_t ulPin, uint8_t mode)
+int hw_digital_set_mode (uint8_t ulPin, uint8_t mode)
 {
 	g_APinDescription[ulPin].mode = mode;
 	return 0;
