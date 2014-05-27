@@ -371,7 +371,7 @@ int8_t audio_stop_buffer() {
   hw_spi_async_cleanup();
 
   // Clear Interrupts
-  hw_interrupt_unwatch(operating_buf->interrupt);
+  hw_interrupt_unwatch(operating_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
 
   // Clean out the buffer
   _audio_flush_buffer();
@@ -398,7 +398,7 @@ int8_t audio_pause_buffer() {
   }
 
   // Stop watching for DREQ (so SPI will stop continuing)
-  hw_interrupt_unwatch(operating_buf->interrupt);
+  hw_interrupt_unwatch(operating_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
 
   current_state = PAUSED;
 

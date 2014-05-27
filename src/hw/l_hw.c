@@ -423,7 +423,8 @@ static int l_hw_interrupt_watch(lua_State* L)
 static int l_hw_interrupt_unwatch(lua_State* L)
 {
 	int interrupt_index = (int)lua_tonumber(L, ARG1);
-	lua_pushnumber(L, hw_interrupt_unwatch(interrupt_index));
+	int mode = (int)lua_tonumber(L, ARG1 + 1);
+	lua_pushnumber(L, hw_interrupt_unwatch(interrupt_index, mode));
 	return 1;
 }
 

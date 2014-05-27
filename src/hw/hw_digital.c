@@ -117,8 +117,32 @@ void hw_interrupt_enable(int index, int ulPin, int mode)
 	NVIC_EnableIRQ(int_id);
 }
 
-void hw_interrupt_disable(int index) {
+void hw_interrupt_disable(int index, InterruptMode mode) {
 	NVIC_DisableIRQ(PIN_INT0_IRQn + index);
+
+	switch(mode)
+	{
+		case TM_INTERRUPT_MODE_RISING://rising edge
+			LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
+			break;
+		case TM_INTERRUPT_MODE_FALLING://falling edge
+			LPC_GPIO_PIN_INT->IENF &= ~(1<<index);
+			break;
+		case TM_INTERRUPT_MODE_HIGH://active High level
+			LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
+			LPC_GPIO_PIN_INT->SIENF &= ~(1<<index);
+			break;
+		case TM_INTERRUPT_MODE_LOW://active Low level
+			LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
+			LPC_GPIO_PIN_INT->CIENF &= ~(1<<index);
+			break;
+		case TM_INTERRUPT_MODE_CHANGE:// Change (cancels low and high)
+			LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
+			LPC_GPIO_PIN_INT->IENF &= ~(1<<index);
+			break;
+		default:
+			break;
+	}
 }
 
 

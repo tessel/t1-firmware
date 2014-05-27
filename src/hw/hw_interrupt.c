@@ -46,15 +46,8 @@ void initialize_GPIO_interrupts() {
 
 	for (int i = 0; i < NUM_INTERRUPTS; i++) {
 		// Detatch any interrupts
-		hw_interrupt_disable(i);
-
-		tm_event_unref(&interrupts[i].event);
-
-		// Remove any assignments that may have been left over. 
-		interrupts[i].pin = NO_ASSIGNMENT;
-		interrupts[i].mode = NO_ASSIGNMENT;
+		hw_interrupt_unwatch(i, (&interrupts[i])->mode);
 	}
-
 }
 
 int hw_interrupts_available (void)
@@ -109,12 +102,12 @@ int hw_interrupt_acquire (void)
 	return NO_ASSIGNMENT;
 }
 
-int hw_interrupt_unwatch(int interrupt_index) {
+// Stop watching specific mode of interrupt
+int hw_interrupt_unwatch(int interrupt_index, InterruptMode mode) {
 	// If the interrupt ID was valid
 	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 		// Detatch it so it's not called anymore
-		hw_interrupt_disable(interrupt_index);
-
+		hw_interrupt_disable(interrupt_index, mode);
 		// Indicate in data structure that it's a free spot
 		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
 		interrupts[interrupt_index].mode = NO_ASSIGNMENT;
@@ -204,12 +197,12 @@ void place_awaiting_interrupt(int interrupt_id)
 	if (interrupt->mode == TM_INTERRUPT_MODE_LOW) {
 		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
 		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
-		hw_interrupt_disable(interrupt_id);
+		hw_interrupt_disable(interrupt_id, interrupt->mode);
 	}
 	else if (interrupt->mode == TM_INTERRUPT_MODE_HIGH){
 		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
 		GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
-		hw_interrupt_disable(interrupt_id);
+		hw_interrupt_disable(interrupt_id, interrupt->mode);
 	}
 
 	else if ((interrupt->mode == TM_INTERRUPT_MODE_RISING) ||

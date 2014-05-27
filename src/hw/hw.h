@@ -271,23 +271,23 @@ void hw_wait_us (int us);
 // ID reserved for CC3K
 #define CC3K_GPIO_INTERRUPT 7
 
-enum {
+typedef enum {
 	TM_INTERRUPT_MODE_RISING = 0,
 	TM_INTERRUPT_MODE_FALLING = 1,
 	TM_INTERRUPT_MODE_HIGH = 2,
 	TM_INTERRUPT_MODE_LOW = 3,
 	TM_INTERRUPT_MODE_CHANGE = 4
-};
+} InterruptMode;
 
 extern void initialize_GPIO_interrupts(void);
 
 // Low-level pin interrupt setup
 void hw_interrupt_enable(int index, int ulPin, int mode);
-void hw_interrupt_disable(int index);
+void hw_interrupt_disable(int index, InterruptMode mode);
 
 int hw_interrupts_available (void);
 int hw_interrupt_watch (int ulPin, int mode, int interruptID, void (*callback)());
-int hw_interrupt_unwatch(int interrupt_index);
+int hw_interrupt_unwatch(int interrupt_index, InterruptMode mode);
 int hw_interrupt_acquire (void);
 int hw_interrupt_assignment_query (int pin);
 

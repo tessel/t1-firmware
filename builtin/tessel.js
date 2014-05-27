@@ -306,7 +306,7 @@ process.on('interrupt', function (index, _mode, state) {
     // This happens before the callback so the callback can re-arm the interrupt.
     if (mode == 'high' || mode == 'low') {
       delete board.interrupts[index];
-      hw.interrupt_unwatch(index);
+      hw.interrupt_unwatch(index, mode);
     }
 
     // If there are, call them
@@ -458,7 +458,7 @@ Pin.prototype.cancelWatch = function(mode, callback){
       delete board.interrupts[interruptID];
 
       // Watch with a -1 flag to tell it to stop watching
-      var success = hw.interrupt_unwatch(interruptID);
+      var success = hw.interrupt_unwatch(interruptID, interruptModeForType(mode));
 
       // If it went well
       if (success) {
