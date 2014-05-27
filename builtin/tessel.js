@@ -69,6 +69,7 @@ function Pin (pin) {
 util.inherits(Pin, EventEmitter);
 
 Pin.prototype.type = 'digital';
+Pin.prototype.resolution = 1;
 
 Pin.prototype.mode = function(mode){
   if (!mode){
@@ -1231,32 +1232,28 @@ var SPIChipSelectMode = {
 function Port (id, digital, analog, i2c, uart)
 {
   this.id = id;
-
+  var self = this;
   this.digital = digital.slice();
   this.analog = analog.slice();
+  this.pin = {};
+  this.pinMap = {};
   if (id.toUpperCase() == 'GPIO') {
-    this.pin = {'tx': this.digital[0]
-    , 'g1': this.digital[0]
-    , 'g2': this.digital[1]
-    , 'rx': this.digital[1]
-    , 'g3': this.digital[2]
-    , 'g4': this.digital[3]
-    , 'g5': this.digital[4] 
-    , 'g6': this.digital[5] 
-    , 'a1': this.analog[0]
-    , 'a2': this.analog[1] 
-    , 'a3': this.analog[2]
-    , 'a4': this.analog[3]
-    , 'a5': this.analog[4]
-    , 'a6': this.analog[5] };
+    
+    pinMap = { 'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4
+      , 'G6': 5, 'A1': 0, 'A2': 1, 'A3': 2, 'A4': 3, 'A5': 4, 'A6': 5 };
+
   } else {
-    this.pin = {'tx': this.digital[0]
-    , 'g1': this.digital[0]
-    , 'g2': this.digital[1]
-    , 'rx': this.digital[1]
-    , 'g3': this.digital[2] };
+    pinMap = {'G1': 0, 'G2': 1, 'G3': 2};
   }
   
+  Object.keys(pinMap).forEach(function(pinKey){
+
+    self.pin[pinKey] = self.digital[pinMap[pinKey]];
+
+    Object.defineProperty(self.pin, pinKey.toLowerCase(), {
+      get: function () { return self.pin[pinKey] } 
+    });
+  });
 
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
@@ -1302,13 +1299,15 @@ function Tessel() {
     Tessel.instance = this;
   }
   
-  this.leds = [null, new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
-  this.led = function(n) {
-    if (board.leds[n] === null) {
-      throw "No LED at index " + n + " exists.";
-    }
-    return board.leds[n];
-  };
+  this.led = [new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
+  
+  this.pin = {
+    'LED1': new Pin(hw.PIN_LED1),
+    'LED2': new Pin(hw.PIN_LED2),
+    'Error': new Pin(hw.PIN_WIFI_ERR_LED),
+    'Conn': new Pin(hw.PIN_WIFI_CONN_LED)
+  }
+
   this.interrupts = [];
 
   this.ports =  {
@@ -1366,11 +1365,6 @@ var board = module.exports = new Tessel();
 for (var key in board.ports) {
   board.port[key] = board.ports[key];
 }
-board.led[1] = board.leds[1];
-board.led[2] = board.leds[2];
-board.led[3] = board.leds[3];
-board.led[4] = board.leds[4];
-// TM <<<
 
 // sendfile
 process.sendfile = function (filename, buf) {
