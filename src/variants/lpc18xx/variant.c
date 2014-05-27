@@ -60,7 +60,7 @@ extern "C" {
  *
  */
 
-const PinDescription g_APinDescription_boardV0[] =
+PinDescription g_APinDescription_boardV0[] =
 {
 
 	// Debug leds - TM-00-00, TM-00-02
@@ -127,7 +127,7 @@ const PinDescription g_APinDescription_boardV0[] =
 
 };
 
-const PinDescription g_APinDescription_boardV2[]=
+PinDescription g_APinDescription_boardV2[]=
 {
 
 	// Debug leds - TM-00-00, TM-00-02
@@ -195,7 +195,7 @@ const PinDescription g_APinDescription_boardV2[]=
 	{4u, 9u, MD_PLN|MD_EZI|MD_ZI, FUNC4, 5u, 13u, NO_ANALOG_CHANNEL, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL}   // button | P4_9   | GPIO5[13]   |  4
 };
 
-const PinDescription g_APinDescription_boardV3[]=
+PinDescription g_APinDescription_boardV3[]=
 {
 
   // Debug leds - TM-00-00, TM-00-02
@@ -263,7 +263,7 @@ const PinDescription g_APinDescription_boardV3[]=
   {4u, 9u, MD_PLN|MD_EZI|MD_ZI, FUNC4, 5u, 13u, NO_ANALOG_CHANNEL, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL}   // button | P4_9   | GPIO5[13]   |  4
 };
 
-const PinDescription *g_APinDescription = g_APinDescription_boardV3; // default
+PinDescription *g_APinDescription = g_APinDescription_boardV3; // default
 
 #ifdef __cplusplus
 }

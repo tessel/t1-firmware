@@ -200,7 +200,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		else if (cmd == 'W') {
 
 #if !TESSEL_WIFI
-			TM_ERR('w', "WiFi command not enabled on this Tessel.\n");
+			TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
 			if (size != (32 + 64 + 32)) {
 				TM_ERR("WiFi buffer malformed, aborting.");
@@ -221,7 +221,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 #endif
 		} else if (cmd == 'C') {
 #if !TESSEL_WIFI
-			TM_ERR('w', "WiFi command not enabled on this Tessel.\n");
+			TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
 			// check wifi for connection
 			tessel_wifi_check(buf[0]);

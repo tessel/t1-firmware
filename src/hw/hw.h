@@ -313,6 +313,8 @@ void hw_digital_input (uint8_t ulPin);
 void hw_digital_startup (uint8_t ulPin);
 void hw_digital_write (size_t ulPin, uint8_t ulVal);
 uint8_t hw_digital_read (size_t ulPin);
+uint8_t hw_digital_get_mode (uint8_t ulPin);
+int hw_digital_set_mode (uint8_t ulPin, uint8_t mode);
 
 uint32_t hw_analog_read (uint32_t ulPin);
 int hw_analog_write (uint32_t ulPin, float ulValue);
