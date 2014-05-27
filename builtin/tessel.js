@@ -56,6 +56,12 @@ function verifyParams (possible, provided) {
  * Pins
  */
 
+var pinModes = {
+  pullup: hw.PIN_PULLUP,
+  pulldown: hw.PIN_PULLDOWN,
+  default: hw.PIN_DEFAULT
+}
+
 function Pin (pin) {
   this.pin = pin;
 }
@@ -63,6 +69,32 @@ function Pin (pin) {
 util.inherits(Pin, EventEmitter);
 
 Pin.prototype.type = 'digital';
+
+Pin.prototype.mode = function(mode){
+  if (!mode){
+    var mode = hw.digital_get_mode(this.pin);
+
+    if (mode == pinModes.pullup) {
+      return 'pullup';
+    } else if (mode == pinModes.pulldown) {
+      return 'pulldown'
+    } else if (mode == pinModes.default){
+      return 'default';
+    } else {
+      console.warn('Pin mode is unsupported:', mode);
+      return mode;
+    }
+
+    return null;
+  } 
+
+  if (Object.keys(pinModes).indexOf(mode.toLowerCase()) == -1) {
+    throw new Error("Pin modes can only be 'pullup', 'pulldown', or 'default'");
+  }
+
+  hw.digital_set_mode(this.pin, pinModes[mode]);
+  return this;
+}
 
 Pin.prototype.rawDirection = function rawDirection(isOutput) {
   if (isOutput) {
@@ -1202,6 +1234,29 @@ function Port (id, digital, analog, i2c, uart)
 
   this.digital = digital.slice();
   this.analog = analog.slice();
+  if (id.toUpperCase() == 'GPIO') {
+    this.pin = {'tx': this.digital[0]
+    , 'g1': this.digital[0]
+    , 'g2': this.digital[1]
+    , 'rx': this.digital[1]
+    , 'g3': this.digital[2]
+    , 'g4': this.digital[3]
+    , 'g5': this.digital[4] 
+    , 'g6': this.digital[5] 
+    , 'a1': this.analog[0]
+    , 'a2': this.analog[1] 
+    , 'a3': this.analog[2]
+    , 'a4': this.analog[3]
+    , 'a5': this.analog[4]
+    , 'a6': this.analog[5] };
+  } else {
+    this.pin = {'tx': this.digital[0]
+    , 'g1': this.digital[0]
+    , 'g2': this.digital[1]
+    , 'rx': this.digital[1]
+    , 'g3': this.digital[2] };
+  }
+  
 
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
@@ -1257,28 +1312,26 @@ function Tessel() {
   this.interrupts = [];
 
   this.ports =  {
-    A: new Port('A', [null, new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [],
+    A: new Port('A', [new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_3 : null
     ),
-    B: new Port('B', [null, new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [],
+    B: new Port('B', [new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_2 : null
     ),
-    C: new Port('C', [null, new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [],
+    C: new Port('C', [new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       // tessel_version > 1 ? hw.UART_SW_0 : null
       null
     ),
-    D: new Port('D', [null, new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [],
+    D: new Port('D', [new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       tessel_version > 1 ? hw.UART_0 : null
     ),
-    GPIO: new Port('GPIO', [null,
-      new Pin(hw.PIN_E_G1), new Pin(hw.PIN_E_G2), new Pin(hw.PIN_E_G3),
+    GPIO: new Port('GPIO', [new Pin(hw.PIN_E_G1), new Pin(hw.PIN_E_G2), new Pin(hw.PIN_E_G3),
       new Pin(hw.PIN_E_G4), new Pin(hw.PIN_E_G5), new Pin(hw.PIN_E_G6)
-    ], [null,
-      new AnalogPin(hw.PIN_E_A1), new AnalogPin(hw.PIN_E_A2), new AnalogPin(hw.PIN_E_A3),
+    ], [new AnalogPin(hw.PIN_E_A1), new AnalogPin(hw.PIN_E_A2), new AnalogPin(hw.PIN_E_A3),
       new AnalogPin(hw.PIN_E_A4), new AnalogPin(hw.PIN_E_A5), new AnalogPin(hw.PIN_E_A6)
     ],
       hw.I2C_1,
