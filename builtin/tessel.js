@@ -12,7 +12,7 @@ var _interruptModes = {
   1 : 'fall',
   2 : 'high',
   3 : 'low',
-  4 : 'low'
+  4 : 'change'
 };
 
 process.on('raw-message', function (buf) {
