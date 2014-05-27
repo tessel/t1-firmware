@@ -135,7 +135,9 @@ enum PinLabel{
 	E_G4,
 	E_G5,
 	E_G6,
-	BTN1
+	BTN1,
+	ADC_5,
+	ADC_7
 };
 
 static inline int hw_valid_pin(int pin) {

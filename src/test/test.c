@@ -361,6 +361,21 @@ void test_adc (void)
 	}
 }
 
+void test_unconnected_adc(void)
+{
+	uint32_t analogRead5 = 0;
+	uint32_t analogRead7 = 0;
+	while (1) {
+		analogRead5 = hw_analog_read(ADC_5);
+		TM_DEBUG("ADC_5: %u", (unsigned int) analogRead5);
+
+		analogRead7 = hw_analog_read(ADC_7);
+		TM_DEBUG("ADC_7: %u", (unsigned int) analogRead7);
+		
+		for (int i = 0; i < 1000000; i++) { }
+	}
+}
+
 /**
  * DAC
  */

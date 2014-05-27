@@ -24,6 +24,7 @@ void test_spi (char port);
 void test_uart (char port);
 void test_gpio_read (void);
 void test_adc (void);
+void test_unconnected_adc(void);
 void test_dac (void);
 void test_pwm (void);
 
