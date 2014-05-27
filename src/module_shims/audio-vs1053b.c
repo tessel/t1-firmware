@@ -426,7 +426,7 @@ uint8_t audio_get_state() {
   return (uint8_t)current_state;
 }
 
-int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref, uint8_t mic_input) {
+int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref) {
 
   if (current_state != STOPPED) {
     return -3;
@@ -503,13 +503,8 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
     return -2;
   }
 
-  // Check if Mic or Line in
-  if (mic_input) { 
-    _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW);
-  }
-  else {
-    _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
-  }
+  _writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
+
 
   /* Rec level: 1024 = 1. If 0, use AGC */
   _writeSciRegister16(VS1053_SCI_AICTRL0, 1024);

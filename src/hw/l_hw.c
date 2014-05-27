@@ -590,8 +590,8 @@ static int l_audio_start_recording(lua_State* L) {
 	size_t buf_len;
 	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
 	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	uint8_t micInput = (uint8_t)lua_tonumber(L, ARG1 + 4);
-	int8_t r = audio_start_recording(xcs, dreq, (char *)dir_name, buf, buf_len, buf_ref, micInput);
+	
+	int8_t r = audio_start_recording(xcs, dreq, (char *)dir_name, buf, buf_len, buf_ref);
 
 	lua_pushnumber(L, r);
 	return 1;
