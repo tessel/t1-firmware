@@ -95,11 +95,9 @@ Pin.prototype.mode = function(){
     return 'pulldown'
   } else if (mode == pinModes.none){
     return 'none';
-  } else {
-    console.warn('Pin mode is unsupported:', mode);
-    return mode;
-  }
+  } 
 
+  console.warn('Pin mode is unsupported:', mode);
   return null;
 }
 
@@ -1237,7 +1235,7 @@ var SPIChipSelectMode = {
 
 function Port (id, digital, analog, i2c, uart)
 {
-  this.id = id;
+  this.id = String(id);
   var self = this;
   this.digital = digital.slice();
   this.analog = analog.slice();
