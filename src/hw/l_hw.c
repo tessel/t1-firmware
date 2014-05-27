@@ -385,9 +385,9 @@ static int l_hw_digital_set_mode(lua_State* L)
 	uint8_t pin = (uint8_t)lua_tonumber(L, ARG1);
 	uint8_t mode = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	
-	hw_digital_set_mode(pin, mode);
+	lua_pushnumber(L, hw_digital_set_mode(pin, mode));
 
-	return 0;
+	return 1;
 }
 
 static int l_hw_digital_get_mode(lua_State* L)

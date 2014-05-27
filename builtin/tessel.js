@@ -1236,7 +1236,7 @@ function Port (id, digital, analog, i2c, uart)
   this.digital = digital.slice();
   this.analog = analog.slice();
   this.pin = {};
-  this.pinMap = {};
+  var pinMap = {};
   if (id.toUpperCase() == 'GPIO') {
     
     pinMap = { 'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4
@@ -1267,16 +1267,6 @@ function Port (id, digital, analog, i2c, uart)
   };
 }
 
-// Port.prototype.I2C = function (addr, port) {
-//     return new I2C(addr, port == null ? i2c : port)
-//   };
-
-// Port.prototype.UART = function (format, port) {
-//     if (this._uart == null) {
-//       throw 'Board version does not support UART on this port.';
-//     }
-//     return new UART(format, port == null ? uart : port);
-//   };
 
 Port.prototype.SPI = function (format, port){
   return new SPI(format);
@@ -1291,6 +1281,7 @@ Port.prototype.digitalWrite = function (n, val) {
 };
 
 function Tessel() {
+  var self = this;
 
   if (Tessel.instance) {
     return Tessel.instance;
@@ -1302,11 +1293,24 @@ function Tessel() {
   this.led = [new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
   
   this.pin = {
-    'LED1': new Pin(hw.PIN_LED1),
-    'LED2': new Pin(hw.PIN_LED2),
-    'Error': new Pin(hw.PIN_WIFI_ERR_LED),
-    'Conn': new Pin(hw.PIN_WIFI_CONN_LED)
+    'LED1': this.led[0],
+    'LED2': this.led[1],
+    'Error': this.led[2],
+    'Conn': this.led[3]
   }
+
+  // allow for lowercase and uppercase usage of this.pins, ex: this.pin['error' | 'ERROR']
+  Object.keys(this.pin).forEach(function(pinKey){
+    Object.defineProperty(self.pin, pinKey.toLowerCase(), {
+      get: function () { return self.pin[pinKey] } 
+    });
+
+    if (pinKey.toUpperCase() != pinKey) {
+      Object.defineProperty(self.pin, pinKey.toUpperCase(), {
+        get: function () { return self.pin[pinKey] } 
+      });
+    }
+  });
 
   this.interrupts = [];
 
