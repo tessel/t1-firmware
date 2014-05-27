@@ -350,10 +350,6 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   // that it doesn't have to wait for a gpio interrupt
   _queue_buffer(new_buf);
 
-  if (operating_buf == NULL) {
-    return 0; 
-  }
-
   return stream_id;
 }
 
