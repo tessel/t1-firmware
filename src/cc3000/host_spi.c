@@ -605,9 +605,9 @@ void SpiResumeSpi(void)
 	// 	TM_DEBUG("SpiResumeSpi");
 	// }
 
-	if (get_cc3k_irq_flag()) {
-		SPI_IRQ();
-	}
+	// if (get_cc3k_irq_flag()) {
+	// 	SPI_IRQ();
+	// }
 }
 
 void SpiTriggerRxProcessing(void)
