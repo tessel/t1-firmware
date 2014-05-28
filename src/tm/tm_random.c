@@ -4,6 +4,8 @@
 #include <time.h>
 
 #include "tm.h"
+#include "hw.h"
+#include "tessel.h"
 #include "otprom.h"
 
 // seed entropy
@@ -26,7 +28,7 @@
  */
 #define SYSTEM_RESEED_MAX			(12*60*60)	/* 12h */
 
-#define RND_BYTES  32
+#define RND_BYTES  16
 
 
 
@@ -35,12 +37,18 @@ static time_t check_time = 0;
 
 unsigned px_acquire_system_randomness(uint8_t *buf)
 {
-	for (int i = 0; i < RND_BYTES / 4; i++) {
-		uint32_t r_32 = 0;
-		r_32 = tm_uptime_micro();
-		uint8_t* r = ((uint8_t*) &r_32);
-		memcpy(buf, r, 4);
-	}
+	uint32_t uptime = tm_uptime_micro();
+	uint32_t analog1 = hw_analog_read(ADC_5);
+	uint32_t analog2 = hw_analog_read(ADC_7);
+	uint32_t analog3 = hw_analog_read(E_A1);
+
+	TM_LOG("entries %d %d %d %d", uptime, analog1, analog2, analog3);
+
+	memcpy(&buf[0], (void*) uptime, sizeof(uint32_t));
+	memcpy(&buf[4], (void*) analog1, sizeof(uint32_t));
+	memcpy(&buf[8], (void*) analog2, sizeof(uint32_t));
+	memcpy(&buf[12], (void*) analog3, sizeof(uint32_t));
+
 	return RND_BYTES;
 }
 
