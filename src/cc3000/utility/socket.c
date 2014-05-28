@@ -918,7 +918,12 @@ simple_link_recv(long sd, void *buf, long len, long flags, sockaddr *from,
 int
 recv(long sd, void *buf, long len, long flags)
 {
-	return(simple_link_recv(sd, buf, len, flags, NULL, NULL, HCI_CMND_RECV));
+	int ret = simple_link_recv(sd, buf, len, flags, NULL, NULL, HCI_CMND_RECV);
+	if (ret == 0) {
+		ret = -1;
+		errno = EWOULDBLOCK;
+	}
+	return ret;
 }
 
 //*****************************************************************************
@@ -1085,7 +1090,11 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 int
 send(long sd, const void *buf, long len, long flags)
 {
-	return(simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND));
+	int ret = simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND);
+	if (ret == -2) {
+		errno = EWOULDBLOCK;
+	}
+	return ret;
 }
 
 //*****************************************************************************

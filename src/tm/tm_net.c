@@ -146,8 +146,10 @@ tm_socket_t tm_tcp_open ()
 	int ulSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	uint16_t wAccept = SOCK_ON;
 	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, &wAccept, sizeof(wAccept)); // TODO this is duplicated in tm_tcp_listen
-	uint16_t wRecvTimeout = 0;
-	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &wRecvTimeout, sizeof(wRecvTimeout));
+	unsigned long wRecvTimeout = 10;
+	if (setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &wRecvTimeout, sizeof(wRecvTimeout)) != 0) {
+		TM_LOG("setting recv_timeout failed.");
+	}
 	CC3000_END;
 	return ulSocket;
 }
@@ -224,9 +226,6 @@ int tm_tcp_readable (tm_socket_t sock)
     FD_SET(sock, &readSet);
     FD_SET(sock, &errSet);
     struct timeval timeout;
-
-	// TODO remove this, figure out why sequential select calls fail
-	hw_wait_ms(1000);
 
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
