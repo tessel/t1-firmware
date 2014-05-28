@@ -7,14 +7,6 @@ var hw = process.binding('hw');
 
 var tessel_version = process.versions.tessel_board;
 
-// var _interruptModes = {
-//   0 : 'rise',
-//   1 : 'fall',
-//   2 : 'high',
-//   3 : 'low',
-//   4 : 'change'
-// };
-
 process.on('raw-message', function (buf) {
   try {
     process.emit('message', clone.deserialize(buf));
@@ -1322,6 +1314,10 @@ function Tessel() {
   }
 
   this.interrupts = {};
+
+  this.interruptsAvailable = function() {
+    return hw.interrupts_remaining();
+  }
 
   // allow for lowercase and uppercase usage of this.pins, ex: this.pin['error' | 'ERROR']
   Object.keys(this.pin).forEach(function(pinKey){

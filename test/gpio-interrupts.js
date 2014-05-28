@@ -1,7 +1,9 @@
 var tessel = require('tessel'),
     test = require('tape'),
-    pin = tessel.port['B'].digital[2].input(),
-    trigger = tessel.port['B'].digital[3].output().low();
+    pin = tessel.port['B'].digital[1].input(),
+    trigger = tessel.port['B'].digital[2].output().low();
+
+console.warn('This test suite requires a wire between gpio 2 and 3 on port B');
 
 var invalidLevelError = new Error("You cannot use 'on' with level interrupts. You can only use 'once'.");
 
@@ -226,13 +228,13 @@ test('a bunch of repeated levels', function(t) {
 test('using too many interrupts, if you can believe it', function(t) {
   pin.once('high', function() {});
   pin.on('rise', function() {});
-  var pin1 = tessel.port['C'].digital[1]
+  var pin1 = tessel.port['C'].digital[0]
   pin1.on('rise', function() {});
   pin1.once('low', function() {});
-  var pin2 = tessel.port['C'].digital[2];
+  var pin2 = tessel.port['C'].digital[1];
   pin2.on('rise', function() {});
   pin2.once('low', function() {});
-  var pin3 = tessel.port['C'].digital[3];
+  var pin3 = tessel.port['C'].digital[2];
   pin3.on('error', function(err){
     t.ok(err, "An error was thrown after using too many interrupts");
     pin.removeAllListeners();
@@ -243,6 +245,18 @@ test('using too many interrupts, if you can believe it', function(t) {
   });
   pin3.on('rise', function() {});
   pin3.once('high', function() {});
+});
+
+test('tessel knows how many interrupts are available', function(t) {
+  trigger.high();
+  t.equal(tessel.interruptsAvailable(), 7, 'all interrupts should be available');
+  pin.on('rise', function(){});
+  pin.once('low', function() {
+    t.equal(tessel.interruptsAvailable(), 6, 'one interrupt should be re-claimed');
+    t.end();
+  });
+  t.equal(tessel.interruptsAvailable(), 5, 'two interrupts should be taken up');
+  trigger.low();
 })
 
 
