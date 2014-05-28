@@ -42,8 +42,6 @@ unsigned px_acquire_system_randomness(uint8_t *buf)
 	uint32_t analog2 = hw_analog_read(ADC_7);
 	uint32_t analog3 = hw_analog_read(E_A1);
 
-	TM_LOG("entries %d %d %d %d", uptime, analog1, analog2, analog3);
-
 	memcpy(&buf[0], (void*) uptime, sizeof(uint32_t));
 	memcpy(&buf[4], (void*) analog1, sizeof(uint32_t));
 	memcpy(&buf[8], (void*) analog2, sizeof(uint32_t));
