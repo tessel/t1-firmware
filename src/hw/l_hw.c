@@ -382,6 +382,25 @@ static int l_hw_digital_write(lua_State* L)
 	return 0;
 }
 
+static int l_hw_digital_set_mode(lua_State* L)
+{
+	uint8_t pin = (uint8_t)lua_tonumber(L, ARG1);
+	uint8_t mode = (uint8_t)lua_tonumber(L, ARG1 + 1);
+	
+	lua_pushnumber(L, hw_digital_set_mode(pin, mode));
+
+	return 1;
+}
+
+static int l_hw_digital_get_mode(lua_State* L)
+{
+	uint8_t pin = (uint8_t)lua_tonumber(L, ARG1);
+
+	lua_pushnumber(L, hw_digital_get_mode(pin));
+
+	return 1;
+}
+
 
 // interrupts
 
@@ -650,6 +669,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "digital_input", l_hw_digital_input },
 		{ "digital_write", l_hw_digital_write },
 		{ "digital_read", l_hw_digital_read },
+		{ "digital_get_mode", l_hw_digital_get_mode},
+		{ "digital_set_mode", l_hw_digital_set_mode},
 		{ "analog_write", l_hw_analog_write },
 		{ "analog_read", l_hw_analog_read },
 
@@ -728,6 +749,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 	luaL_setfieldnumber(L, "PWM_CENTER_HI", PWM_CENTER_HI);
 	luaL_setfieldnumber(L, "PWM_EDGE_LOW", PWM_EDGE_LOW);
 	luaL_setfieldnumber(L, "PWM_CENTER_LOW", PWM_CENTER_LOW);
+	luaL_setfieldnumber(L, "PIN_PULLUP", MD_PUP);
+	luaL_setfieldnumber(L, "PIN_PULLDOWN", MD_PDN);
+	luaL_setfieldnumber(L, "PIN_DEFAULT", MD_PLN|MD_EZI|MD_ZI);
 
 	luaL_setfieldnumber(L, "PIN_A_G1", A_G1);
 	luaL_setfieldnumber(L, "PIN_A_G2", A_G2);

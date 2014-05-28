@@ -56,6 +56,12 @@ function verifyParams (possible, provided) {
  * Pins
  */
 
+var pinModes = {
+  pullup: hw.PIN_PULLUP,
+  pulldown: hw.PIN_PULLDOWN,
+  none: hw.PIN_DEFAULT
+}
+
 function Pin (pin) {
   this.pin = pin;
 }
@@ -63,6 +69,37 @@ function Pin (pin) {
 util.inherits(Pin, EventEmitter);
 
 Pin.prototype.type = 'digital';
+Pin.prototype.resolution = 1;
+
+Pin.prototype.pull = function(mode){
+  if (!mode) {
+    mode = 'none';
+  }
+
+  mode = mode.toLowerCase();
+
+  if (Object.keys(pinModes).indexOf(mode.toLowerCase()) == -1) {
+    throw new Error("Pin modes can only be 'pullup', 'pulldown', or 'none'");
+  }
+
+  hw.digital_set_mode(this.pin, pinModes[mode]);
+  return this;
+}
+
+Pin.prototype.mode = function(){
+  var mode = hw.digital_get_mode(this.pin);
+
+  if (mode == pinModes.pullup) {
+    return 'pullup';
+  } else if (mode == pinModes.pulldown) {
+    return 'pulldown'
+  } else if (mode == pinModes.none){
+    return 'none';
+  } 
+
+  console.warn('Pin mode is unsupported:', mode);
+  return null;
+}
 
 Pin.prototype.rawDirection = function (isOutput) {
   if (isOutput) {
@@ -825,17 +862,20 @@ SPILock.prototype.rawTransfer = function(txbuf, callback) {
   this._rawTransaction(txbuf, rxbuf, callback);
 };
 
-SPILock.prototype.rawSend = function(data, callback) {
+SPILock.prototype.rawSend = function(txbuf, callback) {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
   // Set the raw property to true
   this._rawTransaction(txbuf, null, callback);
 };
 
-SPILock.prototype.rawReceive = function(data, callback) {
+SPILock.prototype.rawReceive = function(buf_len, callback) {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this.rawTransfer(new Buffer(buf_len), callback);
+  var txbuf = new Buffer(buf_len);
+  txbuf.fill(0);
+
+  this.rawTransfer(txbuf, callback);
 };
 
 _asyncSPIQueue._deregisterLock = function(lock, callback) {
@@ -1099,7 +1139,10 @@ SPI.prototype.receive = function (buf_len, callback)
 {
   // We have to transfer bytes for DMA to tick the clock
   // Returns a -1 on error and 0 on successful queueing
-  this.transfer(new Buffer(buf_len), callback);
+  var txbuf = new Buffer(buf_len);
+  txbuf.fill(0);
+  
+  this.transfer(txbuf, callback);
 };
 
 
@@ -1192,10 +1235,29 @@ var SPIChipSelectMode = {
 
 function Port (id, digital, analog, i2c, uart)
 {
-  this.id = id;
-
+  this.id = String(id);
+  var self = this;
   this.digital = digital.slice();
   this.analog = analog.slice();
+  this.pin = {};
+  var pinMap = null;
+  if (id.toUpperCase() == 'GPIO') {
+    
+    pinMap = { 'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4
+      , 'G6': 5, 'A1': 0, 'A2': 1, 'A3': 2, 'A4': 3, 'A5': 4, 'A6': 5 };
+
+  } else {
+    pinMap = {'G1': 0, 'G2': 1, 'G3': 2};
+  }
+  
+  Object.keys(pinMap).forEach(function(pinKey){
+
+    self.pin[pinKey] = self.digital[pinMap[pinKey]];
+
+    Object.defineProperty(self.pin, pinKey.toLowerCase(), {
+      get: function () { return self.pin[pinKey] } 
+    });
+  });
 
   this.I2C = function (addr, mode, port) {
     return new I2C(addr, mode, port === null ? i2c : port);
@@ -1209,16 +1271,6 @@ function Port (id, digital, analog, i2c, uart)
   };
 }
 
-// Port.prototype.I2C = function (addr, port) {
-//     return new I2C(addr, port == null ? i2c : port)
-//   };
-
-// Port.prototype.UART = function (format, port) {
-//     if (this._uart == null) {
-//       throw 'Board version does not support UART on this port.';
-//     }
-//     return new UART(format, port == null ? uart : port);
-//   };
 
 Port.prototype.SPI = function (format, port){
   return new SPI(format);
@@ -1233,6 +1285,7 @@ Port.prototype.digitalWrite = function (n, val) {
 };
 
 function Tessel() {
+  var self = this;
 
   if (Tessel.instance) {
     return Tessel.instance;
@@ -1241,38 +1294,51 @@ function Tessel() {
     Tessel.instance = this;
   }
   
-  this.leds = [null, new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
-  this.led = function(n) {
-    if (board.leds[n] === null) {
-      throw "No LED at index " + n + " exists.";
+  this.led = [new Pin(hw.PIN_LED1), new Pin(hw.PIN_LED2), new Pin(hw.PIN_WIFI_ERR_LED), new Pin(hw.PIN_WIFI_CONN_LED)];
+  
+  this.pin = {
+    'LED1': this.led[0],
+    'LED2': this.led[1],
+    'Error': this.led[2],
+    'Conn': this.led[3]
+  }
+
+  // allow for lowercase and uppercase usage of this.pins, ex: this.pin['error' | 'ERROR']
+  Object.keys(this.pin).forEach(function(pinKey){
+    Object.defineProperty(self.pin, pinKey.toLowerCase(), {
+      get: function () { return self.pin[pinKey] } 
+    });
+
+    if (pinKey.toUpperCase() != pinKey) {
+      Object.defineProperty(self.pin, pinKey.toUpperCase(), {
+        get: function () { return self.pin[pinKey] } 
+      });
     }
-    return board.leds[n];
-  };
+  });
+
   this.interrupts = [];
 
   this.ports =  {
-    A: new Port('A', [null, new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [],
+    A: new Port('A', [new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_3 : null
     ),
-    B: new Port('B', [null, new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [],
+    B: new Port('B', [new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_2 : null
     ),
-    C: new Port('C', [null, new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [],
+    C: new Port('C', [new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       // tessel_version > 1 ? hw.UART_SW_0 : null
       null
     ),
-    D: new Port('D', [null, new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [],
+    D: new Port('D', [new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       tessel_version > 1 ? hw.UART_0 : null
     ),
-    GPIO: new Port('GPIO', [null,
-      new Pin(hw.PIN_E_G1), new Pin(hw.PIN_E_G2), new Pin(hw.PIN_E_G3),
+    GPIO: new Port('GPIO', [new Pin(hw.PIN_E_G1), new Pin(hw.PIN_E_G2), new Pin(hw.PIN_E_G3),
       new Pin(hw.PIN_E_G4), new Pin(hw.PIN_E_G5), new Pin(hw.PIN_E_G6)
-    ], [null,
-      new AnalogPin(hw.PIN_E_A1), new AnalogPin(hw.PIN_E_A2), new AnalogPin(hw.PIN_E_A3),
+    ], [new AnalogPin(hw.PIN_E_A1), new AnalogPin(hw.PIN_E_A2), new AnalogPin(hw.PIN_E_A3),
       new AnalogPin(hw.PIN_E_A4), new AnalogPin(hw.PIN_E_A5), new AnalogPin(hw.PIN_E_A6)
     ],
       hw.I2C_1,
@@ -1307,11 +1373,6 @@ var board = module.exports = new Tessel();
 for (var key in board.ports) {
   board.port[key] = board.ports[key];
 }
-board.led[1] = board.leds[1];
-board.led[2] = board.leds[2];
-board.led[3] = board.leds[3];
-board.led[4] = board.leds[4];
-// TM <<<
 
 // sendfile
 process.sendfile = function (filename, buf) {
