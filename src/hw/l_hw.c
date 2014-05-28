@@ -414,9 +414,9 @@ static int l_hw_interrupts_remaining(lua_State* L)
 static int l_hw_interrupt_watch(lua_State* L)
 {
 	int pin = (int)lua_tonumber(L, ARG1);
-	int interrupt_index = (int)lua_tonumber(L, ARG1 + 1);
-	int flag = (int)lua_tonumber(L, ARG1 + 2);
-	lua_pushnumber(L, hw_interrupt_watch(pin, flag, interrupt_index, NULL));
+	int mode = (int)lua_tonumber(L, ARG1 + 1);
+	int interrupt_index = (int)lua_tonumber(L, ARG1 + 2);
+	lua_pushnumber(L, hw_interrupt_watch(pin, mode, interrupt_index, NULL));
 	return 1;
 }
 

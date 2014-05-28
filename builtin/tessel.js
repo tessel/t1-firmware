@@ -96,24 +96,30 @@ var pinModes = {
 }
 
 // IPC Routing for emitting GPIO Interrupts
-process.on('interrupt', function interruptFired(interruptId, mode, time) {
-  console.log('checking board for pin...');
+process.on('interrupt', function interruptFired(interruptId, trigger, time) {
+  console.log('checking board for pin...', interruptId, trigger, time);
+
+  for (var flag in _bitFlags) {
+    console.log('flag', flag, 'equals', _bitFlags[flag], 'match?', trigger);
+    if (_bitFlags[flag] === trigger) {
+      trigger = flag;
+      break;
+    }
+  }
+
   var pin = board.interrupts[interruptId];
   console.log('found the pin', pin);
   if (pin) {
-    var triggerType = _triggerTypeForMode(mode)
+    var triggerType = _triggerTypeForMode(trigger)
     
     // If we have interrupts enabled for this trigger type 
     // (it could have just changed prior to this IPC)
+    console.log('trigger type', triggerType);
     if (pin.interrupts[triggerType]) {
-      // If the mode of the interrupt for this trigger type is change
-      if (pin.interrupts[triggerType].mode === _bitFlags['change']) {
-        console.log('we were waiting for change!');
-        pin.emit('change', time, mode);
-      }
       // Emit the activated mode
-      console.log('emitting the normal stuff...', mode, time);
-      pin.emit(mode, time, mode);
+      console.log('emitting the normal stuff...', trigger, time);
+      pin.emit('change', time, trigger);
+      pin.emit(trigger, time, trigger);
     }
   }
 });
@@ -126,16 +132,6 @@ function Pin (pin) {
 
 util.inherits(Pin, EventEmitter);
 
-Pin.prototype.removeAllListeners = function(event) {
-  var emitter = Pin.super_.prototype.removeAllListeners.call(this, event);
-
-  if (!Array.isArray(event)) {
-    // If it's an interrupt event, remove as necessary
-    _interruptRemovalCheck(event);
-  } 
-
-  return emitter;
-}
 
 Pin.prototype.removeListener = function(event, listener) {
 
@@ -143,6 +139,7 @@ Pin.prototype.removeListener = function(event, listener) {
   var emitter = Pin.super_.prototype.removeListener.call(this, event, listener);
 
   // If it's an interrupt event, remove as necessary
+  console.log('what the single event man?', event);
   _interruptRemovalCheck(event);
 
   return emitter;
@@ -207,7 +204,7 @@ function _interruptRemovalCheck (event) {
 
   // If it is, and the listener count is now zero
   if (mode != -1 && !EventEmitter.listenerCount(this, event)) {
-    console.log('no more listeners for mode: ', type);
+    console.log('no more listeners for mode: ', event);
     // Remove this interrupt
     _removeInterruptMode(this, type, event);
   }
@@ -223,12 +220,28 @@ function _removeInterruptMode(pin, type, mode) {
     console.log('found interrupt', interrupt);
     // Clear this bit from the mode
     console.log('setting ', interrupt.mode, ' to ', _bitFlags[mode]);
-    interrupt.mode &= ~(_bitFlags[mode]);
+
+    // SPECIAL CASE:
+    // If we are trying to remove change interrupts
+    // first check to see if there are 'rise' || 'fall'
+    // listeners
+    var removal = _bitFlags[mode];;
+    if (interrupt.mode === _bitFlags['change']) {
+      // If we have rise listeners
+      if (EventEmitter.listenerCount(pin, 'rise')) {
+        removal &= ~_bitFlags['rise'];
+      }
+      if (EventEmitter.listenerCount(pin, 'fall')) {
+        removal &= ~_bitFlags['fall'];
+      }
+    }
+    console.log('removal after check...', removal);
+
+    interrupt.mode &= ~(removal);
     console.log('mode afterward', interrupt.mode);
 
     // Clear the interrupt in HW
-    // hw.interrupt_unwatch(interrupt.id, _bitFlags[mode]);
-    masterid = masterid-1;
+    hw.interrupt_unwatch(interrupt.id, _bitFlags[mode]);
 
     // If there are no more interrupts being watched
     if (!interrupt.mode) {
@@ -264,25 +277,26 @@ function _registerPinInterrupt(pin, type, mode) {
   // If it is, check if we are already listening for this type ('edge' vs 'level')
   if (match) {
     // Then check if we are not already listening for this type (eg 'high' vs 'low')
-    if (!(match.mode & _bitFlags[mode])) {
+    if (match.mode != _bitFlags[mode]) {
+
       console.log('new mode!', mode);
 
       // Add this mode to our interrupt
       match.mode |= _bitFlags[mode];
+      console.log('after addition', match.mode, _bitFlags[match.mode]);
 
       // Tell the Interrupt driver to start listening for this type
-      // hw.interrupt_watch(match.id, match.mode);
+      hw.interrupt_watch(pin.pin, match.mode, match.id);
     }
   }
   // We weren't already listening for this interrupt type
   // We will need a new interrupt
   else {
     console.log('no match...');
-    // var intId = hw.interrupt_acquire();
-    var intId = _fakeAcquire();
+    var intId = hw.acquire_available_interrupt();
     console.log('new id', intId);
     if (intId === -1) {
-      _errorRoutine(this, new Error("All eight interrupts are currently active."));
+      _errorRoutine(pin, new Error("All seven GPIO interrupts are currently active."));
 
       return;
     }
@@ -298,22 +312,9 @@ function _registerPinInterrupt(pin, type, mode) {
       // Keep a reference in our boards data structure
       // so that we can easily find the correct pin on IPC
       board.interrupts[intId]= pin;
-      console.log('setting timeout...', pin);
       // Tell the firmware to start watching for this interrupt
-      // hw.interrupt_watch(intId, mode);
+      hw.interrupt_watch(pin.pin, interrupt.mode, intId);
     }
-  }
-}
-
-var masterid = 0;
-function _fakeAcquire(intid) {
-  masterid++;
-
-  if (masterid > 7) {
-    return -1;
-  }
-  else {
-    return masterid;
   }
 }
 

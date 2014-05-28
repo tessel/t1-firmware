@@ -103,17 +103,26 @@ int hw_interrupt_acquire (void)
 }
 
 // Stop watching specific mode of interrupt
-int hw_interrupt_unwatch(int interrupt_index, InterruptMode mode) {
+int hw_interrupt_unwatch(int interrupt_index, int bitMask) {
+
 	// If the interrupt ID was valid
 	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
 		// Detatch it so it's not called anymore
-		hw_interrupt_disable(interrupt_index, mode);
-		// Indicate in data structure that it's a free spot
-		interrupts[interrupt_index].pin = NO_ASSIGNMENT;
-		interrupts[interrupt_index].mode = NO_ASSIGNMENT;
-		interrupts[interrupt_index].callback = NULL;
 
-		tm_event_unref(&interrupts[interrupt_index].event);
+		hw_interrupt_disable(interrupt_index, bitMask);
+		
+		interrupts[interrupt_index].mode &=  ~bitMask;
+
+		// If there is no more mode in this pin
+		if (!interrupts[interrupt_index].mode) {
+
+			// Indicate in data structure that it's a free spot
+			interrupts[interrupt_index].pin = NO_ASSIGNMENT;
+			interrupts[interrupt_index].mode = NO_ASSIGNMENT;
+			interrupts[interrupt_index].callback = NULL;
+
+			tm_event_unref(&interrupts[interrupt_index].event);
+		}
 
 		return 1;
 	}
@@ -122,7 +131,7 @@ int hw_interrupt_unwatch(int interrupt_index, InterruptMode mode) {
 	}
 }
 
-int hw_interrupt_watch (int pin, int mode, int interrupt_index, void (*callback)())
+int hw_interrupt_watch (int pin, int bitMask, int interrupt_index, void (*callback)())
 {
 	if (!hw_valid_pin(pin)) {
 		return -1;
@@ -134,31 +143,22 @@ int hw_interrupt_watch (int pin, int mode, int interrupt_index, void (*callback)
 		// Assign the pin to the interrupt
 		interrupts[interrupt_index].pin = pin;
 		interrupts[interrupt_index].callback = callback;
-
+		interrupts[interrupt_index].mode = bitMask;
 		// If this is a rising interrupt
-		if (mode == TM_INTERRUPT_MODE_RISING) {
+		if (bitMask & TM_INTERRUPT_MASK_BIT_RISING) {
 			// Attach the rising interrupt to the pin
-			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_RISING;
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_RISING);
 		}
 		// If this is a falling interrupt
-		else if (mode == TM_INTERRUPT_MODE_FALLING) {
+		if (bitMask & TM_INTERRUPT_MASK_BIT_FALLING) {
 			// Attach the falling interrupt to the pin
-			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_FALLING;
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_FALLING);
 		}
-		else if (mode == TM_INTERRUPT_MODE_HIGH) {
-			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_HIGH;
+		if (bitMask & TM_INTERRUPT_MASK_BIT_HIGH) {
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_HIGH);
 		}
-		else if (mode == TM_INTERRUPT_MODE_LOW) {
-			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_LOW;
+		if (bitMask & TM_INTERRUPT_MASK_BIT_LOW) {
 			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_LOW);
-		}
-		else if (mode == TM_INTERRUPT_MODE_CHANGE) {
-			interrupts[interrupt_index].mode = TM_INTERRUPT_MODE_CHANGE;
-			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_RISING);
-			hw_interrupt_enable(interrupt_index, pin, TM_INTERRUPT_MODE_FALLING);
 		}
 
 		tm_event_ref(&interrupts[interrupt_index].event);
@@ -183,8 +183,8 @@ void interrupt_callback(tm_event* event)
 	lua_getglobal(L, "_colony_emit");
 	lua_pushstring(L, "interrupt");
 	lua_pushnumber(L, interrupt_index);
-	lua_pushnumber(L, interrupt->mode);
 	lua_pushnumber(L, interrupt->state);
+	lua_pushnumber(L, tm_uptime_micro());
 	tm_checked_call(L, 4);
 }
 
@@ -194,30 +194,59 @@ void place_awaiting_interrupt(int interrupt_id)
 {
 	GPIO_Interrupt* interrupt = &interrupts[interrupt_id];
 
-	if (interrupt->mode == TM_INTERRUPT_MODE_LOW) {
-		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
-		GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
-		hw_interrupt_disable(interrupt_id, interrupt->mode);
-	}
-	else if (interrupt->mode == TM_INTERRUPT_MODE_HIGH){
-		LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
-		GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
-		hw_interrupt_disable(interrupt_id, interrupt->mode);
-	}
+	// If it's an edge triggered interrupt
+	if (interrupt-> mode & (TM_INTERRUPT_MASK_BIT_RISING | TM_INTERRUPT_MASK_BIT_FALLING)) {
 
-	else if ((interrupt->mode == TM_INTERRUPT_MODE_RISING) ||
-		 (interrupt->mode == TM_INTERRUPT_MODE_CHANGE)) {
-
-		GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, interrupt_id);
-		interrupt->state = 1;
+		// It's a rising edge and we were waiting for a rising edge
+		// Note that this register will change even if you didn't
+		// activate the register
+		if ((interrupt->mode & TM_INTERRUPT_MASK_BIT_RISING) &&
+		 	(LPC_GPIO_PIN_INT->RISE & (1 << interrupt_id))) {
+			// Clear the pending interrupt
+			GPIO_ClearInt(TM_INTERRUPT_MODE_RISING, interrupt_id);
+			// Set the state to high
+			interrupt->state = TM_INTERRUPT_MASK_BIT_RISING;
+		}
+		// It's a falling edge and we were waiting for a rising edge
+		// Note that this register will change even if you didn't
+		// activate the register
+		else if((interrupt->mode & TM_INTERRUPT_MASK_BIT_FALLING) &&
+		 	(LPC_GPIO_PIN_INT->FALL & (1 << interrupt_id))) {
+			// Clear the pending interrupt
+			GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, interrupt_id);
+			// Set the state to low
+			interrupt->state = TM_INTERRUPT_MASK_BIT_FALLING;
+		}
+		else {
+			// Something went wrong
+			return;
+		}
 	}
-	// If we're falling 
-	else if ((interrupt->mode == TM_INTERRUPT_MODE_FALLING) ||
-		 (interrupt->mode == TM_INTERRUPT_MODE_CHANGE)) {
-
-		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, interrupt_id);
-		interrupt->state = 0;
-	} 
+	// It's a level trigger
+	else {
+		// It's a high level
+		if (LPC_GPIO_PIN_INT->IENF & (1 << interrupt_id)) {
+			// Disable this level trigger so it doesn't fire again
+			LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
+			// Clear the pending interrupt
+			GPIO_ClearInt(TM_INTERRUPT_MODE_HIGH, interrupt_id);
+			// Disable this mode
+			hw_interrupt_disable(interrupt_id, interrupt->mode);
+			// Set the state to high
+			interrupt->state = TM_INTERRUPT_MASK_BIT_HIGH;
+		}
+		// It's a low level
+		else {
+			// Disable this level trigger so it doesn't fire again
+			LPC_GPIO_PIN_INT->CIENR |= (1<<interrupt_id);
+			// Clear the pending interrupt
+			GPIO_ClearInt(TM_INTERRUPT_MODE_LOW, interrupt_id);
+			// Disable this mode
+			hw_interrupt_disable(interrupt_id, interrupt->mode);
+			// Set the state to low
+			interrupt->state = TM_INTERRUPT_MASK_BIT_LOW;
+		}
+	}
 
 	if (interrupt->callback != NULL) {
 		(*interrupt->callback)();
@@ -225,7 +254,6 @@ void place_awaiting_interrupt(int interrupt_id)
 	else {
 		tm_event_trigger(&interrupt->event);
 	}
-	
 }
 
 void __attribute__ ((interrupt)) GPIO0_IRQHandler(void)

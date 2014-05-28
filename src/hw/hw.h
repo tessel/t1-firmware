@@ -279,15 +279,20 @@ typedef enum {
 	TM_INTERRUPT_MODE_CHANGE = 4
 } InterruptMode;
 
+#define TM_INTERRUPT_MASK_BIT_RISING 1 << TM_INTERRUPT_MODE_RISING
+#define TM_INTERRUPT_MASK_BIT_FALLING 1 << TM_INTERRUPT_MODE_FALLING
+#define TM_INTERRUPT_MASK_BIT_HIGH 1 << TM_INTERRUPT_MODE_HIGH
+#define TM_INTERRUPT_MASK_BIT_LOW 1 << TM_INTERRUPT_MODE_LOW
+
 extern void initialize_GPIO_interrupts(void);
 
 // Low-level pin interrupt setup
-void hw_interrupt_enable(int index, int ulPin, int mode);
-void hw_interrupt_disable(int index, InterruptMode mode);
+void hw_interrupt_enable(int index, int ulPin, int bitMask);
+void hw_interrupt_disable(int index, int bitMask);
 
 int hw_interrupts_available (void);
-int hw_interrupt_watch (int ulPin, int mode, int interruptID, void (*callback)());
-int hw_interrupt_unwatch(int interrupt_index, InterruptMode mode);
+int hw_interrupt_watch (int ulPin, int bitMask, int interruptID, void (*callback)());
+int hw_interrupt_unwatch(int interrupt_index, int bitMask);
 int hw_interrupt_acquire (void);
 int hw_interrupt_assignment_query (int pin);
 
