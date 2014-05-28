@@ -84,40 +84,32 @@ var _bitFlags = {
   "low" : (1 << 3)
 };
 
-/**
- * Pins
- */
-
-
-var pinModes = {
-  pullup: hw.PIN_PULLUP,
-  pulldown: hw.PIN_PULLDOWN,
-  none: hw.PIN_DEFAULT
-}
 
 // IPC Routing for emitting GPIO Interrupts
 process.on('interrupt', function interruptFired(interruptId, trigger, time) {
-  console.log('checking board for pin...', interruptId, trigger, time);
 
+  // Iterate through the possible bit flags
   for (var flag in _bitFlags) {
-    console.log('flag', flag, 'equals', _bitFlags[flag], 'match?', trigger);
+    // To find one that equals the interrupt trigger
     if (_bitFlags[flag] === trigger) {
+      // Set the trigger to the string value
       trigger = flag;
       break;
     }
   }
 
+  // Grab the pin corresponding to this interrupt
   var pin = board.interrupts[interruptId];
-  console.log('found the pin', pin);
+
+  // If the pin exists (it should)
   if (pin) {
-    var triggerType = _triggerTypeForMode(trigger)
+    // Grab the type of trigger (eg. 'level' or 'edge')
+    var triggerType = _triggerTypeForMode(trigger);
     
     // If we have interrupts enabled for this trigger type 
     // (it could have just changed prior to this IPC)
-    console.log('trigger type', triggerType);
     if (pin.interrupts[triggerType]) {
       // Emit the activated mode
-      console.log('emitting the normal stuff...', trigger, time);
       pin.emit('change', time, trigger);
       pin.emit(trigger, time, trigger);
     }
@@ -139,11 +131,10 @@ Pin.prototype.removeListener = function(event, listener) {
   var emitter = Pin.super_.prototype.removeListener.call(this, event, listener);
 
   // If it's an interrupt event, remove as necessary
-  console.log('what the single event man?', event);
   _interruptRemovalCheck(event);
 
   return emitter;
-}
+};
 
 // Listen for GPIO Interrupts (edge triggered and level triggered)
 Pin.prototype.once = function(mode, callback) {
@@ -160,13 +151,12 @@ Pin.prototype.once = function(mode, callback) {
     // Bool that represents that this interrupt was already registered inside of 'once'
     // because the super_ call to 'once' will call 'on' and we don't want to
     // double register or throw an error if it's a level interrupt
-    console.log('registered once...');
     this.__onceRegistered = true;
   }
 
   // Once registered, add to our event listeners
   Pin.super_.prototype.once.call(this, mode, callback);
-}
+};
 
 // Listen for GPIO Interrupts (edge triggered)
 Pin.prototype.on = function(mode, callback) {
@@ -195,16 +185,15 @@ Pin.prototype.on = function(mode, callback) {
     // Add the event listener
     Pin.super_.prototype.on.call(this, mode, callback);
   }
-}
+};
 
 function _interruptRemovalCheck (event) {
   // Check if this is an interrupt mode
-  console.log('checking', event, 'for removal');  
   var type = _triggerTypeForMode(event);
 
   // If it is, and the listener count is now zero
   if (mode != -1 && !EventEmitter.listenerCount(this, event)) {
-    console.log('no more listeners for mode: ', event);
+
     // Remove this interrupt
     _removeInterruptMode(this, type, event);
   }
@@ -217,40 +206,34 @@ function _removeInterruptMode(pin, type, mode) {
 
   // If the interrupt still exists
   if (interrupt) {
-    console.log('found interrupt', interrupt);
-    // Clear this bit from the mode
-    console.log('setting ', interrupt.mode, ' to ', _bitFlags[mode]);
 
     // SPECIAL CASE:
     // If we are trying to remove change interrupts
     // first check to see if there are 'rise' || 'fall'
     // listeners
-    var removal = _bitFlags[mode];;
-    if (interrupt.mode === _bitFlags['change']) {
+    var removal = _bitFlags[mode];
+    if (interrupt.mode === _bitFlags.change) {
       // If we have rise listeners
       if (EventEmitter.listenerCount(pin, 'rise')) {
-        removal &= ~_bitFlags['rise'];
+        removal &= ~_bitFlags.rise;
       }
       if (EventEmitter.listenerCount(pin, 'fall')) {
-        removal &= ~_bitFlags['fall'];
+        removal &= ~_bitFlags.fall;
       }
     }
-    console.log('removal after check...', removal);
 
+    // Clear this bit from the mode
     interrupt.mode &= ~(removal);
-    console.log('mode afterward', interrupt.mode);
 
     // Clear the interrupt in HW
     hw.interrupt_unwatch(interrupt.id, _bitFlags[mode]);
 
     // If there are no more interrupts being watched
     if (!interrupt.mode) {
-      console.log('deleting int');
+
       // Delete this interrupt from the pin dict
       delete pin.interrupts[type];
     }
-
-    console.log('int afterward', pin.interrupts);
   }
 }
 
@@ -273,17 +256,13 @@ function _registerPinInterrupt(pin, type, mode) {
   // Check if this pin is already watching this type of interrupt
   var match = pin.interrupts[type];
 
-  console.log('already watching?', match);
   // If it is, check if we are already listening for this type ('edge' vs 'level')
   if (match) {
     // Then check if we are not already listening for this type (eg 'high' vs 'low')
     if (match.mode != _bitFlags[mode]) {
 
-      console.log('new mode!', mode);
-
       // Add this mode to our interrupt
       match.mode |= _bitFlags[mode];
-      console.log('after addition', match.mode, _bitFlags[match.mode]);
 
       // Tell the Interrupt driver to start listening for this type
       hw.interrupt_watch(pin.pin, match.mode, match.id);
@@ -292,30 +271,44 @@ function _registerPinInterrupt(pin, type, mode) {
   // We weren't already listening for this interrupt type
   // We will need a new interrupt
   else {
-    console.log('no match...');
+
+    // Get a new interrupt id
     var intId = hw.acquire_available_interrupt();
-    console.log('new id', intId);
+
+    // Check for error condition
     if (intId === -1) {
+      // Emit or thow an error
       _errorRoutine(pin, new Error("All seven GPIO interrupts are currently active."));
 
       return;
     }
+    // Interrupt acquired successfully
     else {
       // Create a new interrupt object
       var interrupt = new Interrupt(_bitFlags[mode], intId);
-      console.log('made int', interrupt);
 
       // Add it to this pin's interrupts, index by type ('level' or 'edge')
-      console.log('setting ', type, 'to', interrupt);
       pin.interrupts[type] = interrupt;
 
       // Keep a reference in our boards data structure
       // so that we can easily find the correct pin on IPC
       board.interrupts[intId]= pin;
+
       // Tell the firmware to start watching for this interrupt
       hw.interrupt_watch(pin.pin, interrupt.mode, intId);
     }
   }
+}
+
+/**
+ * Pins
+ */
+
+
+var pinModes = {
+  pullup: hw.PIN_PULLUP,
+  pulldown: hw.PIN_PULLDOWN,
+  none: hw.PIN_DEFAULT
 }
 
 
@@ -515,232 +508,6 @@ AnalogPin.prototype.readSync = function () {
 AnalogPin.prototype.read = function (next) {
   return hw.analog_read(this.pin) / ANALOG_RESOLUTION;
 };
-
-
-/**
- * Interrupts
- */
-
-// Event for GPIO interrupts
-// process.on('interrupt', function (index, _mode, state) {
-//   // Grab the interrupt generating message
-//   var mode = _interruptModes[_mode];
-
-//   // Grab corresponding pin
-//   var assigned = board.interrupts[index];
-
-//   // If it exists and nothing went crazy
-//   if (assigned) {
-
-//     // Check if there are callbacks assigned for this mode or "change"
-//     var callbacks = assigned.modes[mode].callbacks;
-
-//     // If this is a rise or fall event, call change callbacks as well
-//     if (mode === "change") {
-
-//       if (state === 1) {
-//         callbacks.concat(assigned.modes.rise.callbacks);
-//         assigned.pin.emit('change', null, 0, 'low');
-//         assigned.pin.emit('rise', null, 0, 'rise');
-//       } 
-//       else {
-//         callbacks.concat(assigned.modes.low.callbacks);
-//         assigned.pin.emit('change', null, 0, 'low');
-//         assigned.pin.emit('low', null, 0, 'low');
-//       }
-//     }
-//     else {
-//       assigned.pin.emit(mode);
-//     }
-
-//     // If it's a high or low event, clear that interrupt (should only happen once)
-//     // This happens before the callback so the callback can re-arm the interrupt.
-//     if (mode == 'high' || mode == 'low') {
-//       delete board.interrupts[index];
-//       hw.interrupt_unwatch(index, mode);
-//     }
-
-//     // If there are, call them
-//     for (var i = 0; i < callbacks.length; i++) {
-//       callbacks[i].bind(assigned.pin, null, 0, mode)();
-//     }
-//   }
-// });
-
-// Pin.prototype.watch = function(mode, callback) {
-
-//   // Make sure trigger mode is valid
-//   mode = mode.toLowerCase();
-//   if (interruptModeForType(mode) == -1) {
-//     return callback && callback.bind(this, new Error("Invalid trigger: " + mode))();
-//   }
-  
-//   // Check if this pin already has an interrupt associated with it
-//   var interrupt = hw.interrupt_assignment_query(this.pin);
-
-//   // If it does not have an assignment
-//   if (interrupt === -1) {
-
-//     // Attempt to acquire next available
-//     interrupt = hw.acquire_available_interrupt();
-
-//     if (interrupt === -1) {
-//       console.warn("There are no interrupts remaining...");
-//       // Throw an angry Error
-//       return callback && callback(new Error("All GPIO Interrupts are already assigned."));
-//     }
-
-//   }
-
-//   // Assign this pin with this trigger mode to the interrupt
-//   return this.assignInterrupt(mode, interrupt, callback);
-// };
-
-// function interruptModeForType(triggerMode) {
-//   for (var mode in _interruptModes) {
-//     if (_interruptModes[mode] === triggerMode) {
-//       return mode;
-//     }
-//   }
-//   return -1;
-// }
-
-// Pin.prototype.assignInterrupt = function(triggerMode, interrupt, callback) {
-  
-//   // Start watching pin for edges
-//   var success = hw.interrupt_watch(this.pin, interrupt, interruptModeForType(triggerMode));
-
-//   // If there was no error
-//   if (success != -1) {
-   
-//     // Set the assignment on the board object
-//     // Grab what the current assignment is
-//     var assignment = board.interrupts[interrupt];
-
-//     // If there is something assigned 
-//     if (assignment) {
-
-//       // If the watch is being removed
-//       if (triggerFlag == -1) {
-
-//         // Just remove the entity
-//         delete board.interrupts[interrupt];
-//       }
-//       // If we're adding the mode
-//       else {
-//         // Add it to the array
-//         assignment.addModeListener(triggerMode, callback);
-//       }
-//     }
-//     // If not, assign with new data structure
-//     else {
-//       // Create the object
-//       assignment = new InterruptAssignment(this, triggerMode, callback);
-
-//       // Shove it into the data structure
-//       board.interrupts[interrupt] = assignment;
-//     }
-//   } 
-//   // If not successful watching...
-//   else {
-
-//     // Throw the error in callback
-//     if (callback) {
-//       callback.bind(this, new Error("Unable to wait for interrupts on pin"))();
-//     }
-//     return -1;
-//   }
-
-//   return 1;
-// };
-
-// function InterruptAssignment(pin, mode, callback) {
-//   // Save the pin object
-//   this.pin = pin;
-
-//   // Create a modes obj with each possible mode
-//   this.modes = {};
-//   this.modes.rise = {listeners : 0, callbacks : []};
-//   this.modes.fall= {listeners : 0, callbacks : []};
-//   this.modes.change = {listeners : 0, callbacks : []};
-//   this.modes.high = {listeners : 0, callbacks : []};
-//   this.modes.low = {listeners : 0, callbacks : []};
-
-//   // Increment number of listeners
-//   this.modes[mode].listeners = 1;
-
-//   // Add the callback to the appropriate mode callback array
-//   if (callback) {
-//     this.modes[mode].callbacks.push(callback);
-//   }
-// }
-
-// InterruptAssignment.prototype.addModeListener = function(mode, callback) {
-//   // Grab the mode object
-//   var modeObj = this.modes[mode];
-
-//   // Increment number of listeners
-//   modeObj.listeners++;
-
-//   // If a callback was provided
-//   if (callback) {
-
-//     // Add it to the array
-//     modeObj.callbacks.push(callback);
-//   }
-// };
-
-// Pin.prototype.cancelWatch = function(mode, callback){
-
-//   if (!mode) {
-//     return callback && callback(new Error("Need to specify trigger Type to cancel."));
-//   }
-//   // Check which modes are enabled by grabbing this interrupt
-//   var interruptID = hw.interrupt_assignment_query(this.pin);
-
-//   // If this has an interrupt associated with it
-//   if (interruptID != -1) {
-
-//     // Grab the JS assignment
-//     var assignment = board.interrupts[interruptID];
-
-//     if (assignment) {
-            
-//       delete board.interrupts[interruptID];
-
-//       // Watch with a -1 flag to tell it to stop watching
-//       var success = hw.interrupt_unwatch(interruptID, interruptModeForType(mode));
-
-//       // If it went well
-//       if (success) {
-
-//         // Call callback with no error
-//         if (callback) {
-//           callback();
-//         }
-
-//         return 1;
-//       } 
-//       // If it didn't
-//       else {
-
-//         // Throw the error
-//         if (callback) {
-//           callback(new Error("Unable to cancel interrupt..."));
-//         }
-
-//         return -1;
-//       }
-//     }
-//   }
-//   else {
-//     if (callback) {
-//       callback();
-//     }
-//     return 1;
-//   }
-// };
-
 
 /**
  * Button
