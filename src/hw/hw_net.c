@@ -297,14 +297,11 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
 
   TM_DEBUG("Attempting to connect with security type %s... ", security_print);
   int connected = wlan_connect(security, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
-  if (connected == -2) {
-  	TM_DEBUG("First resetting ongoing connection...");
-  	wlan_disconnect();
-  	connected = wlan_connect(security, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
-  }
 
   if (connected != 0) {
-    TM_DEBUG("Error #%d in connecting...", connected);
+    TM_DEBUG("Error #%d in connecting. Please try again.", connected);
+	wlan_disconnect();
+	TM_COMMAND('W', "{\"error\": %d}", connected);
   } else {
     TM_DEBUG("Acquiring IP address...");
     TM_COMMAND('W', "{\"acquiring\": 1}");

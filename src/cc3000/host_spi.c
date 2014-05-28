@@ -829,6 +829,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 			ulCC3000DHCP = 0;
 			TM_DEBUG("DHCP failed. Try reconnecting.");
 			hw_digital_write(CC3K_CONN_LED, 0);
+			hw_digital_write(CC3K_ERR_LED, 1);
 			TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
 		}
 	}
