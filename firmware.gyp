@@ -189,6 +189,7 @@
       ],
       'defines': [
         'CC3000_DEBUG',
+        'SEND_NON_BLOCKING',
         'TESSEL_FASTCONNECT=1'
       ],
       'sources': [

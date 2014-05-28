@@ -227,9 +227,6 @@ int tm_tcp_readable (tm_socket_t sock)
     FD_SET(sock, &errSet);
     struct timeval timeout;
 
-	// TODO remove this, figure out why sequential select calls fail
-	hw_wait_ms(1000);
-
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 

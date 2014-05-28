@@ -1090,7 +1090,11 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 int
 send(long sd, const void *buf, long len, long flags)
 {
-	return(simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND));
+	int ret = simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND);
+	if (ret == -2) {
+		errno = EWOULDBLOCK;
+	}
+	return ret;
 }
 
 //*****************************************************************************
