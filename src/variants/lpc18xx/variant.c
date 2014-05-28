@@ -260,7 +260,13 @@ PinDescription g_APinDescription_boardV3[]=
   {11u, 0u, MD_PLN|MD_EZI|MD_ZI, FUNC4, 5u, 20u, NO_ANALOG_CHANNEL, NOTSLAVESELECT, PWM_MODE, FUNC1, SCT_10},   // G6 | PB_0   | GPIO5[20]   |  4
 
   // button
-  {4u, 9u, MD_PLN|MD_EZI|MD_ZI, FUNC4, 5u, 13u, NO_ANALOG_CHANNEL, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL}   // button | P4_9   | GPIO5[13]   |  4
+  {4u, 9u, MD_PLN|MD_EZI|MD_ZI, FUNC4, 5u, 13u, NO_ANALOG_CHANNEL, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL},   // button | P4_9   | GPIO5[13]   |  4
+
+  // unconnected ADCs
+
+  {NO_PORT, NO_PIN, MD_BUK, NO_FUNC, NO_PORT, NO_BIT, ADC_CHANNEL_5, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL},   // unconnected ADC channel 5
+  {NO_PORT, NO_PIN, MD_BUK, NO_FUNC, NO_PORT, NO_BIT, ADC_CHANNEL_7, NOTSLAVESELECT, NO_ALTERNATE, NO_ALTERNATE, NO_CHANNEL}   // unconnected ADC channel 7
+
 };
 
 PinDescription *g_APinDescription = g_APinDescription_boardV3; // default
