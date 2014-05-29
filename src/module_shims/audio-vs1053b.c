@@ -207,7 +207,7 @@ void _audio_watch_dreq() {
   // If not
   else {
     // Wait for dreq to go high
-    hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
+    hw_interrupt_watch(operating_buf->dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
   }
 }
 
@@ -417,7 +417,7 @@ int8_t audio_resume_buffer() {
 
   current_state = PLAYING;
 
-  hw_interrupt_watch(operating_buf->dreq, TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
+  hw_interrupt_watch(operating_buf->dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, _audio_continue_spi);
 
   return 0;
 }
