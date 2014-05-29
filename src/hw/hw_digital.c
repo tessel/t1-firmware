@@ -118,7 +118,6 @@ void hw_interrupt_enable(int index, int ulPin, int mode)
 }
 
 void hw_interrupt_disable(int index, int mode) {
-	NVIC_DisableIRQ(PIN_INT0_IRQn + index);
 
 	if (mode & TM_INTERRUPT_MASK_BIT_RISING) {
 		LPC_GPIO_PIN_INT->IENR &= ~(1<<index);//rising edge
@@ -130,9 +129,9 @@ void hw_interrupt_disable(int index, int mode) {
 		LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
 		LPC_GPIO_PIN_INT->SIENF &= ~(1<<index);
 	}
-	if (mode & TM_INTERRUPT_MODE_CHANGE) {
+	if (mode & TM_INTERRUPT_MASK_BIT_LOW) {
 		LPC_GPIO_PIN_INT->IENR &= ~(1<<index);
-		LPC_GPIO_PIN_INT->IENF &= ~(1<<index);
+		LPC_GPIO_PIN_INT->CIENF &= ~(1<<index);
 	}
 }
 

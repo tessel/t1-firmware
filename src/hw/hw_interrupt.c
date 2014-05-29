@@ -107,15 +107,16 @@ int hw_interrupt_unwatch(int interrupt_index, int bitMask) {
 
 	// If the interrupt ID was valid
 	if (interrupt_index >= 0 && interrupt_index < NUM_INTERRUPTS) {
-		// Detatch it so it's not called anymore
 
+		// Detatch it so it's not called anymore
 		hw_interrupt_disable(interrupt_index, bitMask);
 		
 		interrupts[interrupt_index].mode &=  ~bitMask;
 
 		// If there is no more mode in this pin
 		if (!interrupts[interrupt_index].mode) {
-
+			// Disable IRQs on this pin
+			NVIC_DisableIRQ(PIN_INT0_IRQn + interrupt_index);
 			// Indicate in data structure that it's a free spot
 			interrupts[interrupt_index].pin = NO_ASSIGNMENT;
 			interrupts[interrupt_index].mode = NO_ASSIGNMENT;
