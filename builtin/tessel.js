@@ -1385,19 +1385,19 @@ var board = module.exports = new Tessel();
 
 board.button.on('newListener', function(event, callback) {
   if (event === 'release') {
-    board.button.on('fall', callback);
+    board.button.on('fall', board.button.emit.bind(board.button, 'release'));
   }
-  else if (event == 'press') {
-    board.button.on('rise', callback);
+  else if (event === 'press') {
+    board.button.on('rise', board.button.emit.bind(board.button, 'press'));
   }
 });
 
 board.button.on('removeListener', function(event, callback) {
-  if (event === 'release') {
-    board.button.removeListener('fall', callback);
+  if (event === 'release' && !EventEmitter.listenerCount(event)) {
+    board.button.removeAllListeners('fall');
   }
-  else if (event == 'press') {
-    board.button.removeListener('release', callback);
+  else if (event === 'press' && !EventEmitter.listenerCount(event)) {
+    board.button.removeAllListeners('rise');
   }
 });
 
