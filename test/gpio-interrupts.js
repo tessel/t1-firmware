@@ -1,7 +1,7 @@
 var tessel = require('tessel'),
     test = require('tape'),
-    pin = tessel.port['B'].digital[2].input(),
-    trigger = tessel.port['B'].digital[3].output().low();
+    pin = tessel.port['B'].digital[1].input(),
+    trigger = tessel.port['B'].digital[2].output().low();
 
 var invalidLevelError = new Error("You cannot use 'on' with level interrupts. You can only use 'once'.");
 
@@ -236,13 +236,13 @@ test('a bunch of repeated levels', function(t) {
 test('using too many interrupts, if you can believe it', function(t) {
   pin.once('high', function() {});
   pin.on('rise', function() {});
-  var pin1 = tessel.port['C'].digital[1]
+  var pin1 = tessel.port['C'].digital[0]
   pin1.on('rise', function() {});
   pin1.once('low', function() {});
-  var pin2 = tessel.port['C'].digital[2];
+  var pin2 = tessel.port['C'].digital[1];
   pin2.on('rise', function() {});
   pin2.once('low', function() {});
-  var pin3 = tessel.port['C'].digital[3];
+  var pin3 = tessel.port['C'].digital[2];
   pin3.on('error', function(err){
     t.ok(err, "An error was thrown after using too many interrupts");
     pin.removeAllListeners();
@@ -253,7 +253,23 @@ test('using too many interrupts, if you can believe it', function(t) {
   });
   pin3.on('rise', function() {});
   pin3.once('high', function() {});
-})
+});
+
+test('Removing one interrupt of two from the same pin', function(t) {
+  trigger.high();
+  var interval;
+  pin.once('rise', function(time) {
+    clearInterval(interval);
+    t.end();
+  });
+
+  pin.once('fall', function(time) {
+  });
+
+  interval = setInterval(function() {
+    trigger.toggle();
+  }, 100);
+});
 
 
 
