@@ -1383,6 +1383,24 @@ util.inherits(Tessel, EventEmitter);
 
 var board = module.exports = new Tessel();
 
+board.button.on('newListener', function(event, callback) {
+  if (event === 'release') {
+    board.button.on('fall', board.button.emit.bind(board.button, 'release'));
+  }
+  else if (event === 'press') {
+    board.button.on('rise', board.button.emit.bind(board.button, 'press'));
+  }
+});
+
+board.button.on('removeListener', function(event, callback) {
+  if (event === 'release' && !EventEmitter.listenerCount(event)) {
+    board.button.removeAllListeners('fall');
+  }
+  else if (event === 'press' && !EventEmitter.listenerCount(event)) {
+    board.button.removeAllListeners('rise');
+  }
+});
+
 // TM 2014-01-30 new API >>>
 for (var key in board.ports) {
   board.port[key] = board.ports[key];
