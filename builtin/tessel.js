@@ -1071,12 +1071,6 @@ function SPI (params)
 
   // initialize here to pull sck, mosi, miso pins to default state
   this._initialize();
-  
-  // Confirmation that CS has been pulled high.
-  var self = this;
-  setImmediate(function () {
-    self.emit('ready');
-  });
 }
 
 
