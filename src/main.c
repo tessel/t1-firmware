@@ -229,6 +229,12 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			tessel_wifi_check(buf[0]);
 #endif
 		} else if (cmd == 'V') {
+			if (hw_net_is_connected()) {
+				char ssid[33] = { 0 };
+				hw_net_ssid(ssid);
+				tm_logf('V', "Current network: %s", ssid);
+			}
+
 			// TODO make this W also?
 			uint8_t results[64];
 			int res = 0;
