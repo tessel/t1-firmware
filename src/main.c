@@ -123,6 +123,12 @@ void TM_NET_INT_INIT ()
 	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
 }
 
+void _cc3000_cb_tcp_close (int socket)
+{
+	uint32_t s = socket;
+	colony_ipc_emit("tcp-close", &s, sizeof(uint32_t));
+}
+
 /*----------------------------------------------------------------------------
   DMA
  *---------------------------------------------------------------------------*/
