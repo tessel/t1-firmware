@@ -624,6 +624,65 @@ static int l_audio_stop_recording(lua_State* L) {
 	return 1;
 }
 
+/**
+ * NTP
+ */
+
+
+// synchronous function for getting the current time.
+// this is a poor design.
+
+uint32_t tm__sync_gethostbyname (const char *domain);
+
+static int l_clocksync (lua_State* L) {
+	if (!hw_net_is_connected()) {
+		return 0;
+	}
+
+	int sock = tm_udp_open();
+	if (sock < 0) {
+		return 0;
+	}
+
+	// RFC 2030 -> LI = 0 (no warning, 2 bits), VN = 3 (IPv4 only, 3 bits), Mode = 3 (Client Mode, 3 bits) -> 1 byte
+	// -> rtol(LI, 6) ^ rotl(VN, 3) ^ rotl(Mode, 0)
+	// -> = 0x00 ^ 0x18 ^ 0x03
+	uint8_t ntpData[48] = { 0 };
+	ntpData[0] = 0x1B;
+	for (int i = 1; i < 48; i++) {
+		ntpData[i] = 0;
+	}
+
+	uint32_t ip = tm__sync_gethostbyname("pool.ntp.org");
+	tm_udp_listen(sock, 7000);
+	tm_udp_send(sock, (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip >> 0) & 0xFF, 123, ntpData, 48);
+	uint8_t buf[256] = { 0 };
+	uint32_t retip;
+	int size = tm_udp_receive(sock, buf, 256, &retip);
+	(void) size;
+	tm_udp_close(sock);
+
+	// Offset to get to the "Transmit Timestamp" field (time at which the reply
+	// departed the server for the client, in 64-bit timestamp format."
+	long long intpart = 0, fractpart = 0;
+	int offsetTransmitTime = 40, i = 0;
+
+	// Get the seconds part
+	for (i = 0; i <= 3; i++) {
+		intpart = 256 * intpart + buf[offsetTransmitTime + i];
+	}
+
+	// Get the seconds fraction
+	for (i = 4; i <= 7; i++) {
+		fractpart = 256 * fractpart + buf[offsetTransmitTime + i];
+	}
+
+	long long epochto1900 = -2208988800000;
+	long long milliseconds = (intpart * 1000 + (fractpart * 1000) / 0x100000000L) + epochto1900;
+	lua_pushnumber(L, milliseconds);
+	return 1;
+}
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -708,6 +767,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "audio_get_state", l_audio_get_state },
 		{ "audio_start_recording", l_audio_start_recording },
 		{ "audio_stop_recording", l_audio_stop_recording },
+
+		// clock sync
+		{ "clocksync", l_clocksync },
 
 		// End of array (must be last)
 		{ NULL, NULL }

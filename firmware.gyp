@@ -202,6 +202,7 @@
         'src/tm/tm_net.c',
         'src/tm/tm_random.c',
         'src/tm/tm_uptime.c',
+        'src/tm/tm_timestamp.c',
 
         'src/sdram/sdram_init.c',
         'src/cc3000/host_spi.c',
