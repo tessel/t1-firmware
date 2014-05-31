@@ -777,6 +777,11 @@ void WriteWlanPin( unsigned char val )
 //
 //*****************************************************************************
 
+__attribute__((weak)) void _cc3000_cb_tcp_close (int socket) { 
+	// noop
+	(void) socket;
+}
+
 void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 {
 	(void) length;
@@ -832,6 +837,11 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 			hw_digital_write(CC3K_ERR_LED, 1);
 			TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
 		}
+	}
+
+	if (lEventType == HCI_EVNT_BSD_TCP_CLOSE_WAIT)
+	{
+		_cc3000_cb_tcp_close(data[0]);
 	}
 	
 	if (lEventType == HCI_EVENT_CC3000_CAN_SHUT_DOWN)
