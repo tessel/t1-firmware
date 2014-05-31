@@ -1408,6 +1408,14 @@ process.sendfile = function (filename, buf) {
   }));
 };
 
+module.exports.syncClock = function (fn) {
+  setImmediate(function () {
+    var millis = hw.clocksync();
+    var success = !!tm.timestamp_update(millis*1e3);
+    fn && fn(success);
+  });
+}
+
 
 module.exports.I2CMode = I2CMode;
 module.exports.SPIBitOrder = SPIBitOrder;
