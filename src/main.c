@@ -621,7 +621,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		}
 		argv[2] = NULL;
 		TM_COMMAND('S', "1");
-		TM_LOG("Running script...");
+		TM_DEBUG("Running script...");
 		TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
 
 		int returncode = tm_runtime_run(argv[1], argv, 2);
