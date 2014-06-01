@@ -1246,20 +1246,26 @@ function Port (id, digital, analog, i2c, uart)
   this.pin = {};
   var pinMap = null;
   if (id.toUpperCase() == 'GPIO') {
-    
-    pinMap = { 'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4
-      , 'G6': 5, 'A1': 0, 'A2': 1, 'A3': 2, 'A4': 3, 'A5': 4, 'A6': 5 };
+    pinMap = { 
+      digital : {'G1': 0, 'G2': 1, 'G3': 2, 'G4': 3, 'G5': 4, 'G6': 5 }, 
+      analog: {'A1': 0, 'A2': 1, 'A3': 2, 'A4': 3, 'A5': 4, 'A6': 5 }
+    };
 
   } else {
-    pinMap = {'G1': 0, 'G2': 1, 'G3': 2};
+    pinMap = {digital : {'G1': 0, 'G2': 1, 'G3': 2}};
   }
   
-  Object.keys(pinMap).forEach(function(pinKey){
+  // For each type (eg digital or analog)
+  Object.keys(pinMap).forEach(function(type) {
+    // For each pin in each type
+    Object.keys(pinMap[type]).forEach(function(pinKey) {
+      // Assign the zero indexed pin
+      self.pin[pinKey] = self[type][pinMap[type][pinKey]];
 
-    self.pin[pinKey] = self.digital[pinMap[pinKey]];
-
-    Object.defineProperty(self.pin, pinKey.toLowerCase(), {
-      get: function () { return self.pin[pinKey] } 
+      // Create the getter
+      Object.defineProperty(self.pin, pinKey.toLowerCase(), {
+        get: function () { return self.pin[pinKey]; } 
+      });
     });
   });
 
