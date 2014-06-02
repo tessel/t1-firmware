@@ -8,7 +8,6 @@
 // except according to those terms.
 
 #define TESSEL_WIFI 1
-#define TESSEL_WIFI_DEPLOY 0
 #define TESSEL_TEST 0
 
 #ifndef COLONY_STATE_CACHE
@@ -319,77 +318,13 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		free(buf);
 }
 
-/**
- * remote wifi push
- */
-
-tessel_cmd_buf_t cmd_wifi;
-
-void wifipoll_close ()
-{
-	tm_tcp_close(tcpclient);
-	tcpclient = -1;
-}
-
-size_t wifipoll_read (uint8_t *buf, size_t len)
-{
-	if (tcpclient < 0) {
-		return 0;
-	}
-
-	ssize_t read_len = tm_tcp_read(tcpclient, buf, len);
-	if (read_len < 0) {
-		// Negative length probably means closed client.
-		wifipoll_close();
-		return 0;
-	}
-	return (size_t) read_len;
-}
-
-void systick_wifipoll ()
-{
-#if TESSEL_WIFI_DEPLOY
-	uint32_t ip;
-	if (tcpclient < 0) {
-		tcpclient = tm_tcp_accept(tcpsocket, &ip);
-//		TM_DEBUG("client %d", tcpclient);
-
-		// One major pause just in case.
-		if (tcpclient >= 0) {
-			hw_wait_ms(100);
-			TM_DEBUG("");
-			TM_DEBUG("[wifi command]");
-			output_wifi = 1;
-			output_unbuffer();
-		}
-	}
-
-	while (tcpclient >= 0 && !hw_net_inuse()) {
-//		TM_DEBUG("--> inuse %d", hw_net_inuse());
-		if (!tm_tcp_readable(tcpclient)) {
-			break;
-		}
-		tessel_cmd_process(&cmd_wifi, wifipoll_read);
-	}
-#endif
-}
-
 
 /**
  * system tick handler
  */
 
-// SysTick Interrupt Handler @ 1000Hz
 _ramfunc void SysTick_Handler (void)
 {
-#if TESSEL_WIFI_DEPLOY
-	if (!netconnected || accept_count-- > 0 || hw_net_inuse()) {
-		return;
-	}
-	accept_count = 1000;
-
-	systick_wifipoll();
-#endif
 }
 
 
@@ -708,10 +643,8 @@ int main (void)
 	hw_digital_write(CC3K_ERR_LED, 0);
 
 	// Interrupt at 1000hz
-#if TESSEL_WIFI_DEPLOY
-	NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
-	SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE)/1000);
-#endif
+	// NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
+	// SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE)/1000);
 
 #if TESSEL_WIFI
 	// CC interrupts
