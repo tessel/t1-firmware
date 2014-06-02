@@ -10,9 +10,6 @@
 #define TESSEL_WIFI 1
 #define TESSEL_TEST 0
 
-#ifndef COLONY_STATE_CACHE
-#define COLONY_STATE_CACHE 0
-#endif
 #ifndef COLONY_PRELOAD_ON_INIT
 #define COLONY_PRELOAD_ON_INIT 0
 #endif
@@ -171,22 +168,6 @@ uint8_t *script_buf = 0;
 size_t script_buf_size = 0;
 uint8_t script_buf_flash = false;
 
-/**
- * wifi connect
- */
-
-// remote wifi deploy
-volatile int tcpsocket = -1;
-volatile int tcpclient = -1;
-volatile int accept_count = 0;
-
-uint8_t wifi_check = 0;
-uint8_t wifi_check_output = 0;
-char wifi_ssid[32] = {0};
-char wifi_pass[64] = {0};
-char wifi_security[32] = {0};
-uint8_t wifi_start_connect = 0;
-
 
 /**
  * command interface
@@ -222,16 +203,15 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 				TM_ERR("WiFi buffer malformed, aborting.");
 				TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
 			} else {
-				// if (wifi_ssid[0] == 0 || strncmp((const char *) &buf[0], wifi_ssid, 32) != 0 
-				// 	|| strncmp((const char *) &buf[32], wifi_pass, 64) != 0 
-				// 	|| !hw_net_online_status()){
+
+					char wifi_ssid[33] = {0};
+					char wifi_pass[65] = {0};
+					char wifi_security[33] = {0};
+
 					memcpy(wifi_security, &buf[96], 32);
 					memcpy(wifi_ssid, &buf[0], 32);
 					memcpy(wifi_pass, &buf[32], 64);
 					tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-				// } else {
-				// 	tessel_wifi_check(true);
-				// }
 				
 			}
 #endif
@@ -430,13 +410,6 @@ void main_body (void)
 	}
 }
 
-#if COLONY_STATE_CACHE
-#define RUNTIME_ARENA_SIZE 1024*1024*8
-void* runtime_cache = NULL;
-size_t runtime_cache_len = 0;
-void* runtime_arena = NULL;
-#endif
-
 void tm_events_lock() { __disable_irq(); }
 void tm_events_unlock() { __enable_irq(); }
 
@@ -515,21 +488,11 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			tm_fs_close(&index_fd);
 		}
 
-		// arena with clone test
-#if COLONY_STATE_CACHE
-		if (runtime_cache == NULL) {
-			runtime_arena = malloc(RUNTIME_ARENA_SIZE);
-#endif
 
 			// Open runtime.
-#if COLONY_STATE_CACHE
-			TM_DEBUG("Initializing cachable runtime...");
-			colony_runtime_arena_open(runtime_arena, RUNTIME_ARENA_SIZE, COLONY_PRELOAD_ON_INIT);
-#else
 			TM_DEBUG("Initializing runtime...");
 			assert(tm_lua_state == NULL);
 			colony_runtime_open();
-#endif
 
 			lua_State* L = tm_lua_state;
 
@@ -561,19 +524,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 			lua_pushnumber(L, tessel_board_version());
 			lua_setfield(L, -2, "tessel_board");
 
-#if COLONY_STATE_CACHE
-			// Preserve state
-			runtime_cache_len = colony_runtime_arena_save_size(runtime_arena, RUNTIME_ARENA_SIZE);
-			runtime_cache = malloc(runtime_cache_len);
-			TM_DEBUG("Caching state in %d bytes...\n", runtime_cache_len);
-			colony_runtime_arena_save(runtime_arena, RUNTIME_ARENA_SIZE, runtime_cache, runtime_cache_len);
-		} else {
-			TM_DEBUG("Restoring runtime state...");
-			memset(runtime_arena, 0, RUNTIME_ARENA_SIZE);
-			colony_runtime_arena_restore(runtime_arena, RUNTIME_ARENA_SIZE, runtime_cache, runtime_cache_len);
-		}
-#endif
-
 		const char *argv[3];
 		argv[0] = "runtime";
 		if (start_script_is_indexjs) {
@@ -603,9 +553,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		initialize_GPIO_interrupts();
 		tessel_gpio_init(0);
 
-#if !COLONY_STATE_CACHE
 		colony_runtime_close();
-#endif
 
 		TM_COMMAND('S', "%d", -returncode);
 		TM_DEBUG("Script ended with return code %d.", returncode);
@@ -633,10 +581,6 @@ int main (void)
 	tm_uptime_init();
 
 	tm_usb_init();
-
-	// Run tests forever.
-//	test_neopixel();
-//	test_leds();
 
 	// Control these outside of tessel_gpio_init()
 	hw_digital_write(CC3K_CONN_LED, 0);
