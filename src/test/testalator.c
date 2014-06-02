@@ -1,11 +1,14 @@
-/*
- * testalator.c
- * c level functions running on the tessel tester
- * tester acts as an i2c slave responding to commands from the tested program
- *
- *  Created on: Jan 18, 2014
- *      Author: jia
- */
+// Copyright 2014 Technical Machine, Inc. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// C level functions running on the tessel tester
+// tester acts as an i2c slave responding to commands from the tested program
 
 #include <stdint.h>
 #include <stdlib.h>
