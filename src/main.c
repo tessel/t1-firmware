@@ -175,127 +175,127 @@ uint8_t script_buf_flash = false;
 
 void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 {
-		if (cmd == 'U' || cmd == 'P') {
-			// Info.
-			TM_COMMAND('U', "{\"size\": %u}", (unsigned) size);
-			TM_DEBUG("");
-			TM_DEBUG("Tessel is reading %u bytes...", (unsigned) size);
+	if (cmd == 'U' || cmd == 'P') {
+		// Info.
+		TM_COMMAND('U', "{\"size\": %u}", (unsigned) size);
+		TM_DEBUG("");
+		TM_DEBUG("Tessel is reading %u bytes...", (unsigned) size);
 
-			if (script_buf_lock == SCRIPT_EMPTY) {
-				script_buf_lock = SCRIPT_DOWNLOADING;
-			} else {
-				return;
-			}
-
-			// Copy command into script buffer.
-			script_buf_size = size;
-			script_buf = buf;
-			script_buf_flash = (cmd == 'P');
-			script_buf_lock = SCRIPT_READING;
-			buf = NULL; // So it won't get freed
+		if (script_buf_lock == SCRIPT_EMPTY) {
+			script_buf_lock = SCRIPT_DOWNLOADING;
+		} else {
+			return;
 		}
-		else if (cmd == 'W') {
+
+		// Copy command into script buffer.
+		script_buf_size = size;
+		script_buf = buf;
+		script_buf_flash = (cmd == 'P');
+		script_buf_lock = SCRIPT_READING;
+		buf = NULL; // So it won't get freed
+	}
+	else if (cmd == 'W') {
 
 #if !TESSEL_WIFI
-			TM_ERR("WiFi command not enabled on this Tessel.\n");
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
-			if (size != (32 + 64 + 32)) {
-				TM_ERR("WiFi buffer malformed, aborting.");
-				TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
-			} else {
+		if (size != (32 + 64 + 32)) {
+			TM_ERR("WiFi buffer malformed, aborting.");
+			TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
+		} else {
 
-					char wifi_ssid[33] = {0};
-					char wifi_pass[65] = {0};
-					char wifi_security[33] = {0};
+				char wifi_ssid[33] = {0};
+				char wifi_pass[65] = {0};
+				char wifi_security[33] = {0};
 
-					memcpy(wifi_security, &buf[96], 32);
-					memcpy(wifi_ssid, &buf[0], 32);
-					memcpy(wifi_pass, &buf[32], 64);
-					tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-				
-			}
-#endif
+				memcpy(wifi_security, &buf[96], 32);
+				memcpy(wifi_ssid, &buf[0], 32);
+				memcpy(wifi_pass, &buf[32], 64);
+				tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
+			
 		}
-		else if (cmd == 'Y') {
+#endif
+	}
+	else if (cmd == 'Y') {
 
 #if !TESSEL_WIFI
-			TM_ERR("WiFi command not enabled on this Tessel.\n");
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
-			tessel_wifi_disable();
+		tessel_wifi_disable();
 #endif
 
-		} else if (cmd == 'C') {
+	} else if (cmd == 'C') {
 #if !TESSEL_WIFI
-			TM_ERR("WiFi command not enabled on this Tessel.\n");
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
-			// check wifi for connection
-			tessel_wifi_check(1);
+		// check wifi for connection
+		tessel_wifi_check(1);
 #endif
-		} else if (cmd == 'V') {
-			if (hw_net_is_connected()) {
-				char ssid[33] = { 0 };
-				hw_net_ssid(ssid);
-				tm_logf('V', "Current network: %s", ssid);
+	} else if (cmd == 'V') {
+		if (hw_net_is_connected()) {
+			char ssid[33] = { 0 };
+			hw_net_ssid(ssid);
+			tm_logf('V', "Current network: %s", ssid);
+		}
+
+		// TODO make this W also?
+		uint8_t results[64];
+		int res = 0;
+		int first = 1;
+		while (true) {
+			// TODO: this should pass data back as a message in structured form
+			// (which requires generating a JSON array)
+			res = wlan_ioctl_get_scan_results(0, results);
+			char* networkcountptr = (char*) &results[0];
+			uint32_t networkcount = *((uint32_t*) networkcountptr);
+			if (first) {
+				if (networkcount == 0) {
+					tm_logf('V', "There are no visible networks yet.");
+				} else {
+					tm_logf('V', "Currently visible networks (%ld):", networkcount);
+					first = 0;
+				}
+			}
+			if (res != 0 || networkcount == 0) {
+				break;
 			}
 
-			// TODO make this W also?
-			uint8_t results[64];
-			int res = 0;
-			int first = 1;
-			while (true) {
-				// TODO: this should pass data back as a message in structured form
-				// (which requires generating a JSON array)
-				res = wlan_ioctl_get_scan_results(0, results);
-				char* networkcountptr = (char*) &results[0];
-				uint32_t networkcount = *((uint32_t*) networkcountptr);
-				if (first) {
-					if (networkcount == 0) {
-						tm_logf('V', "There are no visible networks yet.");
-					} else {
-						tm_logf('V', "Currently visible networks (%ld):", networkcount);
-						first = 0;
-					}
-				}
-				if (res != 0 || networkcount == 0) {
-					break;
-				}
-
-				int rssi = 0;
-				if (results[8] & 0x1) {
-					rssi = results[8] >> 1;
-				}
-
-				char* nameptr = (char*) &results[0 + 4 + 4 + 1 + 1 + 2];
-				unsigned char namebuf[33] = { 0 };
-				memcpy(namebuf, nameptr, 32);
-				tm_logf('V', "\t%s (%i/127)", namebuf, rssi);
+			int rssi = 0;
+			if (results[8] & 0x1) {
+				rssi = results[8] >> 1;
 			}
 
-			if (hw_net_is_connected()) {
-				TM_COMMAND('V', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
-			} else {
-				TM_COMMAND('V', "{\"connected\": 0}");
-			}
-		}
-		else if (cmd == 'G') {
-			TM_COMMAND('G', "\"pong\"");
-		}
-		else if (cmd == 'M') {
-			colony_ipc_emit("raw-message", buf, size);
-		}
-		else if (cmd == 'B') {
-			jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
-			while(1);
-		}
-		else if (cmd == 'n') {
-			colony_ipc_emit("stdin", buf, size);
-		}
-		else {
-			// Invalid?
-			script_buf_lock = SCRIPT_EMPTY;
+			char* nameptr = (char*) &results[0 + 4 + 4 + 1 + 1 + 2];
+			unsigned char namebuf[33] = { 0 };
+			memcpy(namebuf, nameptr, 32);
+			tm_logf('V', "\t%s (%i/127)", namebuf, rssi);
 		}
 
-		free(buf);
+		if (hw_net_is_connected()) {
+			TM_COMMAND('V', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
+		} else {
+			TM_COMMAND('V', "{\"connected\": 0}");
+		}
+	}
+	else if (cmd == 'G') {
+		TM_COMMAND('G', "\"pong\"");
+	}
+	else if (cmd == 'M') {
+		colony_ipc_emit("raw-message", buf, size);
+	}
+	else if (cmd == 'B') {
+		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
+		while(1);
+	}
+	else if (cmd == 'n') {
+		colony_ipc_emit("stdin", buf, size);
+	}
+	else {
+		// Invalid?
+		script_buf_lock = SCRIPT_EMPTY;
+	}
+
+	free(buf);
 }
 
 
@@ -427,136 +427,136 @@ void hw_wait_for_event() {
 
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)
 {
-		int ret = 0;
+	int ret = 0;
 
-		initialize_GPIO_interrupts();
+	initialize_GPIO_interrupts();
 
-		// Initialize GPDMA
-		GPDMA_Init();
+	// Initialize GPDMA
+	GPDMA_Init();
 
-		// Reset board state.
-		tessel_gpio_init(0);
-		tessel_network_reset();
+	// Reset board state.
+	tessel_gpio_init(0);
+	tessel_network_reset();
 
-		// Populate filesystem.
-		TM_DEBUG("Populating filesystem...");
-		tm_fs_root = tm_fs_dir_create_entry();
-		ret = tm_fs_mount_tar(tm_fs_root, ".", script_buf, script_buf_size);
+	// Populate filesystem.
+	TM_DEBUG("Populating filesystem...");
+	tm_fs_root = tm_fs_dir_create_entry();
+	ret = tm_fs_mount_tar(tm_fs_root, ".", script_buf, script_buf_size);
 
+	if (ret != 0) {
+		if (speculative) {
+			return;
+		}
+		TM_ERR("Error parsing tar file: %d", ret);
+		if (ret == -2) {
+			TM_ERR("NOTE: Tessel archive expansion does not yet support long file paths.");
+			TM_ERR("      You might temporarily resolve the problem by consolidating your");
+			TM_ERR("      node_modules folders into a flat, not nested, hierarchy.");
+		}
+		TM_COMMAND('S', "-126");
+		tm_fs_destroy(tm_fs_root);
+		tm_fs_root = 0;
+		return;
+	}
+
+	// Ensure index.js exists.
+	tm_fs_t index_fd;
+	int start_script_is_indexjs = 0;
+	ret = tm_fs_open(&index_fd, tm_fs_root, "/_start.js", 0);
+	if (ret != 0) {
+		// May be older archive with index.js.
+		start_script_is_indexjs = 1;
+		ret = tm_fs_open(&index_fd, tm_fs_root, "/index.js", 0);
 		if (ret != 0) {
 			if (speculative) {
 				return;
 			}
-			TM_ERR("Error parsing tar file: %d", ret);
-			if (ret == -2) {
-				TM_ERR("NOTE: Tessel archive expansion does not yet support long file paths.");
-				TM_ERR("      You might temporarily resolve the problem by consolidating your");
-				TM_ERR("      node_modules folders into a flat, not nested, hierarchy.");
-			}
-			TM_COMMAND('S', "-126");
+		
+			TM_DEBUG("tm_fs_open error %d\n", ret);
+			TM_COMMAND('S', "1");
+			TM_ERR("Could not execute code. Ensure that archive sent to Tessel contains data.");
+			TM_COMMAND('S', "-127");
 			tm_fs_destroy(tm_fs_root);
 			tm_fs_root = 0;
 			return;
-		}
-
-		// Ensure index.js exists.
-		tm_fs_t index_fd;
-		int start_script_is_indexjs = 0;
-		ret = tm_fs_open(&index_fd, tm_fs_root, "/_start.js", 0);
-		if (ret != 0) {
-			// May be older archive with index.js.
-			start_script_is_indexjs = 1;
-			ret = tm_fs_open(&index_fd, tm_fs_root, "/index.js", 0);
-			if (ret != 0) {
-				if (speculative) {
-					return;
-				}
-			
-				TM_DEBUG("tm_fs_open error %d\n", ret);
-				TM_COMMAND('S', "1");
-				TM_ERR("Could not execute code. Ensure that archive sent to Tessel contains data.");
-				TM_COMMAND('S', "-127");
-				tm_fs_destroy(tm_fs_root);
-				tm_fs_root = 0;
-				return;
-			} else {
-				TM_DEBUG("Starting script: /index.js");
-				tm_fs_close(&index_fd);
-			}
 		} else {
-			TM_DEBUG("Starting script: /_start.js");
+			TM_DEBUG("Starting script: /index.js");
 			tm_fs_close(&index_fd);
 		}
+	} else {
+		TM_DEBUG("Starting script: /_start.js");
+		tm_fs_close(&index_fd);
+	}
 
 
-			// Open runtime.
-			TM_DEBUG("Initializing runtime...");
-			assert(tm_lua_state == NULL);
-			colony_runtime_open();
+	// Open runtime.
+	TM_DEBUG("Initializing runtime...");
+	assert(tm_lua_state == NULL);
+	colony_runtime_open();
 
-			lua_State* L = tm_lua_state;
+	lua_State* L = tm_lua_state;
 
-			// Get preload table.
-			lua_getglobal(L, "package");
-			lua_getfield(L, -1, "preload");
-			lua_remove(L, -2);
-			// hw
-			lua_pushcfunction(L, luaopen_hw);
-			lua_setfield(L, -2, "hw");
-			// Done with preload
-			lua_pop(L, 1);
+	// Get preload table.
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "preload");
+	lua_remove(L, -2);
+	// hw
+	lua_pushcfunction(L, luaopen_hw);
+	lua_setfield(L, -2, "hw");
+	// Done with preload
+	lua_pop(L, 1);
 
-			// Open tessel lib.
-			TM_DEBUG("Loading tessel library...");
-			int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
-			if (res != 0) {
-				TM_ERR("Error in %s: %d\n", "tessel.js", res);
-				tm_fs_destroy(tm_fs_root);
-				tm_fs_root = 0;
-				return;
-			}
-			lua_setglobal(L, "_tessel_lib");
-
-			lua_getglobal(L, "_colony");
-			lua_getfield(L, -1, "global");
-			lua_getfield(L, -1, "process");
-			lua_getfield(L, -1, "versions");
-			lua_pushnumber(L, tessel_board_version());
-			lua_setfield(L, -2, "tessel_board");
-
-		const char *argv[3];
-		argv[0] = "runtime";
-		if (start_script_is_indexjs) {
-			argv[1] = "index.js";
-		} else {
-			argv[1] = "_start.js";
-		}
-		argv[2] = NULL;
-		TM_COMMAND('S', "1");
-		TM_DEBUG("Running script...");
-		TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
-
-		int returncode = tm_runtime_run(argv[1], argv, 2);
-
+	// Open tessel lib.
+	TM_DEBUG("Loading tessel library...");
+	int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
+	if (res != 0) {
+		TM_ERR("Error in %s: %d\n", "tessel.js", res);
 		tm_fs_destroy(tm_fs_root);
-		tm_fs_root = NULL;
+		tm_fs_root = 0;
+		return;
+	}
+	lua_setglobal(L, "_tessel_lib");
 
-		hw_uart_disable(UART0);
-		hw_uart_disable(UART2);
-		hw_uart_disable(UART3);
+	lua_getglobal(L, "_colony");
+	lua_getfield(L, -1, "global");
+	lua_getfield(L, -1, "process");
+	lua_getfield(L, -1, "versions");
+	lua_pushnumber(L, tessel_board_version());
+	lua_setfield(L, -2, "tessel_board");
 
-				// Clean up our SPI structs and dereference our lua objects
-		hw_spi_async_cleanup();
-		// Stop any audio playback/recording and clean up memory
-		audio_reset();
+	const char *argv[3];
+	argv[0] = "runtime";
+	if (start_script_is_indexjs) {
+		argv[1] = "index.js";
+	} else {
+		argv[1] = "_start.js";
+	}
+	argv[2] = NULL;
+	TM_COMMAND('S', "1");
+	TM_DEBUG("Running script...");
+	TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
 
-		initialize_GPIO_interrupts();
-		tessel_gpio_init(0);
+	int returncode = tm_runtime_run(argv[1], argv, 2);
 
-		colony_runtime_close();
+	tm_fs_destroy(tm_fs_root);
+	tm_fs_root = NULL;
 
-		TM_COMMAND('S', "%d", -returncode);
-		TM_DEBUG("Script ended with return code %d.", returncode);
+	hw_uart_disable(UART0);
+	hw_uart_disable(UART2);
+	hw_uart_disable(UART3);
+
+	// Clean up our SPI structs and dereference our lua objects
+	hw_spi_async_cleanup();
+	// Stop any audio playback/recording and clean up memory
+	audio_reset();
+
+	initialize_GPIO_interrupts();
+	tessel_gpio_init(0);
+
+	colony_runtime_close();
+
+	TM_COMMAND('S', "%d", -returncode);
+	TM_DEBUG("Script ended with return code %d.", returncode);
 }
 
 void tm_usb_init(void);
