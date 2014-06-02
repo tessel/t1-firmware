@@ -22,7 +22,8 @@ nuke:
 update:
 	git submodule update --init --recursive
 	npm install
-	cd deps/runtime; npm install
+	pushd deps/runtime; npm install; popd
+	pushd test; npm install; popd
 
 
 # Targets

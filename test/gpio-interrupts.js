@@ -68,6 +68,7 @@ test('pin creates different types of interrupts', function(t) {
   t.end();
 });
 
+/*
 
 test('real simple rise test', function(t) {
   trigger.low();
@@ -271,5 +272,6 @@ test('Removing one interrupt of two from the same pin', function(t) {
   }, 100);
 });
 
+*/
 
 
