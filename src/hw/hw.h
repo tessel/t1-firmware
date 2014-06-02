@@ -31,10 +31,10 @@ typedef enum {
 void hw_net_initialize (void);
 void hw_net_config(int should_connect_to_open_ap, int should_use_fast_connect, int auto_start);
 void hw_net_smartconfig_initialize(void);
-void hw_net_disconnect (void);
+void hw_net_disable (void);
 // extern uint8_t tm_net_firmware_version ();
 int hw_net_connect(const char *security_type, const char *ssid, const char *keys);
-int hw_net_connect_wpa2 (const char *ssid, const char *keys);
+void hw_net_disconnect (void);
 int hw_net_inuse ();
 int hw_net_is_connected (void);
 int hw_net_has_ip (void);

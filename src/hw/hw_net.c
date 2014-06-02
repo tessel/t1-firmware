@@ -259,7 +259,7 @@ void hw_net_smartconfig_initialize (void)
 	CC3000_END;
 }
 
-void hw_net_disconnect (void)
+void hw_net_disable (void)
 {
 	CC3000_START;
 	wlan_stop();
@@ -279,7 +279,11 @@ int strcicmp(char const *a, char const *b)
 //  WLAN_SEC_UNSEC,
 //  WLAN_SEC_WEP (ASCII support only),
 //  WLAN_SEC_WPA or WLAN_SEC_WPA2
-int hw_net_connect (const char *security_type, const char *ssid, const char *keys){
+
+static int error2count = 0;
+
+int hw_net_connect (const char *security_type, const char *ssid, const char *keys)
+{
   CC3000_START;
 
   int security = WLAN_SEC_WPA2;
@@ -296,34 +300,28 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
   }
 
   TM_DEBUG("Attempting to connect with security type %s... ", security_print);
+  wlan_ioctl_set_connection_policy(0, 1, 0);
   int connected = wlan_connect(security, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
 
   if (connected != 0) {
     TM_DEBUG("Error #%d in connecting. Please try again.", connected);
-	wlan_disconnect();
-	TM_COMMAND('W', "{\"error\": %d}", connected);
+  	// wlan_disconnect();
+  	error2count = 0;
+	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
   } else {
+  	error2count = 0;
     TM_DEBUG("Acquiring IP address...");
-    TM_COMMAND('W', "{\"acquiring\": 1}");
+    TM_COMMAND('W', "{\"event\": \"acquire\"}");
+    hw_digital_write(CC3K_ERR_LED, 0);
   }
   CC3000_END;
   return connected;
 }
 
-int hw_net_connect_wpa2 (const char *ssid, const char *keys)
+void hw_net_disconnect (void)
 {
 	CC3000_START;
-	TM_DEBUG("Attempting to connect...");
-//	TM_COMMAND('w', "SSID: %s", (char *) ssid);
-//	TM_COMMAND('w', "Pass: %s", (char *) keys);
-
-	int connected = wlan_connect(WLAN_SEC_WPA2, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
-	if (connected != 0) {
-		TM_DEBUG("Error #%d in connecting...", connected);
-	} else {
-		TM_DEBUG("Acquiring IP address...");
-	}
+	wlan_disconnect();
+	hw_digital_write(CC3K_CONN_LED, 0);
 	CC3000_END;
-	return connected;
 }
-

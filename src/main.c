@@ -212,27 +212,36 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 #else
 			if (size != (32 + 64 + 32)) {
 				TM_ERR("WiFi buffer malformed, aborting.");
-				TM_COMMAND('W', "{\"connected\":0}");
+				TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
 			} else {
-				if (wifi_ssid[0] == 0 || strncmp((const char *) &buf[0], wifi_ssid, 32) != 0 
-					|| strncmp((const char *) &buf[32], wifi_pass, 64) != 0 
-					|| !hw_net_online_status()){
+				// if (wifi_ssid[0] == 0 || strncmp((const char *) &buf[0], wifi_ssid, 32) != 0 
+				// 	|| strncmp((const char *) &buf[32], wifi_pass, 64) != 0 
+				// 	|| !hw_net_online_status()){
 					memcpy(wifi_security, &buf[96], 32);
 					memcpy(wifi_ssid, &buf[0], 32);
 					memcpy(wifi_pass, &buf[32], 64);
 					tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-				} else {
-					tessel_wifi_check(true);
-				}
+				// } else {
+				// 	tessel_wifi_check(true);
+				// }
 				
 			}
 #endif
+		}
+		else if (cmd == 'Y') {
+
+#if !TESSEL_WIFI
+			TM_ERR("WiFi command not enabled on this Tessel.\n");
+#else
+			tessel_wifi_disable();
+#endif
+
 		} else if (cmd == 'C') {
 #if !TESSEL_WIFI
 			TM_ERR("WiFi command not enabled on this Tessel.\n");
 #else
 			// check wifi for connection
-			tessel_wifi_check(buf[0]);
+			tessel_wifi_check(1);
 #endif
 		} else if (cmd == 'V') {
 			if (hw_net_is_connected()) {
@@ -279,6 +288,9 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			} else {
 				TM_COMMAND('V', "{\"connected\": 0}");
 			}
+		}
+		else if (cmd == 'G') {
+			TM_COMMAND('G', "\"pong\"");
 		}
 		else if (cmd == 'M') {
 			colony_ipc_emit("raw-message", buf, size);

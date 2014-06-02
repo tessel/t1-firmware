@@ -782,6 +782,8 @@ __attribute__((weak)) void _cc3000_cb_tcp_close (int socket) {
 	(void) socket;
 }
 
+void tessel_wifi_check(uint8_t output);
+
 void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 {
 	(void) length;
@@ -811,6 +813,8 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		printOnce = 1;
 		hw_digital_write(CC3K_ERR_LED, 1);
 		hw_digital_write(CC3K_CONN_LED, 0);
+		TM_COMMAND('W', "{\"event\": \"disconnect\"}");
+		tessel_wifi_check(1);
 	}
 	
 	if (lEventType == HCI_EVNT_WLAN_UNSOL_DHCP)
@@ -828,6 +832,8 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 			// TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
 			hw_digital_write(CC3K_CONN_LED, 1);
 			ulCC3000DHCP = 1;
+			TM_COMMAND('W', "{\"event\": \"connect\"}");
+			tessel_wifi_check(1);
 		}
 		else
 		{
@@ -835,7 +841,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 			TM_DEBUG("DHCP failed. Try reconnecting.");
 			hw_digital_write(CC3K_CONN_LED, 0);
 			hw_digital_write(CC3K_ERR_LED, 1);
-			TM_COMMAND('W', "{\"connected\": 0, \"ip\": null}");
+			TM_COMMAND('W', "{\"event\": \"dhcp-lost\"}");
 		}
 	}
 
