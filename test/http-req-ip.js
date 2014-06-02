@@ -1,4 +1,4 @@
-console.log('1..1')
+console.log('1..2')
 
 var http = require('http');
 
@@ -14,6 +14,10 @@ try {
     console.log('# statusCode', res.statusCode)
     res.on('data', function (data) {
       console.error('# received', data.length, 'bytes')
+    })
+    res.on('end', function () {
+      console.log('ok', '- ended');
+      process.exit(0);
     })
   }).on('error', function (e) {
     console.log('not ok -', e, 'error event #SKIP')
