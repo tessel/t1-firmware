@@ -1,7 +1,15 @@
+/*
+ SETUP: Connect G2 and G3 on port B
+*/
+
 var tessel = require('tessel'),
     test = require('tape'),
     pin = tessel.port['B'].digital[1].input(),
     trigger = tessel.port['B'].digital[2].output().low();
+
+if (pin.read() != 0) {
+  throw new Error("You must connect pins G2 and G3 on port B prior to running test");
+}
 
 var invalidLevelError = new Error("You cannot use 'on' with level interrupts. You can only use 'once'.");
 
@@ -68,7 +76,6 @@ test('pin creates different types of interrupts', function(t) {
   t.end();
 });
 
-/*
 
 test('real simple rise test', function(t) {
   trigger.low();
@@ -271,7 +278,5 @@ test('Removing one interrupt of two from the same pin', function(t) {
     trigger.toggle();
   }, 100);
 });
-
-*/
 
 
