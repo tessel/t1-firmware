@@ -49,7 +49,7 @@ int hw_net_inuse ()
 	return inuse;
 }
 
-int hw_net_erase()
+int hw_net_erase_profiles()
 {
 	int deleted = wlan_ioctl_del_profile(255);
 	// power cycle

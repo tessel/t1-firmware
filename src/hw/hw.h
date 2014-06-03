@@ -44,7 +44,7 @@ void hw_net_disable (void);
 // extern uint8_t tm_net_firmware_version ();
 int hw_net_connect(const char *security_type, const char *ssid, const char *keys);
 void hw_net_disconnect (void);
-int hw_net_erase ();
+int hw_net_erase_profiles();
 int hw_net_inuse ();
 int hw_net_is_connected (void);
 int hw_net_has_ip (void);
