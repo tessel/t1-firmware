@@ -277,6 +277,13 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			TM_COMMAND('V', "{\"connected\": 0}");
 		}
 	}
+	else if (cmd == 'D') {
+#if !TESSEL_WIFI
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
+#else
+		TM_COMMAND('D', "%d", hw_net_erase_profiles());
+#endif		
+	}
 	else if (cmd == 'G') {
 		TM_COMMAND('G', "\"pong\"");
 	}
