@@ -49,6 +49,17 @@ int hw_net_inuse ()
 	return inuse;
 }
 
+int hw_net_erase()
+{
+	int deleted = wlan_ioctl_del_profile(255);
+	// power cycle
+	hw_net_disable();
+	hw_wait_ms(100);
+	hw_net_initialize();
+
+	return deleted;
+}
+
 int hw_net_is_connected ()
 {
   return ulCC3000Connected;
