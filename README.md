@@ -63,10 +63,16 @@ This will build a binary. If you have no errors, you should have a new binary fi
 
 ### Loading firmware onto Tessel
 
-After building your firmware in the previous step:
+After building your firmware in the previous step, run `tessel update ./out/Release/tessel-firmware.bin`.
 
-1. [Put your tessel in dfu mode](https://github.com/tessel/beta/wiki#firmware-updates)
-2. Run `tessel update ./out/Release/tessel-firmware.bin`
+If broken firmware prevents `tessel update` from entering the bootloader automatically, hold the Config button while pressing and releasing the Reset button. The red and orange LEDs blink when in the bootloader mode.
 
-**Quick tip:** You can build and deploy firmware by DFU in one step by running `make arm-deploy`.
+**Quick tip:** You can build and deploy firmware in one step by running `make arm-deploy`.
 
+## Bootloader
+
+The Tessel bootloader resides in the first 64k of the SPI flash chip and presents a standard USB DFU interface. It can load and execute code in either the firmware partition in flash, or in the LPC1830's internal SRAM.
+
+To enter the bootloader, hold the Config button while resetting or powering on the board.
+
+To run your C program in RAM, link it for address 0x10000000 beginning with an ARM vector table ([linker script](otp/ldscript_ram_gnu.ld)), and <code>[cli](https://github.com/tessel/cli)/dfu/tessel-dfu-tool run_ram your_image.bin</code>
