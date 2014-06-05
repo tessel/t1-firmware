@@ -484,7 +484,7 @@ function AnalogPin (pin) {
   this.pinmode = 'input';
 }
 
-var ANALOG_RESOLUTION = 1024;
+var ANALOG_RESOLUTION = 1023;
 
 AnalogPin.prototype.type = 'analog';
 
