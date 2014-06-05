@@ -37,7 +37,7 @@
  */
 #define SYSTEM_RESEED_MAX			(12*60*60)	/* 12h */
 
-#define RND_BYTES  16
+#define RND_BYTES 1024
 
 
 
@@ -46,22 +46,20 @@ static time_t check_time = 0;
 
 unsigned px_acquire_system_randomness(uint8_t *buf)
 {
-	uint32_t uptime = tm_uptime_micro();
-	uint32_t analog1 = hw_analog_read(ADC_5);
-	uint32_t analog2 = hw_analog_read(ADC_7);
-	uint32_t analog3 = hw_analog_read(E_A1);
 
-	memcpy(&buf[0], (void*) &uptime, sizeof(uint32_t));
-	memcpy(&buf[4], (void*) &analog1, sizeof(uint32_t));
-	memcpy(&buf[8], (void*) &analog2, sizeof(uint32_t));
-	memcpy(&buf[12], (void*) &analog3, sizeof(uint32_t));
+	for (int i=0; i<RND_BYTES; i+=4) {
+		buf[i]   = (uint8_t) tm_uptime_micro();
+		buf[i+1] = (uint8_t) hw_analog_read(ADC_5);
+		buf[i+2] = (uint8_t) hw_analog_read(ADC_7);
+		buf[i+3] = (uint8_t) hw_analog_read(E_A1);
+	}
 
 	return RND_BYTES;
 }
 
 int tm_entropy_seed ()
 {
-	uint8_t		buf[1024];
+	uint8_t		buf[RND_BYTES];
 	int			n;
 	time_t		t;
 	int			skip = 1;
