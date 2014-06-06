@@ -190,6 +190,7 @@ hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
 int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
+void _hw_spi_irq_interrupt();
 
 
 int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());

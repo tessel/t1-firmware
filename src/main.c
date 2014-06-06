@@ -73,21 +73,17 @@ tm_fs_ent* tm_fs_root;
 
 
 /*----------------------------------------------------------------------------
-  DMA
+  Interrupts
  *---------------------------------------------------------------------------*/
 
-void DMA_IRQHandler (void)
+void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 {
-	// check GPDMA interrupt on channel 0
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)){ 
-		hw_spi_dma_counter(0);
-	}
+	_tessel_cc3000_irq_interrupt();
+}
 
-	// check GPDMA interrupt on channel 1
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 1)){ 
-		hw_spi_dma_counter(1);
-	}
-
+void __attribute__ ((interrupt)) DMA_IRQHandler (void)
+{
+	_hw_spi_irq_interrupt();
 }
 
 
@@ -131,44 +127,42 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		script_buf_flash = (cmd == 'P');
 		script_buf_lock = SCRIPT_READING;
 		buf = NULL; // So it won't get freed
-	}
-	else if (cmd == 'W') {
+	} else if (cmd == 'G') {
+		TM_COMMAND('G', "\"pong\"");
+	
+	} else if (cmd == 'M') {
+		colony_ipc_emit("raw-message", buf, size);
+	
+	} else if (cmd == 'B') {
+		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
+		while(1);
+	
+	} else if (cmd == 'n') {
+		colony_ipc_emit("stdin", buf, size);
 
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+#if TESSEL_WIFI
+	} else if (cmd == 'W') {
 		if (size != (32 + 64 + 32)) {
 			TM_ERR("WiFi buffer malformed, aborting.");
 			TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
 		} else {
+			char wifi_ssid[33] = {0};
+			char wifi_pass[65] = {0};
+			char wifi_security[33] = {0};
 
-				char wifi_ssid[33] = {0};
-				char wifi_pass[65] = {0};
-				char wifi_security[33] = {0};
-
-				memcpy(wifi_security, &buf[96], 32);
-				memcpy(wifi_ssid, &buf[0], 32);
-				memcpy(wifi_pass, &buf[32], 64);
-				tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-			
+			memcpy(wifi_security, &buf[96], 32);
+			memcpy(wifi_ssid, &buf[0], 32);
+			memcpy(wifi_pass, &buf[32], 64);
+			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
 		}
-#endif
-	}
-	else if (cmd == 'Y') {
 
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+	} else if (cmd == 'Y') {
 		tessel_wifi_disable();
-#endif
 
 	} else if (cmd == 'C') {
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
 		// check wifi for connection
 		tessel_wifi_check(1);
-#endif
+
 	} else if (cmd == 'V') {
 		if (hw_net_is_connected()) {
 			char ssid[33] = { 0 };
@@ -214,28 +208,16 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		} else {
 			TM_COMMAND('V', "{\"connected\": 0}");
 		}
-	}
-	else if (cmd == 'D') {
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+
+	} else if (cmd == 'D') {
 		TM_COMMAND('D', "%d", hw_net_erase_profiles());
-#endif		
-	}
-	else if (cmd == 'G') {
-		TM_COMMAND('G', "\"pong\"");
-	}
-	else if (cmd == 'M') {
-		colony_ipc_emit("raw-message", buf, size);
-	}
-	else if (cmd == 'B') {
-		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
-		while(1);
-	}
-	else if (cmd == 'n') {
-		colony_ipc_emit("stdin", buf, size);
-	}
-	else {
+
+#else
+	} else if (cmd == 'D' || cmd == 'C' || cmd == 'V' || cmd == 'Y' || cmd == 'W') {
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
+#endif
+	
+	} else {
 		// Invalid?
 		script_buf_lock = SCRIPT_EMPTY;
 	}
@@ -328,16 +310,9 @@ void main_body (void)
 	}
 
 	while (1) {
-//        // Dont' reconnect.
-//        if (netconnected != 1) {
-//                tm_net_disconnect();
-//                netconnected = 0;
-//        }
-
 		// While we're not running the script, we can do other interrupts.
 		TM_DEBUG("Ready.");
 		while (script_buf_lock != SCRIPT_READING) {
-			
 			hw_wait_for_event();
 			tm_event_process();
 		}
@@ -590,9 +565,6 @@ int main (void)
 #if TESTALATOR
 	testalator();
 #endif
-//	script_buf_size = builtin_tar_gz_len;
-//	memcpy(script_buf, &builtin_tar_gz, builtin_tar_gz_len);
-//	script_buf_lock = SCRIPT_READING;
 
 	// Read and run a script.
 	main_body();

@@ -53,7 +53,7 @@ void SPI_IRQ_CALLBACK_EVENT (tm_event* event)
 
 tm_event cc3k_irq_event = TM_EVENT_INIT(SPI_IRQ_CALLBACK_EVENT);
 
-void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
+void _tessel_cc3000_irq_interrupt ()
 {
 	validirqcount++;
 	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
