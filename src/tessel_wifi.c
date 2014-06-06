@@ -23,8 +23,7 @@
 #include "variant.h"
 #include "tm.h"
 #include "utility/wlan.h"
-
-void colony_ipc_emit (char *type, void* data, size_t size);
+#include "colony.h"
 
 int wifi_initialized = 0;
 
@@ -146,7 +145,9 @@ void _cc3000_cb_dhcp_success ()
 void _cc3000_cb_tcp_close (int socket)
 {
 	uint32_t s = socket;
-	colony_ipc_emit("tcp-close", &s, sizeof(uint32_t));
+	if (tm_lua_state != NULL) {
+		colony_ipc_emit(tm_lua_state, "tcp-close", &s, sizeof(uint32_t));
+	}
 }
 
 

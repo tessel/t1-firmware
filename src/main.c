@@ -131,14 +131,18 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		TM_COMMAND('G', "\"pong\"");
 	
 	} else if (cmd == 'M') {
-		colony_ipc_emit("raw-message", buf, size);
+		if (tm_lua_state != NULL) {
+			colony_ipc_emit(tm_lua_state, "raw-message", buf, size);
+		}
 	
 	} else if (cmd == 'B') {
 		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
 		while(1);
 	
 	} else if (cmd == 'n') {
-		colony_ipc_emit("stdin", buf, size);
+		if (tm_lua_state != NULL) {
+			colony_ipc_emit(tm_lua_state, "stdin", buf, size);
+		}
 
 #if TESSEL_WIFI
 	} else if (cmd == 'W') {
@@ -239,21 +243,6 @@ _ramfunc void SysTick_Handler (void)
 /**
  * Main body of Tessel OS
  */
-
-void colony_ipc_emit (char *type, void* data, size_t size) {
-	lua_State* L = tm_lua_state;
-	if (!L) return;
-	// Get preload table.
-	lua_getglobal(L, "_colony_emit");
-	if (lua_isnil(L, -1)) {
-		lua_pop(L, 1);
-	} else {
-		lua_pushstring(L, type);
-		uint8_t* buf = colony_createbuffer(L, size);
-		memcpy(buf, data, size);
-		tm_checked_call(L, 2);
-	}
-}
 
 void debugstack_hook(lua_State* L, lua_Debug *ar)
 {
