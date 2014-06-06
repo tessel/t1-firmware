@@ -7,11 +7,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#include "hw.h"
 #include "usb.h"
 #include "usb/tessel_usb.h"
 #include "tessel.h"
 
-void tm_usb_init() {
+void hw_usb_init() {
 	usb_init();
 	usb_attach();
 }

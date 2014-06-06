@@ -31,6 +31,10 @@ typedef enum {
 } hw_sb_t;
 
 
+// USB
+
+void hw_usb_init(void);
+
 // Net
 
 #include "utility/socket.h"

@@ -32,18 +32,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "linker.h"
-
-#include "LPC18xx.h"                        /* LPC18xx definitions */
-#include "lpc18xx_libcfg.h"
-#include "lpc_types.h"
-#include "lpc18xx_cgu.h"
-#include "lpc18xx_scu.h"
-#include "lpc18xx_gpio.h"
-#include "lpc18xx_gpdma.h"
-
-#include "spifi_rom_api.h"
-
 #include "tm.h"
 #include "hw.h"
 #include "tessel.h"
@@ -52,24 +40,15 @@
 #include "colony.h"
 
 #include "sdram_init.h"
-#include "lpc_types.h"
 #include "spi_flash.h"
 #include "bootloader.h"
 #include "utility/wlan.h"
 
 #include "module_shims/audio-vs1053b.h"
 
-// test
 #ifdef TESSEL_TEST
 #include "test.h"
 #endif
-
-// lua
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
-tm_fs_ent* tm_fs_root;
 
 
 /*----------------------------------------------------------------------------
@@ -90,6 +69,8 @@ void __attribute__ ((interrupt)) DMA_IRQHandler (void)
 /*----------------------------------------------------------------------------
   Main Program
  *---------------------------------------------------------------------------*/
+
+tm_fs_ent* tm_fs_root;
 
 enum {
 	SCRIPT_EMPTY,
@@ -469,7 +450,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	TM_DEBUG("Script ended with return code %d.", returncode);
 }
 
-void tm_usb_init(void);
 
 int main (void)
 {
@@ -490,7 +470,7 @@ int main (void)
 
 	tm_uptime_init();
 
-	tm_usb_init();
+	hw_usb_init();
 
 	// Control these outside of tessel_gpio_init()
 	hw_digital_write(CC3K_CONN_LED, 0);
