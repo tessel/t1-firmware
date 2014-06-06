@@ -119,7 +119,6 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 	// }
 
 	// Connect to given network.
-	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_net_connect(wifi_security, wifi_ssid, wifi_pass); // use this for using tessel wifi from command line
 
 	return 0;
@@ -131,6 +130,5 @@ void tessel_wifi_fastconnect() {
 	TM_DEBUG("Connecting to last available network...");
 
 	hw_net_initialize();
-	hw_digital_write(CC3K_ERR_LED, 0);
 	wifi_initialized = 1;
 }
