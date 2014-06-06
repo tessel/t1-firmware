@@ -24,6 +24,6 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 void tessel_wifi_fastconnect();
 
 void _tessel_cc3000_irq_interrupt ();
-void _cc3000_cb_animation_tick();
+void _cc3000_cb_animation_tick (size_t frame);
 
 #endif /* TESSEL_WIFI_H_ */

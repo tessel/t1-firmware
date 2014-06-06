@@ -215,9 +215,50 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
  * system tick handler
  */
 
+typedef struct tm_anim {
+	size_t millis;
+	size_t count;
+	void (*call)(size_t);
+	struct tm_anim * next;
+} tm_anim_t;
+
+tm_anim_t* systick_anim_list = NULL;
+
 _ramfunc void SysTick_Handler (void)
 {
-	_cc3000_cb_animation_tick();
+	tm_anim_t* frame = systick_anim_list;
+	while (frame != NULL) {
+		frame->count++;
+		if (frame->count >= frame->millis) {
+			frame->call(frame->count / frame->millis);
+		}
+		frame = frame->next;
+	}
+}
+
+void add_animation (tm_anim_t* anim)
+{
+	anim->next = systick_anim_list;
+	systick_anim_list = anim;
+
+	// Interrupt at 1000hz
+	NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
+	SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE) >> 4);
+}
+
+tm_anim_t* create_animation (int millis, void (*call)(size_t))
+{
+	tm_anim_t* cc_anim = (tm_anim_t*) calloc(1, sizeof(tm_anim_t));
+	cc_anim->millis = millis >> 6;
+	cc_anim->call = call;
+	cc_anim->next = NULL;
+	return cc_anim;
+}
+
+void cc_animation ()
+{
+	tm_anim_t* anim = create_animation(512, _cc3000_cb_animation_tick);
+	add_animation(anim);
 }
 
 
@@ -500,9 +541,7 @@ int main (void)
 	hw_digital_write(LED2, 0);
 	hw_wait_us(LIGHTSHOWDELAY);
 
-	// Interrupt at 1000hz
-	NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
-	SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE)/1000);
+	cc_animation();
 
 #if TESSEL_WIFI && TESSEL_FASTCONNECT
 	tessel_wifi_fastconnect();

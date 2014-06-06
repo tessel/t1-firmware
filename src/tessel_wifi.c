@@ -77,17 +77,15 @@ void tessel_wifi_init ()
 }
 
 
-int tick = 0;
 #ifdef TESSEL_FASTCONNECT
 int cc_blink = 1;
 #else
 int cc_blink = 0;
 #endif
-void _cc3000_cb_animation_tick ()
+void _cc3000_cb_animation_tick (size_t frame)
 {
 	if (cc_blink) {
-		tick++;
-		hw_digital_write(CC3K_CONN_LED, tick & 512 ? 1 : 0);
+		hw_digital_write(CC3K_CONN_LED, frame & 1 ? 1 : 0);
 	}
 }
 
