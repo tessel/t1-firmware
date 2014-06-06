@@ -15,12 +15,139 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <lpc_types.h>
+#include <lpc18xx_gpio.h>
+
+#include "tessel_wifi.h"
 #include "hw.h"
 #include "variant.h"
 #include "tm.h"
 #include "utility/wlan.h"
 
+void colony_ipc_emit (char *type, void* data, size_t size);
+
 int wifi_initialized = 0;
+
+volatile int validirqcount = 0;
+
+volatile uint8_t CC3K_EVENT_ENABLED = 0;
+volatile uint8_t CC3K_IRQ_FLAG = 0;
+
+uint8_t get_cc3k_irq_flag () {
+	return CC3K_IRQ_FLAG;
+}
+
+void set_cc3k_irq_flag (uint8_t value) {
+	CC3K_IRQ_FLAG = value;
+}
+
+void SPI_IRQ_CALLBACK_EVENT (tm_event* event)
+{
+	(void) event;
+	CC3K_EVENT_ENABLED = 0;
+	if (CC3K_IRQ_FLAG) {
+		CC3K_IRQ_FLAG = 0;
+		SPI_IRQ();
+	}
+}
+
+tm_event cc3k_irq_event = TM_EVENT_INIT(SPI_IRQ_CALLBACK_EVENT);
+
+void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
+{
+	validirqcount++;
+	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
+	{
+		CC3K_IRQ_FLAG = 1;
+    	if (!CC3K_EVENT_ENABLED) {
+    		CC3K_EVENT_ENABLED = 1;
+			tm_event_trigger(&cc3k_irq_event);
+		}
+		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
+	}
+}
+
+void tessel_wifi_init ()
+{
+	// Turn SW low
+	hw_digital_output(CC3K_SW_EN);
+	hw_digital_write(CC3K_SW_EN, 0);
+
+	// enable GPIO interrupt for CC3K_IRQ on interrupt #7
+	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
+}
+
+
+int tick = 0;
+#ifdef TESSEL_FASTCONNECT
+int cc_blink = 1;
+#else
+int cc_blink = 0;
+#endif
+void _cc3000_cb_animation_tick ()
+{
+	if (cc_blink) {
+		tick++;
+		hw_digital_write(CC3K_CONN_LED, tick & 512 ? 1 : 0);
+	}
+}
+
+void _cc3000_cb_acquire ()
+{
+	TM_COMMAND('W', "{\"event\": \"acquire\"}");
+	cc_blink = 1;
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 0);
+}
+
+void _cc3000_cb_error (int connected)
+{
+	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
+	cc_blink = 0;
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 0);
+}
+
+void _cc3000_cb_wifi_connect ()
+{
+	TM_COMMAND('W', "{\"event\": \"connect\"}");
+	cc_blink = 1;
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 0);
+}
+
+void _cc3000_cb_wifi_disconnect ()
+{
+	TM_COMMAND('W', "{\"event\": \"disconnect\"}");
+	tessel_wifi_check(1);
+	cc_blink = 0;
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 0);
+}
+
+void _cc3000_cb_dhcp_failed ()
+{
+	TM_DEBUG("DHCP failed. Try reconnecting.");
+	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
+	cc_blink = 0;
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 0);
+}
+
+void _cc3000_cb_dhcp_success ()
+{
+	hw_digital_write(CC3K_CONN_LED, 1);
+	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
+	cc_blink = 0;
+	hw_digital_write(CC3K_ERR_LED, 0);
+	hw_digital_write(CC3K_CONN_LED, 1);
+}
+
+void _cc3000_cb_tcp_close (int socket)
+{
+	uint32_t s = socket;
+	colony_ipc_emit("tcp-close", &s, sizeof(uint32_t));
+}
 
 
 void tessel_wifi_disable ()
@@ -58,7 +185,7 @@ void tessel_wifi_smart_config ()
 
 #define TM_BYTE(A, B) ((A >> (B*8)) & 0xFF)
 
-void tessel_wifi_check (int asevent)
+void tessel_wifi_check (uint8_t asevent)
 {
 	(void) asevent;
 

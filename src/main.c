@@ -72,132 +72,6 @@
 tm_fs_ent* tm_fs_root;
 
 
-/**
- * Custom awful CC3000 code
- */
-
-volatile int validirqcount = 0;
-
-volatile uint8_t CC3K_EVENT_ENABLED = 0;
-volatile uint8_t CC3K_IRQ_FLAG = 0;
-
-uint8_t get_cc3k_irq_flag () {
-	// volatile uint8_t read = !hw_digital_read(CC3K_IRQ);
-	// (void) read;
-	return CC3K_IRQ_FLAG;
-}
-
-void set_cc3k_irq_flag (uint8_t value) {
-	CC3K_IRQ_FLAG = value;
-}
-
-void SPI_IRQ_CALLBACK_EVENT (tm_event* event)
-{
-	(void) event;
-	CC3K_EVENT_ENABLED = 0;
-	if (CC3K_IRQ_FLAG) {
-		CC3K_IRQ_FLAG = 0;
-		SPI_IRQ();
-	}
-}
-
-tm_event cc3k_irq_event = TM_EVENT_INIT(SPI_IRQ_CALLBACK_EVENT);
-
-void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
-{
-	validirqcount++;
-	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
-	{
-		CC3K_IRQ_FLAG = 1;
-    	if (!CC3K_EVENT_ENABLED) {
-    		CC3K_EVENT_ENABLED = 1;
-			tm_event_trigger(&cc3k_irq_event);
-		}
-		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
-	}
-}
-
-void TM_NET_INT_INIT ()
-{
-	// Turn SW low
-	hw_digital_output(CC3K_SW_EN);
-	hw_digital_write(CC3K_SW_EN, 0);
-
-	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
-}
-
-
-int tick = 0;
-#ifdef TESSEL_FASTCONNECT
-int cc_blink = 1;
-#else
-int cc_blink = 0;
-#endif
-void _cc3000_cb_animation_tick ()
-{
-	if (cc_blink) {
-		tick++;
-		hw_digital_write(CC3K_CONN_LED, tick & 512 ? 1 : 0);
-	}
-}
-
-void _cc3000_cb_acquire ()
-{
-	TM_COMMAND('W', "{\"event\": \"acquire\"}");
-	cc_blink = 1;
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 0);
-}
-
-void _cc3000_cb_error (int connected)
-{
-	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
-	cc_blink = 0;
-	hw_digital_write(CC3K_ERR_LED, 1);
-	hw_digital_write(CC3K_CONN_LED, 0);
-}
-
-void _cc3000_cb_wifi_connect ()
-{
-	TM_COMMAND('W', "{\"event\": \"connect\"}");
-	cc_blink = 1;
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 0);
-}
-
-void _cc3000_cb_wifi_disconnect ()
-{
-	TM_COMMAND('W', "{\"event\": \"disconnect\"}");
-	tessel_wifi_check(1);
-	cc_blink = 0;
-	hw_digital_write(CC3K_ERR_LED, 1);
-	hw_digital_write(CC3K_CONN_LED, 0);
-}
-
-void _cc3000_cb_dhcp_failed ()
-{
-	TM_DEBUG("DHCP failed. Try reconnecting.");
-	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
-	cc_blink = 0;
-	hw_digital_write(CC3K_ERR_LED, 1);
-	hw_digital_write(CC3K_CONN_LED, 0);
-}
-
-void _cc3000_cb_dhcp_success ()
-{
-	hw_digital_write(CC3K_CONN_LED, 1);
-	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
-	cc_blink = 0;
-	hw_digital_write(CC3K_ERR_LED, 0);
-	hw_digital_write(CC3K_CONN_LED, 1);
-}
-
-void _cc3000_cb_tcp_close (int socket)
-{
-	uint32_t s = socket;
-	colony_ipc_emit("tcp-close", &s, sizeof(uint32_t));
-}
-
 /*----------------------------------------------------------------------------
   DMA
  *---------------------------------------------------------------------------*/
@@ -660,7 +534,7 @@ int main (void)
 
 #if TESSEL_WIFI
 	// CC interrupts
-	TM_NET_INT_INIT();
+	tessel_wifi_init();
 #endif
 
 	// Do a light show in 300ms.

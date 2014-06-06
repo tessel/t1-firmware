@@ -18,8 +18,11 @@ void tessel_wifi_enable ();
 void tessel_wifi_disable ();
 void tessel_wifi_smart_config ();
 
+void tessel_wifi_init ();
 void tessel_wifi_check(uint8_t output);
 int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass);
 void tessel_wifi_fastconnect();
+
+void _cc3000_cb_animation_tick();
 
 #endif /* TESSEL_WIFI_H_ */
