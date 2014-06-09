@@ -32,18 +32,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "linker.h"
-
-#include "LPC18xx.h"                        /* LPC18xx definitions */
-#include "lpc18xx_libcfg.h"
-#include "lpc_types.h"
-#include "lpc18xx_cgu.h"
-#include "lpc18xx_scu.h"
-#include "lpc18xx_gpio.h"
-#include "lpc18xx_gpdma.h"
-
-#include "spifi_rom_api.h"
-
 #include "tm.h"
 #include "hw.h"
 #include "tessel.h"
@@ -52,110 +40,37 @@
 #include "colony.h"
 
 #include "sdram_init.h"
-#include "lpc_types.h"
 #include "spi_flash.h"
 #include "bootloader.h"
 #include "utility/wlan.h"
 
 #include "module_shims/audio-vs1053b.h"
 
-// test
 #ifdef TESSEL_TEST
 #include "test.h"
 #endif
 
-// lua
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
 
-tm_fs_ent* tm_fs_root;
-
-/**
- * Custom awful CC3000 code
- */
-
-volatile int validirqcount = 0;
-
-volatile uint8_t CC3K_EVENT_ENABLED = 0;
-volatile uint8_t CC3K_IRQ_FLAG = 0;
-
-uint8_t get_cc3k_irq_flag () {
-	// volatile uint8_t read = !hw_digital_read(CC3K_IRQ);
-	// (void) read;
-	return CC3K_IRQ_FLAG;
-}
-
-void set_cc3k_irq_flag (uint8_t value) {
-	CC3K_IRQ_FLAG = value;
-	// hw_digital_write(CC3K_ERR_LED, value);
-}
-
-void SPI_IRQ_CALLBACK_EVENT (tm_event* event)
-{
-	(void) event;
-	CC3K_EVENT_ENABLED = 0;
-	// hw_digital_write(CC3K_ERR_LED, 0);
-	if (CC3K_IRQ_FLAG) {
-		CC3K_IRQ_FLAG = 0;
-		SPI_IRQ();
-	}
-}
-
-tm_event cc3k_irq_event = TM_EVENT_INIT(SPI_IRQ_CALLBACK_EVENT);
+/*----------------------------------------------------------------------------
+  Interrupts
+ *---------------------------------------------------------------------------*/
 
 void __attribute__ ((interrupt)) GPIO7_IRQHandler(void)
 {
-	validirqcount++;
-	if (GPIO_GetIntStatus(CC3K_GPIO_INTERRUPT))
-	{
-		// hw_digital_write(CC3K_ERR_LED, 1);
-		CC3K_IRQ_FLAG = 1;
-    	if (!CC3K_EVENT_ENABLED) {
-    		CC3K_EVENT_ENABLED = 1;
-			tm_event_trigger(&cc3k_irq_event);
-		}
-		GPIO_ClearInt(TM_INTERRUPT_MODE_FALLING, CC3K_GPIO_INTERRUPT);
-	}
+	_tessel_cc3000_irq_interrupt();
 }
 
-void TM_NET_INT_INIT ()
+void __attribute__ ((interrupt)) DMA_IRQHandler (void)
 {
-	// Turn SW low
-	hw_digital_output(CC3K_SW_EN);
-	hw_digital_write(CC3K_SW_EN, 0);
-
-	hw_interrupt_enable(CC3K_GPIO_INTERRUPT, CC3K_IRQ, TM_INTERRUPT_MODE_FALLING);
-}
-
-void _cc3000_cb_tcp_close (int socket)
-{
-	uint32_t s = socket;
-	colony_ipc_emit("tcp-close", &s, sizeof(uint32_t));
-}
-
-/*----------------------------------------------------------------------------
-  DMA
- *---------------------------------------------------------------------------*/
-
-void DMA_IRQHandler (void)
-{
-	// check GPDMA interrupt on channel 0
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)){ 
-		hw_spi_dma_counter(0);
-	}
-
-	// check GPDMA interrupt on channel 1
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 1)){ 
-		hw_spi_dma_counter(1);
-	}
-
+	_hw_spi_irq_interrupt();
 }
 
 
 /*----------------------------------------------------------------------------
   Main Program
  *---------------------------------------------------------------------------*/
+
+tm_fs_ent* tm_fs_root;
 
 enum {
 	SCRIPT_EMPTY,
@@ -193,44 +108,46 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		script_buf_flash = (cmd == 'P');
 		script_buf_lock = SCRIPT_READING;
 		buf = NULL; // So it won't get freed
-	}
-	else if (cmd == 'W') {
+	} else if (cmd == 'G') {
+		TM_COMMAND('G', "\"pong\"");
+	
+	} else if (cmd == 'M') {
+		if (tm_lua_state != NULL) {
+			colony_ipc_emit(tm_lua_state, "raw-message", buf, size);
+		}
+	
+	} else if (cmd == 'B') {
+		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
+		while(1);
+	
+	} else if (cmd == 'n') {
+		if (tm_lua_state != NULL) {
+			colony_ipc_emit(tm_lua_state, "stdin", buf, size);
+		}
 
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+#if TESSEL_WIFI
+	} else if (cmd == 'W') {
 		if (size != (32 + 64 + 32)) {
 			TM_ERR("WiFi buffer malformed, aborting.");
 			TM_COMMAND('W', "{\"event\": \"error\", \"message\": \"Malformed request.\"}");
 		} else {
+			char wifi_ssid[33] = {0};
+			char wifi_pass[65] = {0};
+			char wifi_security[33] = {0};
 
-				char wifi_ssid[33] = {0};
-				char wifi_pass[65] = {0};
-				char wifi_security[33] = {0};
-
-				memcpy(wifi_security, &buf[96], 32);
-				memcpy(wifi_ssid, &buf[0], 32);
-				memcpy(wifi_pass, &buf[32], 64);
-				tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
-			
+			memcpy(wifi_security, &buf[96], 32);
+			memcpy(wifi_ssid, &buf[0], 32);
+			memcpy(wifi_pass, &buf[32], 64);
+			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
 		}
-#endif
-	}
-	else if (cmd == 'Y') {
 
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+	} else if (cmd == 'Y') {
 		tessel_wifi_disable();
-#endif
 
 	} else if (cmd == 'C') {
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
 		// check wifi for connection
 		tessel_wifi_check(1);
-#endif
+
 	} else if (cmd == 'V') {
 		if (hw_net_is_connected()) {
 			char ssid[33] = { 0 };
@@ -276,28 +193,16 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		} else {
 			TM_COMMAND('V', "{\"connected\": 0}");
 		}
-	}
-	else if (cmd == 'D') {
-#if !TESSEL_WIFI
-		TM_ERR("WiFi command not enabled on this Tessel.\n");
-#else
+
+	} else if (cmd == 'D') {
 		TM_COMMAND('D', "%d", hw_net_erase_profiles());
-#endif		
-	}
-	else if (cmd == 'G') {
-		TM_COMMAND('G', "\"pong\"");
-	}
-	else if (cmd == 'M') {
-		colony_ipc_emit("raw-message", buf, size);
-	}
-	else if (cmd == 'B') {
-		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
-		while(1);
-	}
-	else if (cmd == 'n') {
-		colony_ipc_emit("stdin", buf, size);
-	}
-	else {
+
+#else
+	} else if (cmd == 'D' || cmd == 'C' || cmd == 'V' || cmd == 'Y' || cmd == 'W') {
+		TM_ERR("WiFi command not enabled on this Tessel.\n");
+#endif
+	
+	} else {
 		// Invalid?
 		script_buf_lock = SCRIPT_EMPTY;
 	}
@@ -310,29 +215,56 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
  * system tick handler
  */
 
+typedef struct tm_anim {
+	size_t millis;
+	size_t count;
+	void (*call)(size_t);
+	struct tm_anim * next;
+} tm_anim_t;
+
+tm_anim_t* systick_anim_list = NULL;
+
 _ramfunc void SysTick_Handler (void)
 {
+	tm_anim_t* frame = systick_anim_list;
+	while (frame != NULL) {
+		frame->count++;
+		if (frame->count >= frame->millis) {
+			frame->call(frame->count / frame->millis);
+		}
+		frame = frame->next;
+	}
+}
+
+void add_animation (tm_anim_t* anim)
+{
+	anim->next = systick_anim_list;
+	systick_anim_list = anim;
+
+	// Interrupt at 1000hz
+	NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
+	SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE) >> 4);
+}
+
+tm_anim_t* create_animation (int millis, void (*call)(size_t))
+{
+	tm_anim_t* cc_anim = (tm_anim_t*) calloc(1, sizeof(tm_anim_t));
+	cc_anim->millis = millis >> 6;
+	cc_anim->call = call;
+	cc_anim->next = NULL;
+	return cc_anim;
+}
+
+void cc_animation ()
+{
+	tm_anim_t* anim = create_animation(512, _cc3000_cb_animation_tick);
+	add_animation(anim);
 }
 
 
 /**
  * Main body of Tessel OS
  */
-
-void colony_ipc_emit (char *type, void* data, size_t size) {
-	lua_State* L = tm_lua_state;
-	if (!L) return;
-	// Get preload table.
-	lua_getglobal(L, "_colony_emit");
-	if (lua_isnil(L, -1)) {
-		lua_pop(L, 1);
-	} else {
-		lua_pushstring(L, type);
-		uint8_t* buf = colony_createbuffer(L, size);
-		memcpy(buf, data, size);
-		tm_checked_call(L, 2);
-	}
-}
 
 void debugstack_hook(lua_State* L, lua_Debug *ar)
 {
@@ -389,16 +321,9 @@ void main_body (void)
 	}
 
 	while (1) {
-//        // Dont' reconnect.
-//        if (netconnected != 1) {
-//                tm_net_disconnect();
-//                netconnected = 0;
-//        }
-
 		// While we're not running the script, we can do other interrupts.
 		TM_DEBUG("Ready.");
 		while (script_buf_lock != SCRIPT_READING) {
-			
 			hw_wait_for_event();
 			tm_event_process();
 		}
@@ -566,7 +491,6 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	TM_DEBUG("Script ended with return code %d.", returncode);
 }
 
-void tm_usb_init(void);
 
 int main (void)
 {
@@ -587,19 +511,15 @@ int main (void)
 
 	tm_uptime_init();
 
-	tm_usb_init();
+	hw_usb_init();
 
 	// Control these outside of tessel_gpio_init()
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 
-	// Interrupt at 1000hz
-	// NVIC_SetPriority(SysTick_IRQn, ((0x02<<3)|0x01));
-	// SysTick_Config(CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE)/1000);
-
 #if TESSEL_WIFI
 	// CC interrupts
-	TM_NET_INT_INIT();
+	tessel_wifi_init();
 #endif
 
 	// Do a light show in 300ms.
@@ -620,6 +540,8 @@ int main (void)
 	hw_wait_us(LIGHTSHOWDELAY);
 	hw_digital_write(LED2, 0);
 	hw_wait_us(LIGHTSHOWDELAY);
+
+	cc_animation();
 
 #if TESSEL_WIFI && TESSEL_FASTCONNECT
 	tessel_wifi_fastconnect();
@@ -651,9 +573,6 @@ int main (void)
 #if TESTALATOR
 	testalator();
 #endif
-//	script_buf_size = builtin_tar_gz_len;
-//	memcpy(script_buf, &builtin_tar_gz, builtin_tar_gz_len);
-//	script_buf_lock = SCRIPT_READING;
 
 	// Read and run a script.
 	main_body();

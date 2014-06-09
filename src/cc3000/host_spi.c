@@ -103,7 +103,6 @@ unsigned char tSpiReadHeader[] = {READ, 0, 0, 0, 0};
 int loc = 0; 
 
 int keyIndex = 0; 
-unsigned char printOnce = 1;
 
 unsigned volatile long ulSmartConfigFinished, ulCC3000Connected, ulCC3000DHCP, OkToDoShutDown, ulCC3000DHCP_configured, smartconfig_process;
 
@@ -792,16 +791,25 @@ __attribute__((weak)) void _cc3000_cb_tcp_close (int socket) {
 	(void) socket;
 }
 
-void tessel_wifi_check(uint8_t output);
+__attribute__((weak)) void _cc3000_cb_wifi_connect () { 
+	// noop
+}
+
+__attribute__((weak)) void _cc3000_cb_wifi_disconnect () { 
+	// noop
+}
+
+__attribute__((weak)) void _cc3000_cb_dhcp_success () { 
+	// noop
+}
+
+__attribute__((weak)) void _cc3000_cb_dhcp_failed () { 
+	// noop
+}
 
 void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 {
 	(void) length;
-	
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("CC3000_UsynchCallback");
-	// }
 
 	if (lEventType == HCI_EVNT_WLAN_ASYNC_SIMPLE_CONFIG_DONE)
 	{
@@ -813,6 +821,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 	{
 		ulCC3000Connected = 1;
 		ulCC3000DHCP      = 0;
+		_cc3000_cb_wifi_connect();
 	}
 	
 	if (lEventType == HCI_EVNT_WLAN_UNSOL_DISCONNECT)
@@ -820,16 +829,11 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		ulCC3000Connected = 0;
 		ulCC3000DHCP      = 0;
 		ulCC3000DHCP_configured = 0;
-		printOnce = 1;
-		hw_digital_write(CC3K_ERR_LED, 1);
-		hw_digital_write(CC3K_CONN_LED, 0);
-		TM_COMMAND('W', "{\"event\": \"disconnect\"}");
-		tessel_wifi_check(1);
+		_cc3000_cb_wifi_disconnect();
 	}
 	
 	if (lEventType == HCI_EVNT_WLAN_UNSOL_DHCP)
 	{
-		// TM_DEBUG("HCI_EVNT_WLAN_UNSOL_DHCP: %d", *(data + NETAPP_IPCONFIG_MAC_OFFSET));
 		// Notes: 
 		// 1) IP config parameters are received swapped
 		// 2) IP config parameters are valid only if status is OK, i.e. ulCC3000DHCP becomes 1
@@ -837,21 +841,14 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		// only if status is OK, the flag is set to 1 and the addresses are valid
 		if ( *(data + NETAPP_IPCONFIG_MAC_OFFSET) == 0)
 		{
-			memcpy(hw_wifi_ip, data, 4);
-			// TM_DEBUG("DHCP Ip: %d.%d.%d.%d", data[3], data[2], data[1], data[0]);
-			// TM_COMMAND('W', "{\"connected\": 1, \"ip\": \"%ld.%ld.%ld.%ld\"}", hw_wifi_ip[0], hw_wifi_ip[1], hw_wifi_ip[2], hw_wifi_ip[3]);
-			hw_digital_write(CC3K_CONN_LED, 1);
 			ulCC3000DHCP = 1;
-			TM_COMMAND('W', "{\"event\": \"connect\"}");
-			tessel_wifi_check(1);
+			memcpy(hw_wifi_ip, data, 4);
+			_cc3000_cb_dhcp_success();
 		}
 		else
 		{
 			ulCC3000DHCP = 0;
-			TM_DEBUG("DHCP failed. Try reconnecting.");
-			hw_digital_write(CC3K_CONN_LED, 0);
-			hw_digital_write(CC3K_ERR_LED, 1);
-			TM_COMMAND('W', "{\"event\": \"dhcp-lost\"}");
+			_cc3000_cb_dhcp_failed();
 		}
 	}
 

@@ -17,8 +17,6 @@
 // dedicated pin names
 #include "variant.h" 
 
-void colony_ipc_emit (char *type, void* data, size_t size);
-
 int tessel_board_version();
 char* tessel_board_uuid ();
 extern const char* version_info;

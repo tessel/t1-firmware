@@ -284,6 +284,7 @@ void hw_net_disable (void)
 	CC3000_START;
 	wlan_stop();
 	hw_digital_write(CC3K_CONN_LED, 0);
+	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
 }
 
@@ -301,6 +302,15 @@ int strcicmp(char const *a, char const *b)
 //  WLAN_SEC_WPA or WLAN_SEC_WPA2
 
 static int error2count = 0;
+
+__attribute__((weak)) void _cc3000_cb_acquire () { 
+	// noop
+}
+
+__attribute__((weak)) void _cc3000_cb_error (int err) { 
+	// noop
+	(void) err;
+}
 
 int hw_net_connect (const char *security_type, const char *ssid, const char *keys)
 {
@@ -327,12 +337,11 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
     TM_DEBUG("Error #%d in connecting. Please try again.", connected);
   	// wlan_disconnect();
   	error2count = 0;
-	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
+  	_cc3000_cb_error(connected);
   } else {
   	error2count = 0;
     TM_DEBUG("Acquiring IP address...");
-    TM_COMMAND('W', "{\"event\": \"acquire\"}");
-    hw_digital_write(CC3K_ERR_LED, 0);
+  	_cc3000_cb_acquire();
   }
   CC3000_END;
   return connected;
@@ -342,6 +351,5 @@ void hw_net_disconnect (void)
 {
 	CC3000_START;
 	wlan_disconnect();
-	hw_digital_write(CC3K_CONN_LED, 0);
 	CC3000_END;
 }

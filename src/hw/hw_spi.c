@@ -180,3 +180,16 @@ int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_
 
 	return 0;
 }
+
+void _hw_spi_irq_interrupt()
+{
+	// check GPDMA interrupt on channel 0
+	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)){ 
+		hw_spi_dma_counter(0);
+	}
+
+	// check GPDMA interrupt on channel 1
+	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 1)){ 
+		hw_spi_dma_counter(1);
+	}
+}
