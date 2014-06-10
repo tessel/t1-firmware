@@ -10,11 +10,6 @@
 #define TESSEL_WIFI 1
 #define TESSEL_TEST 0
 
-#ifndef COLONY_PRELOAD_ON_INIT
-#define COLONY_PRELOAD_ON_INIT 0
-#endif
-
-
 /**
  * Constants
  */
@@ -357,6 +352,26 @@ void hw_wait_for_event() {
 	__enable_irq();
 }
 
+static void profiler_hook(lua_State *L, lua_Debug *ar) {
+	(void) L;
+	(void) ar;
+      
+	lua_getinfo(L, "nS", ar);
+
+	if (ar->event & LUA_MASKCALL) {
+		TM_COMMAND('x', "type in\nsource %s\nname %s\nline %d\nlastline %d\nstart %ld", (char *)ar->short_src, (char *)ar->name,
+				  ar->linedefined, ar->lastlinedefined, (long) tm_uptime_micro());
+	}
+	else {
+		TM_COMMAND('x', "type out\nend %ld", (long) tm_uptime_micro());
+	}
+}
+
+static int addprofiler (lua_State *L) {
+	lua_sethook(L, (lua_Hook)profiler_hook,  LUA_MASKCALL | LUA_MASKRET, 0);
+	return 0;
+}
+
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative)
 {
 	int ret = 0;
@@ -455,6 +470,12 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	lua_getfield(L, -1, "versions");
 	lua_pushnumber(L, tessel_board_version());
 	lua_setfield(L, -2, "tessel_board");
+	
+	lua_getglobal(L, "_colony");
+	lua_getfield(L, -1, "global");
+	lua_getfield(L, -1, "process");
+	lua_pushcfunction(L, addprofiler);
+	lua_setfield(L, -2, "profile");
 
 	const char *argv[3];
 	argv[0] = "runtime";
@@ -467,6 +488,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	TM_COMMAND('S', "1");
 	TM_DEBUG("Running script...");
 	TM_DEBUG("Uptime since startup: %fs", ((float) tm_uptime_micro()) / 1000000.0);
+
 
 	int returncode = tm_runtime_run(argv[1], argv, 2);
 

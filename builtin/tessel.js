@@ -845,6 +845,8 @@ SPILock.prototype.release = function(callback)
 SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
 
   function rawComplete(errBool) {
+    process.removeListener('spi_async_complete', rawComplete);
+    
     // If a callback was requested
     if (callback) {
       // If there was an error
@@ -858,7 +860,7 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
   }
 
   // When the transfer is complete, process it and call callback
-  process.once('spi_async_complete', rawComplete);
+  process.on('spi_async_complete', rawComplete);
 
   // Begin the transfer
   var ret = hw.spi_transfer(this.port, txbuf.length, rxbuf ? rxbuf.length : 0, txbuf, rxbuf);
@@ -938,7 +940,7 @@ _asyncSPIQueue._registerLock = function(lock) {
 _asyncSPIQueue.acquireLock = function(port, callback)
 {
   // Create a lock
-  var lock = new SPILock(port);
+  var lock = port._spilock;
 
   // Wait for an event that tells us to go
   if (callback) lock.once('ready', callback.bind(lock, null, lock));
@@ -1077,6 +1079,9 @@ function SPI (params)
       this.chipSelect.high();
     }
   }
+
+  // Create lock.
+  this._spilock = new SPILock(this);
 
   // initialize here to pull sck, mosi, miso pins to default state
   this._initialize();
