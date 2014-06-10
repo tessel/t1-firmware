@@ -459,18 +459,16 @@ Pin.prototype.set = function (v) {
   return this;
 };
 
-Pin.prototype.pwm = function (frequency, dutyCycle)
-{
-  // frequency is in hertz, on time is a percent
-  var period = 1/(frequency/180000000);
+Pin.prototype.pwmDutyCycle = function (dutyCycle) {
+  if (pwmPeriod) {
+    if (dutyCycle > 1) dutyCycle = 1;
+    if (dutyCycle < 0) dutyCycle = 0;
 
-  if (dutyCycle > 1) dutyCycle = 1;
-  if (dutyCycle < 0) dutyCycle = 0;
-
-  var pulsewidth = dutyCycle*period;
-
-  if (hw.pwm(this.pin, hw.PWM_EDGE_HI, period, pulsewidth) !== 0) {
-    throw new Error("PWM is not supported on this pin");
+    if (hw.pwm_pin_pulsewidth(this.pin, Math.round(dutyCycle * pwmPeriod)) !== 0) {
+      throw new Error("PWM is not suported on this pin");
+    }
+  } else {
+    throw new Error("PWM is not configured. Call `port.pwmFrequency(freq)` first.");
   }
 };
 
@@ -1246,6 +1244,8 @@ var SPIChipSelectMode = {
  * Ports
  */
 
+ var pwmPeriod = 0; // PWM period in clock ticks
+
 function Port (id, digital, analog, i2c, uart)
 {
   this.id = String(id);
@@ -1302,6 +1302,15 @@ Port.prototype.pinOutput = function (n) {
 Port.prototype.digitalWrite = function (n, val) {
   hw.digital_write(n, val ? hw.HIGH : hw.LOW);
 };
+
+Port.prototype.pwmFrequency = function (frequency) {
+  if (this.id.toUpperCase() == 'GPIO') {
+    pwmPeriod = Math.round(1/(frequency/180000000));
+    hw.pwm_port_period(pwmPeriod);
+  } else {
+    throw new Error("PWM is not supported on this port");
+  }
+}
 
 function Tessel() {
   var self = this;

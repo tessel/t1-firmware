@@ -320,14 +320,8 @@ void hw_highspeedsignal_update (uint8_t *buf, size_t buf_len);
 
 // pwm
 
-typedef enum {
-  PWM_EDGE_HI = 1,
-  PWM_CENTER_HI = 2,
-  PWM_EDGE_LOW = 3,
-  PWM_CENTER_LOW = 4
-} hw_pwm_t;
-
-int hw_pwm_enable (size_t pin, hw_pwm_t mode, uint32_t period, uint32_t pulsewidth);
+int hw_pwm_port_period (uint32_t period);
+int hw_pwm_pin_pulsewidth (int pin, uint32_t pulsewidth);
 
 // gpio
 

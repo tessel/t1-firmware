@@ -405,8 +405,9 @@ void test_dac (void)
 void test_pwm (void)
 {
 	int a = 0;
+	hw_pwm_port_period(255);
 	while (1) {
-		hw_pwm_enable(E_G4, 0, 255, a);
+		hw_pwm_pin_pulsewidth(E_G4, a);
 		//for (i = 0; i < 100000; i++) { }
 		a += 1;
 		if (a > 255) {
