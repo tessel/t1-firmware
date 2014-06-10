@@ -356,19 +356,47 @@ static void profiler_hook(lua_State *L, lua_Debug *ar) {
 	(void) L;
 	(void) ar;
       
-	lua_getinfo(L, "nS", ar);
+	// lua_getinfo(L, "nS", ar);
 
-	if (ar->event & LUA_MASKCALL) {
-		TM_COMMAND('x', "type in\nsource %s\nname %s\nline %d\nlastline %d\nstart %ld", (char *)ar->short_src, (char *)ar->name,
-				  ar->linedefined, ar->lastlinedefined, (long) tm_uptime_micro());
-	}
-	else {
-		TM_COMMAND('x', "type out\nend %ld", (long) tm_uptime_micro());
-	}
+	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+    lua_getfield(L, -1, "traceback");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+ //    lua_pushstring(L, "stack trace");
+ //    lua_pushinteger(L, 2);
+    lua_call(L, 0, 1);  /* call debug.traceback */
+    const char* stacktrace = lua_tostring(L, -1);
+    (void) stacktrace;
+    char buf[1024] = { 0 };
+    strncpy(buf, stacktrace, 1023);
+	TM_COMMAND('x', "%s", buf);
+ //    lua_pop(L, 1);
+    lua_pop(L, 1);
+
+	// http://svn.slimdevices.com/repos/jive/7.8/trunk/squeezeplay/src/luaprofiler-2.0/src/lua50_profiler.c
+	// if (ar->event & LUA_MASKCALL) {
+	// 	TM_COMMAND('x', "type in\nshort_src %s\nsource %s\nname %s\nline %d\nlastline %d\nstart %ld",
+	// 		(char *)ar->short_src,
+	// 		(char *)ar->source,
+	// 		(char *)ar->name,
+	// 		ar->linedefined,
+	// 		ar->lastlinedefined,
+	// 		(long) tm_uptime_micro());
+	// }
+	// else {
+	// 	TM_COMMAND('x', "type out\nend %ld", (long) tm_uptime_micro());
+	// }
+
 }
 
 static int addprofiler (lua_State *L) {
-	lua_sethook(L, (lua_Hook)profiler_hook,  LUA_MASKCALL | LUA_MASKRET, 0);
+	lua_sethook(L, (lua_Hook)profiler_hook, LUA_MASKCOUNT, 100);
 	return 0;
 }
 
