@@ -25,7 +25,7 @@ Building the firmware requires [gcc-arm-embedded](https://launchpad.net/gcc-arm-
 To install quickly on a Mac with Brew:
 
 ```
-brew tap tcr/tcr
+brew tap tessel/tools
 brew install gcc-arm gyp ninja
 ```
 
