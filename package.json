@@ -1,6 +1,6 @@
 {
   "name": "tessel-firmware",
-  "version": "0.1.0",
+  "version": "v0.1.1",
   "scripts": {
     "test": "tinytap -e 'tessel run' test/*.js",
     "install": "true"
@@ -11,5 +11,10 @@
   "private": true,
   "devDependencies": {
     "tinytap": "^0.1.0"
-  }
+  },
+  "readme": "# Tessel Firmware\n\n## API documentation\n\n* [Tessel JavaScript APIs](https://github.com/tessel/docs)\n\n## Directory structure\n\n* `src/` -- The main firmware source, including the C bindings to the hardware\n* `builtin/` -- JS binding to hardware specific API calls (such as I2C, SPI, UART, GPIO)\n* `lpc18xx/` -- NXP drivers for the LPC1830 peripherals\n* `boot/` -- USB DFU bootloader\n* `otp/` -- Factory setup to set the board version and install the bootloader. Can be used to update or reinstall the bootloader\n* `erase/` -- Tool to erase the JS bundle from the bootloader if a bug makes the main firmware unusable\n* `cc3k_patch/` -- Tool to update the CC3000 WiFi firmware\n\n## Compiling\n\n### Dependencies\n\nBuilding the firmware requires [gcc-arm-embedded](https://launchpad.net/gcc-arm-embedded), [gyp](https://code.google.com/p/gyp/), and [ninja](http://martine.github.io/ninja/).\n\n#### OS X\n\nTo install quickly on a Mac with Brew:\n\n```\nbrew tap tessel/tools\nbrew install gcc-arm gyp ninja\n```\n\n#### Ubuntu 14.04\n\nAll dependencies are in the Ubuntu 14.04 repositories:\n\n```\nsudo apt-get install git nodejs npm nodejs-legacy gcc-arm-none-eabi gyp ninja-build\n```\n\n### Cloning the firmware repository\n\nWe'll clone the firmware repo itself into a folder called `tessel/firmware`. Inside your `tessel` folder, run:\n\n```\ngit clone https://github.com/tessel/firmware\ncd firmware\nmake update\n```\n\n### Updating\n\nTo update your firmware version, you can `git pull`. Each time you pull a new commit of firmware, update your submodules and npm packages by running `make update`.\n\n### Compiling\n\nInside the `tessel/firmware/` directory, run\n\n```\nmake arm\n```\n\nThis will build a binary. If you have no errors, you should have a new binary file called `out/Release/tessel-firmware.bin`.\n\n### Loading firmware onto Tessel\n\nAfter building your firmware in the previous step, run `tessel update ./out/Release/tessel-firmware.bin`.\n\nIf broken firmware prevents `tessel update` from entering the bootloader automatically, hold the Config button while pressing and releasing the Reset button. The red and orange LEDs blink when in the bootloader mode.\n\n**Quick tip:** You can build and deploy firmware in one step by running `make arm-deploy`.\n\n## Bootloader\n\nThe Tessel bootloader resides in the first 64k of the SPI flash chip and presents a standard USB DFU interface. It can load and execute code in either the firmware partition in flash, or in the LPC1830's internal SRAM.\n\nTo enter the bootloader, hold the Config button while resetting or powering on the board.\n\nTo run your C program in RAM, link it for address 0x10000000 beginning with an ARM vector table ([linker script](otp/ldscript_ram_gnu.ld)), and <code>[cli](https://github.com/tessel/cli)/dfu/tessel-dfu-tool run_ram your_image.bin</code>\n",
+  "readmeFilename": "README.md",
+  "gitHead": "314245b126f20720da4840226b0ed3f0f0bd6866",
+  "_id": "tessel-firmware@0.1.0",
+  "description": "## API documentation"
 }
