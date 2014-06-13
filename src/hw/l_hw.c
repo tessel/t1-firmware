@@ -26,6 +26,7 @@
 #include "audio-vs1053b.h"
 #include "gps-a2235h.h"
 #include "gps-nmea.h"
+#include "neopixel.h"
 
 
 #define ARG1 1
@@ -603,81 +604,13 @@ static int l_usb_send(lua_State* L)
 	return 1;
 }
 
-// Module Shims
 
-static int l_audio_play_buffer(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
-	size_t buf_len = 0;
-	const uint8_t* buf = colony_toconstdata(L, ARG1 + 3, &buf_len);
-
-	int r;
-	if (buf_len) {
-		r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
-	}
-	else {
-		r = audio_resume_buffer();
-	}
-
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_queue_buffer(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
-	size_t buf_len = 0;
-	const uint8_t* buf = colony_toconstdata(L, ARG1+3, &buf_len);
-
-	int r = audio_queue_buffer(xcs, dcs, dreq, buf, buf_len);
-
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_stop_buffer(lua_State* L) {
-	int r = audio_stop_buffer();
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_pause_buffer(lua_State* L) {
-	int r = audio_pause_buffer();
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_get_state(lua_State* L) {
-	lua_pushnumber(L, audio_get_state());
-	return 1;
-}
-
-static int l_audio_start_recording(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	const uint8_t* dir_name = colony_toconstdata(L, ARG1 + 2, NULL);
-	size_t buf_len;
-	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
-	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	
-	int8_t r = audio_start_recording(xcs, dreq, (char *)dir_name, buf, buf_len, buf_ref);
-
-	lua_pushnumber(L, r);
-	return 1;
-}
-
-static int l_audio_stop_recording(lua_State* L) {
-	int16_t r = audio_stop_recording(true);
-
-	lua_pushnumber(L, r);
-	return 1;
+// Neopixel
+static int l_neopixel_test(lua_State *L) {
+	TM_DEBUG("Is it even getting in here?");
+	int pin = (uint8_t) lua_tonumber(L, ARG1);
+	basicTest(pin);
+	return 0;
 }
 
 
@@ -965,15 +898,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		// usb
 		{ "usb_send", l_usb_send },
 
-		// module shims
-		// audio
-		{ "audio_play_buffer", l_audio_play_buffer },
-		{ "audio_queue_buffer", l_audio_queue_buffer },
-		{ "audio_stop_buffer", l_audio_stop_buffer },
-		{ "audio_pause_buffer", l_audio_pause_buffer },
-		{ "audio_get_state", l_audio_get_state },
-		{ "audio_start_recording", l_audio_start_recording },
-		{ "audio_stop_recording", l_audio_stop_recording },
+		// Neopixel
+		{ "neopixel_test", l_neopixel_test },
 
 
 		// gps
