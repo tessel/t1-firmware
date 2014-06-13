@@ -1317,7 +1317,7 @@ Port.prototype.digitalWrite = function (n, val) {
 };
 
 Port.prototype.pwmFrequency = function (frequency) {
-  if (this.id.toUpperCase() == 'GPIO') {
+  if (this.pwm.length) {
     pwmPeriod = Math.round(1/(frequency/180000000));
     hw.pwm_port_period(pwmPeriod);
   } else {
