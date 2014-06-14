@@ -50,7 +50,7 @@
 #include "wlan.h"
 #include "socket.h"
 #include "netapp.h"
-#include "spi.h"
+#include "../host_spi.h"
 
 
 
@@ -234,9 +234,12 @@ UINT8 * hci_event_handler(void *pRetParams, UINT8 *from, UINT8 *fromlen)
 	UINT8 * RecvParams;
 	UINT8 *RetParams;
 
+	renableIRQ();
 
 	while (1)
 	{
+		CC_BLOCKS();
+
 		if (tSLInformation.usEventOrDataReceived != 0)
 		{				
 			pucReceivedData = (tSLInformation.pucReceivedData);

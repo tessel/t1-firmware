@@ -42,7 +42,7 @@
 #include <string.h>
 #include "wlan.h"
 #include "hci.h"
-#include "spi.h"
+#include "../host_spi.h"
 #include "socket.h"
 #include "nvmem.h"
 #include "security.h"
@@ -125,6 +125,7 @@ static void SimpleLink_Init_Start(UINT16 usPatchesAvailableAtHost)
 	hci_command_send(HCI_CMND_SIMPLE_LINK_START, ptr, WLAN_SL_INIT_START_PARAMS_LEN);
 
 	SimpleLinkWaitEvent(HCI_CMND_SIMPLE_LINK_START, 0);
+	renableIRQ();
 }
 
 
@@ -588,11 +589,11 @@ INT32 wlan_add_profile(UINT32 ulSecType,
 	UINT8* ucPf_OrKey,
 	UINT32 ulPassPhraseLen)
 {
-	UINT16 arg_len;
-	INT32 ret;
-	UINT8 *ptr;
+	UINT16 arg_len = 0;
+	INT32 ret = 0;
+	UINT8 *ptr = 0;
 	INT32 i = 0;
-	UINT8 *args;
+	UINT8 *args = 0;
 	UINT8 bssid_zero[] = {0, 0, 0, 0, 0, 0};
 
 	ptr = tSLInformation.pucTxCommandBuffer;

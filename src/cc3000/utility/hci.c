@@ -42,7 +42,7 @@
 
 #include "cc3000_common.h"
 #include "hci.h"
-#include "spi.h"
+#include "../host_spi.h"
 #include "evnt_handler.h"
 #include "wlan.h"
 
@@ -100,6 +100,8 @@ INT32 hci_data_send(UINT8 ucOpcode,
 	const UINT8 *ucTail,
 	UINT16 usTailLength)
 {
+	(void) ucTail;
+
 	UINT8 *stream;
 
 	stream = ((ucArgs) + SPI_HEADER_SIZE);
@@ -177,6 +179,7 @@ void hci_patch_send(UINT8 ucOpcode, UINT8 *pucBuff, CHAR *patch, UINT16 usDataLe
 
 		// Update the opcode of the event we will be waiting for
 		SpiWrite(pucBuff, usDataLength + HCI_PATCH_HEADER_SIZE);
+		renableIRQ();
 	}
 	else
 	{
@@ -190,6 +193,7 @@ void hci_patch_send(UINT8 ucOpcode, UINT8 *pucBuff, CHAR *patch, UINT16 usDataLe
 
 		// Update the opcode of the event we will be waiting for
 		SpiWrite(pucBuff, SL_PATCH_PORTION_SIZE + HCI_PATCH_HEADER_SIZE);
+		renableIRQ();
 
 		while (usDataLength)
 		{
@@ -211,6 +215,7 @@ void hci_patch_send(UINT8 ucOpcode, UINT8 *pucBuff, CHAR *patch, UINT16 usDataLe
 
 			// Update the opcode of the event we will be waiting for
 			SpiWrite((UINT8 *)data_ptr, usTransLength + sizeof(usTransLength));
+			renableIRQ();
 		}
 	}
 }

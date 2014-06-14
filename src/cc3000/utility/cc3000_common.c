@@ -63,6 +63,8 @@
 void __error__(CHAR *pcFilename, UINT32 ulLine)
 {
 	//TODO full up function
+	(void) pcFilename;
+	(void) ulLine;
 }
 
 

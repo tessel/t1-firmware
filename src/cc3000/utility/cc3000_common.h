@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdint.h>
+#include <string.h>
 
 //*****************************************************************************
 //
@@ -335,7 +336,7 @@ extern UINT32 STREAM_TO_UINT32_f(CHAR* p, UINT16 offset);
 //This macro is used for copying 32 bit to stream while converting to little endian format.
 #define UINT32_TO_STREAM(_p, _u32)	(UINT32_TO_STREAM_f(_p, _u32))
 //This macro is used for copying a specified value length bits (l) to stream while converting to little endian format.
-#define ARRAY_TO_STREAM(p, a, l) 	{register INT16 _i; for (_i = 0; _i < l; _i++) *(p)++ = ((UINT8 *) a)[_i];}
+#define ARRAY_TO_STREAM(p, a, l) 	{register UINT16 _i; for (_i = 0; _i < l; _i++) *(p)++ = ((UINT8 *) a)[_i];}
 //This macro is used for copying received stream to 8 bit in little endian format.
 #define STREAM_TO_UINT8(_p, _offset, _u8)	{_u8 = (UINT8)(*(_p + _offset));}
 //This macro is used for copying received stream to 16 bit in little endian format.
