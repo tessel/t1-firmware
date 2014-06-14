@@ -121,6 +121,7 @@ process.on('interrupt', function interruptFired(interruptId, trigger, time) {
 function Pin (pin) {
   this.pin = pin;
   this.interrupts = {};
+  this.isPWM = false;
 }
 
 util.inherits(Pin, EventEmitter);
@@ -459,22 +460,6 @@ Pin.prototype.set = function (v) {
   return this;
 };
 
-Pin.prototype.pwm = function (frequency, dutyCycle)
-{
-  // frequency is in hertz, on time is a percent
-  var period = 1/(frequency/180000000);
-
-  if (dutyCycle > 1) dutyCycle = 1;
-  if (dutyCycle < 0) dutyCycle = 0;
-
-  var pulsewidth = dutyCycle*period;
-
-  if (hw.pwm(this.pin, hw.PWM_EDGE_HI, period, pulsewidth) !== 0) {
-    throw new Error("PWM is not supported on this pin");
-  }
-};
-
-
 /**
  * Analog pins
  */
@@ -482,6 +467,7 @@ Pin.prototype.pwm = function (frequency, dutyCycle)
 function AnalogPin (pin) {
   this.pin = pin;
   this.pinmode = 'input';
+  this.isPWM = false;
 }
 
 var ANALOG_RESOLUTION = 1023;
@@ -508,6 +494,30 @@ AnalogPin.prototype.readSync = function () {
 
 AnalogPin.prototype.read = function (next) {
   return hw.analog_read(this.pin) / ANALOG_RESOLUTION;
+};
+
+/**
+ * PWM pins
+ */
+
+function PWMPin(pin) {
+  Pin.call(this, pin);
+  this.isPWM = true;
+}
+
+util.inherits(PWMPin, Pin);
+
+PWMPin.prototype.pwmDutyCycle = function (dutyCycle) {
+  if (pwmPeriod) {
+    if (dutyCycle > 1) dutyCycle = 1;
+    if (dutyCycle < 0) dutyCycle = 0;
+
+    if (hw.pwm_pin_pulsewidth(this.pin, Math.round(dutyCycle * pwmPeriod)) !== 0) {
+      throw new Error("PWM is not suported on this pin");
+    }
+  } else {
+    throw new Error("PWM is not configured. Call `port.pwmFrequency(freq)` first.");
+  }
 };
 
 /**
@@ -1246,12 +1256,15 @@ var SPIChipSelectMode = {
  * Ports
  */
 
-function Port (id, digital, analog, i2c, uart)
+ var pwmPeriod = 0; // PWM period in clock ticks
+
+function Port (id, digital, analog, pwm, i2c, uart)
 {
   this.id = String(id);
   var self = this;
   this.digital = digital.slice();
   this.analog = analog.slice();
+  this.pwm = pwm.slice();
   this.pin = {};
   var pinMap = null;
   if (id.toUpperCase() == 'GPIO') {
@@ -1303,6 +1316,15 @@ Port.prototype.digitalWrite = function (n, val) {
   hw.digital_write(n, val ? hw.HIGH : hw.LOW);
 };
 
+Port.prototype.pwmFrequency = function (frequency) {
+  if (this.pwm.length) {
+    pwmPeriod = Math.round(1/(frequency/180000000));
+    hw.pwm_port_period(pwmPeriod);
+  } else {
+    throw new Error("PWM is not supported on this port");
+  }
+}
+
 function Tessel() {
   var self = this;
 
@@ -1341,29 +1363,33 @@ function Tessel() {
     }
   });
 
+  var g4 = new PWMPin(hw.PIN_E_G4);
+  var g5 = new PWMPin(hw.PIN_E_G5);
+  var g6 = new PWMPin(hw.PIN_E_G6);
+
   this.ports =  {
-    A: new Port('A', [new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [],
+    A: new Port('A', [new Pin(hw.PIN_A_G1), new Pin(hw.PIN_A_G2), new Pin(hw.PIN_A_G3)], [], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_3 : null
     ),
-    B: new Port('B', [new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [],
+    B: new Port('B', [new Pin(hw.PIN_B_G1), new Pin(hw.PIN_B_G2), new Pin(hw.PIN_B_G3)], [], [],
       hw.I2C_1,
       tessel_version > 1 ? hw.UART_2 : null
     ),
-    C: new Port('C', [new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [],
+    C: new Port('C', [new Pin(hw.PIN_C_G1), new Pin(hw.PIN_C_G2), new Pin(hw.PIN_C_G3)], [], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       // tessel_version > 1 ? hw.UART_SW_0 : null
       null
     ),
-    D: new Port('D', [new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [],
+    D: new Port('D', [new Pin(hw.PIN_D_G1), new Pin(hw.PIN_D_G2), new Pin(hw.PIN_D_G3)], [], [],
       tessel_version > 1 ? hw.I2C_0 : hw.I2C_1,
       tessel_version > 1 ? hw.UART_0 : null
     ),
     GPIO: new Port('GPIO', [new Pin(hw.PIN_E_G1), new Pin(hw.PIN_E_G2), new Pin(hw.PIN_E_G3),
-      new Pin(hw.PIN_E_G4), new Pin(hw.PIN_E_G5), new Pin(hw.PIN_E_G6)
+      g4, g5, g6
     ], [new AnalogPin(hw.PIN_E_A1), new AnalogPin(hw.PIN_E_A2), new AnalogPin(hw.PIN_E_A3),
       new AnalogPin(hw.PIN_E_A4), new AnalogPin(hw.PIN_E_A5), new AnalogPin(hw.PIN_E_A6)
-    ],
+    ], [g4, g5, g6],
       hw.I2C_1,
       tessel_version > 1 ? null : hw.UART_2
     ),

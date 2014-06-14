@@ -532,14 +532,19 @@ static int l_hw_device_id(lua_State* L)
 
 
 // pwm
-static int l_hw_pwm(lua_State* L)
+static int l_hw_pwm_port_period(lua_State *L) {
+	uint32_t period = (uint32_t)lua_tonumber(L, ARG1);
+	int ret = hw_pwm_port_period(period);
+	lua_pushnumber(L, ret);
+	return 1;
+}
+
+static int l_hw_pwm_pin_pulsewidth(lua_State* L)
 {
 	size_t pin = (size_t)lua_tonumber(L, ARG1);
-	hw_pwm_t mode = (hw_pwm_t)lua_tonumber(L, ARG1 + 1);
-	uint32_t period = (uint32_t)lua_tonumber(L, ARG1 + 2);
-	uint32_t pulsewidth = (uint32_t)lua_tonumber(L, ARG1 + 3);
+	uint32_t pulsewidth = (uint32_t)lua_tonumber(L, ARG1 + 1);
 
-	int ret = hw_pwm_enable(pin, mode, period, pulsewidth);
+	int ret = hw_pwm_pin_pulsewidth(pin, pulsewidth);
 	lua_pushnumber(L, ret);
 	return 1;
 }
@@ -762,7 +767,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "device_id", l_hw_device_id },
 
 		// pwm
-		{ "pwm", l_hw_pwm },
+		{ "pwm_port_period", l_hw_pwm_port_period },
+		{ "pwm_pin_pulsewidth", l_hw_pwm_pin_pulsewidth },
 
 		// usb
 		{ "usb_send", l_usb_send },
@@ -817,10 +823,6 @@ LUALIB_API int luaopen_hw(lua_State* L)
 	luaL_setfieldnumber(L, "UART_DATABIT_8", (uint32_t)UART_DATABIT_8);
 	luaL_setfieldnumber(L, "UART_STOPBIT_1", (uint32_t)UART_STOPBIT_1);
 	luaL_setfieldnumber(L, "UART_STOPBIT_2", (uint32_t)UART_STOPBIT_2);
-	luaL_setfieldnumber(L, "PWM_EDGE_HI", PWM_EDGE_HI);
-	luaL_setfieldnumber(L, "PWM_CENTER_HI", PWM_CENTER_HI);
-	luaL_setfieldnumber(L, "PWM_EDGE_LOW", PWM_EDGE_LOW);
-	luaL_setfieldnumber(L, "PWM_CENTER_LOW", PWM_CENTER_LOW);
 	luaL_setfieldnumber(L, "PIN_PULLUP", MD_PUP);
 	luaL_setfieldnumber(L, "PIN_PULLDOWN", MD_PDN);
 	luaL_setfieldnumber(L, "PIN_DEFAULT", MD_PLN|MD_EZI|MD_ZI);
