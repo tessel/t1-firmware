@@ -25,6 +25,7 @@
 #include "utility/wlan.h"
 #include "colony.h"
 
+static uint8_t MAX_CC_BOOT_TICKS = 120;
 int wifi_initialized = 0;
 
 volatile int validirqcount = 0;
@@ -82,10 +83,20 @@ int cc_blink = 1;
 #else
 int cc_blink = 0;
 #endif
+int cc_bootup = 0;
 void _cc3000_cb_animation_tick (size_t frame)
 {
 	if (cc_blink) {
 		hw_digital_write(CC3K_CONN_LED, frame & 1 ? 1 : 0);
+
+		if (cc_bootup != -1 && cc_bootup < MAX_CC_BOOT_TICKS) {
+			cc_bootup++;
+			if (cc_bootup >= MAX_CC_BOOT_TICKS) {
+				hw_digital_write(CC3K_CONN_LED, 0);
+				cc_blink = 0;
+				cc_bootup = -1;
+			}
+		}
 	}
 }
 
@@ -137,6 +148,7 @@ void _cc3000_cb_dhcp_success ()
 	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
 	tessel_wifi_check(1);
 	cc_blink = 0;
+	cc_bootup = -1;
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 1);
 }
