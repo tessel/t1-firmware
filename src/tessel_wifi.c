@@ -135,6 +135,7 @@ void _cc3000_cb_dhcp_success ()
 {
 	hw_digital_write(CC3K_CONN_LED, 1);
 	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
+	tessel_wifi_check(1);
 	cc_blink = 0;
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 1);
