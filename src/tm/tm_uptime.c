@@ -11,7 +11,13 @@
 #include "lpc18xx_cgu.h"
 #include "tm.h"
 
+void tm_timestamp_wrapped();
+
 #define TIMER LPC_TIMER1
+#define TIMER_CHAN_OVF 0
+#define TIMER_CHAN_EVT 1
+#define TIMER_MCR(x) (1 << (x * 3))
+#define TIMER_IR(x) (1 << x)
 
 void tm_uptime_init()
 {
@@ -19,6 +25,11 @@ void tm_uptime_init()
 
     TIMER->PR = 180;
     TIMER->IR = 0xFFFFFFFF; // clear interrupts
+
+    // Match on overflow used to increment base
+    TIMER->MR[TIMER_CHAN_OVF] = 0;
+    TIMER->MCR |= TIMER_MCR(TIMER_CHAN_OVF);
+
     TIMER->TCR = (1<<1); // reset counter
     TIMER->TCR = (1<<0); // release reset and start
 
@@ -35,8 +46,8 @@ void hw_timer_update_interrupt()
     if (tm_timer_waiting()) {
         unsigned base = tm_timer_base_time();
         unsigned step = tm_timer_head_time();
-        TIMER->MR[0] = base + step;
-        TIMER->MCR |= 1; // Enable timer match interrupt
+        TIMER->MR[TIMER_CHAN_EVT] = base + step;
+        TIMER->MCR |= TIMER_MCR(TIMER_CHAN_EVT); // Enable timer match interrupt
 
         // Compare difference rather than absolute to avoid wrap issues
         unsigned elapsed = tm_uptime_micro() - base;
@@ -51,12 +62,17 @@ void hw_timer_update_interrupt()
         }
     }
 
-    TIMER->MCR &= ~1; // Disable timer match interrupt
+    TIMER->MCR &= ~TIMER_MCR(TIMER_CHAN_EVT); // Disable timer match interrupt
 }
 
 void __attribute__ ((interrupt)) TIMER1_IRQHandler() {
-    if (TIMER->IR & 1) {
-        TIMER->IR = 1;
+    if (TIMER->IR & TIMER_IR(TIMER_CHAN_EVT)) {
+        TIMER->IR = TIMER_IR(TIMER_CHAN_EVT);
         tm_event_trigger(&tm_timer_event);
+    }
+
+    if (TIMER->IR & TIMER_IR(TIMER_CHAN_OVF)) {
+        TIMER->IR = TIMER_IR(TIMER_CHAN_OVF);
+        tm_timestamp_wrapped();
     }
 }

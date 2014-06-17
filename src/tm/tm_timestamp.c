@@ -21,3 +21,8 @@ int tm_timestamp_update (double millis)
     timestamp_base = millis;
     return 1;
 }
+
+// Called from the timer ISR when the timer wraps
+void tm_timestamp_wrapped () {
+    timestamp_base += 0xFFFFFFFF;
+}
