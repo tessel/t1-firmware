@@ -13,11 +13,17 @@ static double timestamp_base = 0;
 
 double tm_timestamp ()
 {
+    // TODO: race condition may return the wrong value if overflow occurs during this function
     return timestamp_base + tm_uptime_micro();
 }
 
-int tm_timestamp_update (double millis)
+int tm_timestamp_update (double micros)
 {
-    timestamp_base = millis;
+    timestamp_base = micros - tm_uptime_micro();
     return 1;
+}
+
+// Called from the timer ISR when the timer wraps
+void tm_timestamp_wrapped () {
+    timestamp_base += 0xFFFFFFFF;
 }
