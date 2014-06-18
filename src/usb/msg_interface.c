@@ -67,11 +67,12 @@ static unsigned msg_in_pos = 0;
 
 void msg_in_start_ep(void) {
 	unsigned remaining = in_head->length + msg_header_size - msg_in_pos;
+	uint8_t* addr = ((uint8_t*)in_head) + 4 + msg_in_pos;
 	if (remaining > msg_max_blocksize) {
-		usb_ep_start_in(msg_in_ep, ((uint8_t*)in_head) + 4, msg_max_blocksize, false);
+		usb_ep_start_in(msg_in_ep, addr, msg_max_blocksize, false);
 		msg_in_pos += msg_max_blocksize;
 	} else if (remaining > 0) {
-		usb_ep_start_in(msg_in_ep, ((uint8_t*)in_head) + 4 + msg_in_pos, remaining, true);
+		usb_ep_start_in(msg_in_ep, addr, remaining, true);
 		msg_in_pos += remaining;
 	} else {
 		// Notify completion
