@@ -1,87 +1,59 @@
 #include "neopixel.h" 
 
-void initiateTimer();
-void stopTimer();
+// Our CPU Frequency is 180MHz
+#define CPU_FREQUENCY 180000000
+// The frequency of these signals is 800KHz
+#define NEO_FREQUENCY 800000
+// The period of a signal is the inverse of the frequency
+#define NEO_PERIOD (CPU_FREQUENCY / NEO_FREQUENCY)
+// The width of the pull is the duration of the width in uS
+#define NEO_FULL_WIDTH 1000000 / NEO_FREQUENCY
+// A one duty cycle is the ratio of how long a signal is high in a period
+#define NEO_ONE_DUTY_CYCLE (0.85 / NEO_FULL_WIDTH)
+// A zero duty cycle is the ratio of how long a signal is high in a period
+#define NEO_ZERO_DUTY_CYCLE (0.4 / NEO_FULL_WIDTH) 
+// A one pulse width duration
+#define NEO_ONE_PULSE_WIDTH NEO_ONE_DUTY_CYCLE * NEO_PERIOD
+// A zero pulse width duration
+#define NEO_ZERO_PULSE_WIDTH NEO_ZERO_DUTY_CYCLE * NEO_PERIOD
 
-#define NEOPIXEL_BYTE_FREQ 2400000
+// The actual DMA we'll be using to transfer data
+// Async SPI uses 0 and 1 so we don't want to mess with that
+#define SCT_DMA_CHAN_1 2
+#define SCT_DMA_CHAN_2 3
+#define SCT_DMA_CHAN_3 4
 
-uint8_t buf[10] = {0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010, 0b10101010 };
-uint8_t byte = 0;
-uint8_t bit = 0;
-uint8_t frame = 0;
-uint8_t data_pin = 0;
+const uint8_t buff[6] = { NEO_ONE_PULSE_WIDTH, NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH, NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH} ;
 
-void basicTest (uint8_t pin) {
+void basicTest() {
 
-  hw_digital_output(pin);
+  hw_GPDMA_Chan_Config chan_1;
 
-  data_pin = pin;
+  // Set the destination to be SCT channel 0
+  chan_1.DestConn = GPDMA_CONN_SCT_0;
+  // Set the source connection to zero since it will be our buffer
+  chan_1.SrcConn = 0;
+  // Set the transfer type to memory->peripheral (SCT)
+  chan_1.TransferType = m2p;
 
-  initiateTimer();
-}
+  // Config the DMAMUX register for this kind of transfer
+  hw_gpdma_transfer_config(SCT_DMA_CHAN_1, &chan_1);
 
-void writePixels() {
+  // Create the memory for the dma linked list
+  hw_GPDMA_Linked_List_Type * Linked_List = calloc(1, sizeof(hw_GPDMA_Linked_List_Type));
 
-  switch (frame) {
-    case 0:
-      hw_digital_write(data_pin, 1);
-      frame++;
-      break;
-    case 1:
-      if (!(buf[byte] & (1 << bit))) {
-        hw_digital_write(data_pin, 0);
-      }
-      frame++;
-      break;
-    case 2:
-      hw_digital_write(data_pin, 0);
-      frame = 0;
-      if (bit == 7) {
-        stopTimer();
-        bit = 0;
-        byte++;
-        if (byte < 10) initiateTimer();
-      } 
-      else {
-        bit++;
-      }
-      break;
-  }
-}
+  // Set the source to our buffer
+  Linked_List[0].Source = (uint32_t) buff;
+  // Set the detination to the address of the SCT Connection
+  Linked_List[0].Destination = (uint32_t) hw_gpdma_get_lli_conn_address(chan_1.DestConn);
+  // Se tthe control to read 4 byte bursts with max buf len, and increment the destination counter
+  Linked_List[0].Control = ((1UL<<24) | (1UL<<27) | sizeof(buff));
+  // Set this as the end of linked list
+  Linked_List[0].NextLLI = (uint32_t)0;
 
-void RIT_IRQHandler(void)
-{
-  RIT_GetIntStatus(LPC_RITIMER);
+  // Get a buffer of values
 
-  writePixels();
-}
+  // Set up DMA
 
-void initiateTimer() {
-  // INIT
-  LPC_RITIMER->COMPVAL = 0xFFFFFFFF;
-  LPC_RITIMER->MASK  = 0x00000000;
-  LPC_RITIMER->CTRL  = 0x0C;
-  LPC_RITIMER->COUNTER = 0x00000000;
-
-  // CONFIG
-  // Get PCLK value of RIT
-  uint32_t clock_rate, cmp_value;
-  clock_rate = CGU_GetPCLKFrequency(CGU_PERIPHERAL_M3CORE);
-
-   // calculate compare value for RIT to generate interrupt at
-  cmp_value = (clock_rate / NEOPIXEL_BYTE_FREQ);
-  LPC_RITIMER->COMPVAL = cmp_value;
-
-  /* Set timer enable clear bit to clear timer to 0 whenever
-   * counter value equals the contents of RICOMPVAL
-   */
-  LPC_RITIMER->CTRL |= (1<<1);
-
-  NVIC_EnableIRQ(RITIMER_IRQn);
-}
-
-void stopTimer() {
-  RIT_Cmd(LPC_RITIMER, DISABLE);
-
-  NVIC_DisableIRQ(RITIMER_IRQn);
+  // Send the buffer to SCT
 }

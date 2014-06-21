@@ -575,10 +575,8 @@ static int l_usb_send(lua_State* L)
 
 
 // Neopixel
-static int l_neopixel_test(lua_State *L) {
-	TM_DEBUG("Is it even getting in here?");
-	int pin = (uint8_t) lua_tonumber(L, ARG1);
-	basicTest(pin);
+static int l_neopixel_test() {
+	basicTest();
 	return 0;
 }
 
