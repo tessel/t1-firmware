@@ -4,4 +4,4 @@
 #include "hw.h"
 #include "lpc18xx_rit.h"
 
-void basicTest (uint8_t pin);
+void basicTest ();
