@@ -2,6 +2,8 @@
 
 #include "tm.h"
 #include "hw.h"
-#include "lpc18xx_rit.h"
+#include "variant.h"
+#include "lpc18xx_sct.h"
+#include <math.h> 
 
 void basicTest ();
