@@ -23,12 +23,17 @@
 #define SCT_DMA_CHAN_1 3
 #define SCT_DMA_CHAN_2 4
 
+// The address of the first match register
+#define MATCH_0_ADDRESS 0x40000100
+
 const uint8_t buff[6] = { NEO_ONE_PULSE_WIDTH, NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH, NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH} ;
 
 void basicTest() {
 
   uint8_t pin = E_G4;
 
+  // GPDMA channel configuration struct
+  // Contains information about source, destination, and transferType
   hw_GPDMA_Chan_Config chan_1;
 
   // Set the destination to be SCT channel 0
@@ -47,19 +52,20 @@ void basicTest() {
   // Set the source to our buffer
   Linked_List[0].Source = (uint32_t) buff;
   // Set the detination to the address of the SCT Connection
-  Linked_List[0].Destination = (uint32_t) hw_gpdma_get_lli_conn_address(chan_1.DestConn);
+  Linked_List[0].Destination = (uint32_t) MATCH_0_ADDRESS;
   // Use dest AHB Master and source increment. Transfer 1 byte (which is actually the duty cycle for one pixel bit)
   Linked_List[0].Control = ((1UL<<25) | (1UL<<26) | 1);
   // Set this as the end of linked list
   Linked_List[0].NextLLI = (uint32_t)0;
 
-  // Tell SCT That we want event 1 to trigger DMA 
-  // But how do we know that the buffer will pass
-  // the value into the reload register?
-  // And how do we tell it to stop?
-  LPC_SCT->DMA0REQUEST = 1 << 1;
+  // Tell SCT That we want event 1 to trigger DMA
+  LPC_SCT->DMA0REQUEST = (1 << 1) & (1 << 29);
+
+  TM_DEBUG("Starting DMA transfer with a pulse width of %.6f for one and %.6f for zero\n", NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH);
+  // Enable DMA transfers (in ../hw/gpdma.c)
+  hw_gpdma_transfer_begin(SCT_DMA_CHAN_0, Linked_List);
  
-  // Start PWM 
+  // Start PWM (in ../hw/pwm.c)
   hw_pwm_enable(pin, PWM_EDGE_HI, (uint32_t)NEO_PERIOD, (uint32_t)NEO_ZERO_PULSE_WIDTH);
 
   TM_DEBUG("Sent!");

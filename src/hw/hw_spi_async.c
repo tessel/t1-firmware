@@ -46,6 +46,7 @@ void hw_spi_dma_counter (uint8_t channel){
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, channel);
     // This interrupt status should be hit for both tx and rx
     uint8_t done_count = ((spi_async_status.txbuf != NULL) && (spi_async_status.rxbuf != NULL)) ? 2 : 1;
+    
     if (++spi_async_status.transferCount == done_count) {
       // Trigger the callback
       (*spi_async_status.callback)();
@@ -54,6 +55,7 @@ void hw_spi_dma_counter (uint8_t channel){
   if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, channel)){
     // Clear error counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTERR, channel);
+    TM_DEBUG("THis error was called...");
     // Register the error in our struct
     spi_async_status.transferError++;
     // Trigger the callback because there was an error
