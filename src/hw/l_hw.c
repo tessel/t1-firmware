@@ -611,7 +611,6 @@ static int l_neopixel_test() {
 	return 0;
 }
 
-
 /**
  * GPS
  * These are functions for interacting with the GPS NMEA parser
@@ -669,6 +668,14 @@ static int l_gps_get_speed(lua_State* L) {
 	double r = gps_get_speed();
 	lua_pushnumber(L, r);
 	return 1;
+}
+
+static int l_neopixel_write_color(lua_State* L) {
+	TM_DEBUG("DId we at least get in here?");
+	int pin = lua_tonumber(L, ARG1);
+	int color = lua_tonumber(L, ARG1 + 1);
+	writeColor(pin, color);
+	return 0;
 }
 
 /**
@@ -898,6 +905,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// Neopixel
 		{ "neopixel_test", l_neopixel_test },
+		{ "neopixel_write_color", l_neopixel_write_color },
 
 
 		// gps
