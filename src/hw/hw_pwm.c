@@ -11,6 +11,7 @@
 #include "variant.h"
 #include "LPC18xx.h"
 #include "lpc18xx_sct.h"
+#include "tm.h"
 
 #define SCT_CONFIG_UNIFY (1 << 0)
 #define SCT_CTRL_HALT (1 << 2)
