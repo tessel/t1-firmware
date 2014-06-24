@@ -580,6 +580,15 @@ static int l_neopixel_test() {
 	return 0;
 }
 
+static int l_neopixel_write_color(lua_State* L) {
+	TM_DEBUG("DId we at least get in here?");
+	int pin = lua_tonumber(L, ARG1);
+	int color = lua_tonumber(L, ARG1 + 1);
+	writeColor(pin, color);
+	return 0;
+}
+
+
 /**
  * NTP
  */
@@ -804,6 +813,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// Neopixel
 		{ "neopixel_test", l_neopixel_test },
+		{ "neopixel_write_color", l_neopixel_write_color },
 
 		// clock sync
 		{ "clocksync", l_clocksync },
