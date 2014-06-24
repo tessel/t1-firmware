@@ -103,14 +103,14 @@ int hw_analog_write (uint32_t ulPin, float ulValue)
 	DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
 	DAC_ConverterConfigStruct.DMA_ENA = SET;
 	DAC_ConverterConfigStruct.CNT_ENA = SET;
-	DAC_SetBias(LPC_DAC, 1);// set to low bias for now
+	DAC_ConverterConfigStruct.DBLBUF_ENA = SET;
 	LPC_SCU->ENAIO2 |= 1;	 // Enable analog function
 	DAC_SetDMATimeOut(LPC_DAC,0);
 
 	DAC_Init(LPC_DAC);
 	DAC_ConfigDAConverterControl(LPC_DAC, &DAC_ConverterConfigStruct);
 	DAC_UpdateValue(LPC_DAC, ulValue);
-	return 0;	
+	return 0;
 }
 
 
