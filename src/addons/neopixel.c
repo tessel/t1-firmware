@@ -52,19 +52,20 @@ void basicTest() {
   // Set the source to our buffer
   Linked_List[0].Source = (uint32_t) buff;
   // Set the detination to the address of the SCT Connection
-  Linked_List[0].Destination = (uint32_t) MATCH_0_ADDRESS;
-  // Use dest AHB Master and source increment. Transfer 1 byte (which is actually the duty cycle for one pixel bit)
+  Linked_List[0].Destination = (uint32_t) MATCH_0_ADDRESS;//LPC_GPIO_PORT->PIN + g_APinDescription[pin].port;
+  // Use dest AHB Master 1 and source increment. Transfer 1 byte (which is actually the duty cycle for one pixel bit)
   Linked_List[0].Control = ((1UL<<25) | (1UL<<26) | 1);
   // Set this as the end of linked list
   Linked_List[0].NextLLI = (uint32_t)0;
 
-  // Tell SCT That we want event 1 to trigger DMA
-  LPC_SCT->DMA0REQUEST = (1 << 1) & (1 << 29);
+  // Tell SCT That we want event 0 (period match) to trigger DMA request 0
+  LPC_SCT->DMA0REQUEST = (1 << 0);
 
   TM_DEBUG("Starting DMA transfer with a pulse width of %.6f for one and %.6f for zero\n", NEO_ONE_PULSE_WIDTH, NEO_ZERO_PULSE_WIDTH);
   // Enable DMA transfers (in ../hw/gpdma.c)
   hw_gpdma_transfer_begin(SCT_DMA_CHAN_0, Linked_List);
- 
+  TM_DEBUG("Transfer began");
+  TM_DEBUG("What? %d %d", LPC_GPIO_PORT->PIN, g_APinDescription[pin].port);
   // Start PWM (in ../hw/pwm.c)
   hw_pwm_enable(pin, PWM_EDGE_HI, (uint32_t)NEO_PERIOD, (uint32_t)NEO_ZERO_PULSE_WIDTH);
 
