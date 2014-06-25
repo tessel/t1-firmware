@@ -578,13 +578,12 @@ static int l_usb_send(lua_State* L)
 static int l_neopixel_animation_buffer(lua_State* L) {
 	size_t buffer_len;
 	const uint8_t* buffer = colony_toconstdata(L, ARG1, &buffer_len);
-	TM_DEBUG("Buf length %d", buffer_len);
 	uint32_t buffer_ref = LUA_NOREF;
 	if (buffer_len != 0) {
 		lua_pushvalue(L, ARG1);
 		buffer_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 	}
-	
+
 	writeAnimationBuffer(buffer, buffer_len, buffer_ref);
 
 	return 0;
