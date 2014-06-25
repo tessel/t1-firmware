@@ -6,17 +6,11 @@
 #define DUMMY_OUTPUT                        2
 #define DATA_SPEED                          800000
 
-#define GREEN 0xFF0000
-#define RED 0x00FF00
-#define BLUE 0x0000FF
-
-const uint32_t somePattern[] = {
-    // Red, Green, White, Blue
-    RED, GREEN, BLUE, RED|GREEN|BLUE,
-};
-
 volatile int frameCount;
 volatile int patternIndex = 0;
+volatile uint32_t *outputData;
+
+uint32_t massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
 
 void LEDDRIVER_open (void)
 {
@@ -143,10 +137,10 @@ void LEDDRIVER_open (void)
 void LEDDRIVER_writeRGB (uint32_t rgb)
 {
     if (LPC_SCT->OUTPUT & (1u << AUX_OUTPUT)) {
-        LPC_SCT->EVENT[12].STATE = rgb & 0xFFFFFF;
+        LPC_SCT->EVENT[12].STATE = rgb;
     }
     else {
-        LPC_SCT->EVENT[11].STATE = rgb & 0xFFFFFF;
+        LPC_SCT->EVENT[11].STATE = rgb;
     }
 }
 
@@ -195,8 +189,7 @@ void SCT_IRQHandler (void)
       --frameCount;
       ++patternIndex;
       if (frameCount > 0) {
-          // TM_DEBUG("Writing %d", somePattern[patternIndex % (sizeof(somePattern)/sizeof(somePattern[0]))]);
-          LEDDRIVER_writeRGB(somePattern[patternIndex]);
+          LEDDRIVER_writeRGB(outputData[patternIndex]);
 
           continueTX = 1;
       }
@@ -205,16 +198,15 @@ void SCT_IRQHandler (void)
   if (!continueTX) {
       LEDDRIVER_haltAfterFrame(1);
   }
-    
-  //TODO
-  if (LPC_SCT->CTRL_H & 0x04) {
-      // busy = 0;
-  }
 }
 
+int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size) {
 
+  if (buffer_size <= 0) {
+    return -1;
+  }
 
-void basicTest() {
+  uint32_t massagedLen = massageBuffer(buffer, buffer_size);
 
   uint8_t pin = E_G4;
   scu_pinmux(g_APinDescription[pin].port,
@@ -223,35 +215,39 @@ void basicTest() {
     g_APinDescription[pin].alternate_func);
     SystemCoreClock = 180000000;
 
-    LEDDRIVER_open();
-    NVIC_EnableIRQ(SCT_IRQn);
-
-    /* Send block of frames */
-    /* Preset first data word */
-    LEDDRIVER_writeRGB(RED);
-    frameCount = sizeof(somePattern)/sizeof(somePattern[0]) + 1;
-    TM_DEBUG("START VALUE %d, START BIT %d, FRAM COUNT %d", somePattern[patternIndex-1], patternIndex-1, frameCount);
-    /* Then start transmission */
-    LEDDRIVER_haltAfterFrame(0);
-    LEDDRIVER_start();
-}
-
-void writeColor(uint8_t pin, uint32_t color) {
-  scu_pinmux(g_APinDescription[pin].port,
-    g_APinDescription[pin].pin,
-    g_APinDescription[pin].mode,
-    g_APinDescription[pin].alternate_func);
-    SystemCoreClock = 180000000;
-
+  // Initialize the LEDDriver
   LEDDRIVER_open();
+  // Allow SCT IRQs (which update the relevant data byte)
   NVIC_EnableIRQ(SCT_IRQn);
 
   /* Send block of frames */
   /* Preset first data word */
-  LEDDRIVER_writeRGB(color);
-  frameCount = 1;
+  LEDDRIVER_writeRGB(outputData[0]);
+  frameCount = massagedLen;
   /* Then start transmission */
   LEDDRIVER_haltAfterFrame(0);
-  TM_DEBUG("Starting with color %d", color);
   LEDDRIVER_start();
+
+  // TIM_Waitms(3);
+  // for (uint32_t i = 0; i < massagedLen; i++) {
+  //   TM_DEBUG("And now we're going to send %d at %d", outputData[i], i);
+  // }
+
+  return 0;
+}
+
+uint32_t massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
+  // We're going to take a uint8_t buffer and compress
+  // the grb values together
+  uint32_t packedBufferLen = uncompressedLength/3;
+  outputData = malloc(packedBufferLen);
+
+  uint32_t pixel = 0;
+  for (uint32_t i = 0; i < uncompressedLength; i+=3) {
+    outputData[pixel++] = uncompressedBuffer[i] << 16 |
+                    uncompressedBuffer[i + 1] << 8 |
+                    uncompressedBuffer[i + 2];
+  }
+
+  return packedBufferLen;
 }
