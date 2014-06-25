@@ -6,12 +6,10 @@
 #define DUMMY_OUTPUT                        2
 #define DATA_SPEED                          800000
 
-volatile int frameCount;
-volatile int patternIndex = 0;
-
 volatile struct neopixel_status_t neopixelStatus = {
   .outputData = NULL,
   .outputLength = 0,
+  .bytesSent = 0,
   .outputRef= LUA_NOREF,
 };
 
@@ -22,126 +20,120 @@ tm_event animation_complete_event = TM_EVENT_INIT(animation_complete);
 
 void LEDDRIVER_open (void)
 {
-    uint32_t clocksPerBit;
-    uint32_t prescaler;
+  uint32_t clocksPerBit;
+  uint32_t prescaler;
 
-    /* Halt H timer, and configure counting mode and prescaler.
-     * Set the prescaler for 25 timer ticks per bit (TODO: take care of rounding etc)
-     */
-    prescaler = SystemCoreClock / (25 * DATA_SPEED);    //(Assume SCT clock = SystemCoreClock)
-    LPC_SCT->CTRL_H = 0
-        | (0 << SCT_CTRL_H_DOWN_H_Pos)
-        | (0 << SCT_CTRL_H_STOP_H_Pos)
-        | (1 << SCT_CTRL_H_HALT_H_Pos)      /* HALT counter */
-        | (1 << SCT_CTRL_H_CLRCTR_H_Pos)
-        | (0 << SCT_CTRL_H_BIDIR_H_Pos)
-        | (((prescaler - 1) << SCT_CTRL_H_PRE_H_Pos) & SCT_CTRL_H_PRE_H_Msk);
-        ;
-    TM_DEBUG("CTRL H: %d", LPC_SCT->CTRL_H);
+  /* Halt H timer, and configure counting mode and prescaler.
+   * Set the prescaler for 25 timer ticks per bit (TODO: take care of rounding etc)
+   */
+  prescaler = SystemCoreClock / (25 * DATA_SPEED);    //(Assume SCT clock = SystemCoreClock)
+  LPC_SCT->CTRL_H = 0
+      | (0 << SCT_CTRL_H_DOWN_H_Pos)
+      | (0 << SCT_CTRL_H_STOP_H_Pos)
+      | (1 << SCT_CTRL_H_HALT_H_Pos)      /* HALT counter */
+      | (1 << SCT_CTRL_H_CLRCTR_H_Pos)
+      | (0 << SCT_CTRL_H_BIDIR_H_Pos)
+      | (((prescaler - 1) << SCT_CTRL_H_PRE_H_Pos) & SCT_CTRL_H_PRE_H_Msk);
+      ;
 
-    /* Preset the SCTOUTx signals */
-    LPC_SCT->OUTPUT &= ~(0
-        | (1u << DATA_OUTPUT)
-        | (1u << AUX_OUTPUT)
-        | (1u << DUMMY_OUTPUT)
-        );
-    TM_DEBUG("Output: %d", LPC_SCT->OUTPUT);
+  /* Preset the SCTOUTx signals */
+  LPC_SCT->OUTPUT &= ~(0
+      | (1u << DATA_OUTPUT)
+      | (1u << AUX_OUTPUT)
+      | (1u << DUMMY_OUTPUT)
+      );
 
-    /* Start state */
-    LPC_SCT->STATE_H = 24;
+  /* Start state */
+  LPC_SCT->STATE_H = 24;
 
-    /* Counter LIMIT */
-    LPC_SCT->LIMIT_H = (1u << 15);          /* Event 15 */
+  /* Counter LIMIT */
+  LPC_SCT->LIMIT_H = (1u << 15);          /* Event 15 */
 
-    /* Configure the match registers */
-    clocksPerBit = SystemCoreClock / (prescaler * DATA_SPEED);
-    LPC_SCT->MATCHREL_H[0] = clocksPerBit - 1;              /* Bit period */
-    LPC_SCT->MATCHREL_H[1] = 8 - 1;          /* T0H */
-    LPC_SCT->MATCHREL_H[2] = 16 - 1;  /* T1H */
+  /* Configure the match registers */
+  clocksPerBit = SystemCoreClock / (prescaler * DATA_SPEED);
+  LPC_SCT->MATCHREL_H[0] = clocksPerBit - 1;              /* Bit period */
+  LPC_SCT->MATCHREL_H[1] = 8 - 1;          /* T0H */
+  LPC_SCT->MATCHREL_H[2] = 16 - 1;  /* T1H */
 
-    /* Configure events */
-    LPC_SCT->EVENT[15].CTRL = 0
-        | (0 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH0_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
-        | (0 << SCT_EVx_CTRL_STATELD_Pos)   /* Add value to STATE */
-        | (31 << SCT_EVx_CTRL_STATEV_Pos)   /* Add 31 (i.e subtract 1) */
-        ;
-    LPC_SCT->EVENT[14].CTRL = 0
-        | (2 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH2_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
-        ;
-    LPC_SCT->EVENT[13].CTRL = 0
-        | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
-        ;
-    LPC_SCT->EVENT[12].CTRL = 0
-        | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-        | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
-        | (0 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 0 */
-        | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
-        ;
-    LPC_SCT->EVENT[11].CTRL = 0
-        | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-        | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
-        | (3 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 1 */
-        | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
-        ;
-    LPC_SCT->EVENT[10].CTRL = 0
-        | (2 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH2_H */
-        | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
-        | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
-        | (1 << SCT_EVx_CTRL_STATELD_Pos)   /* Set STATE to a value */
-        | (24 << SCT_EVx_CTRL_STATEV_Pos)   /* Set to 24 */
-        ;
-    LPC_SCT->EVENT[15].STATE = 0xFFFFFFFF;
-    LPC_SCT->EVENT[14].STATE = 0x00FFFFFE;  /* All data bit states except state 0 */
-    LPC_SCT->EVENT[13].STATE = 0x00FFFFFF;  /* All data bit states */
-    LPC_SCT->EVENT[12].STATE = 0;
-    LPC_SCT->EVENT[11].STATE = 0;
-    LPC_SCT->EVENT[10].STATE = 0x00000001;  /* Only in state 0 */
+  /* Configure events */
+  LPC_SCT->EVENT[15].CTRL = 0
+      | (0 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH0_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
+      | (0 << SCT_EVx_CTRL_STATELD_Pos)   /* Add value to STATE */
+      | (31 << SCT_EVx_CTRL_STATEV_Pos)   /* Add 31 (i.e subtract 1) */
+      ;
+  LPC_SCT->EVENT[14].CTRL = 0
+      | (2 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH2_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
+      ;
+  LPC_SCT->EVENT[13].CTRL = 0
+      | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
+      ;
+  LPC_SCT->EVENT[12].CTRL = 0
+      | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
+      | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+      | (0 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 0 */
+      | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
+      ;
+  LPC_SCT->EVENT[11].CTRL = 0
+      | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
+      | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+      | (3 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 1 */
+      | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
+      ;
+  LPC_SCT->EVENT[10].CTRL = 0
+      | (2 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH2_H */
+      | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
+      | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
+      | (1 << SCT_EVx_CTRL_STATELD_Pos)   /* Set STATE to a value */
+      | (24 << SCT_EVx_CTRL_STATEV_Pos)   /* Set to 24 */
+      ;
+  LPC_SCT->EVENT[15].STATE = 0xFFFFFFFF;
+  LPC_SCT->EVENT[14].STATE = 0x00FFFFFE;  /* All data bit states except state 0 */
+  LPC_SCT->EVENT[13].STATE = 0x00FFFFFF;  /* All data bit states */
+  LPC_SCT->EVENT[12].STATE = 0;
+  LPC_SCT->EVENT[11].STATE = 0;
+  LPC_SCT->EVENT[10].STATE = 0x00000001;  /* Only in state 0 */
 
-        /* Default is to halt the block transfer after the next frame */
-    LPC_SCT->HALT_H = (1u << 10);           /* Event 10 halts the transfer */
+      /* Default is to halt the block transfer after the next frame */
+  LPC_SCT->HALT_H = (1u << 10);           /* Event 10 halts the transfer */
 
-    /* Output actions (TODO: honor previous register settings) */
-    LPC_SCT->OUT[AUX_OUTPUT].SET = 0
-        | (1u << 10)                        /* Event 10 toggles the AUX signal */
-        ;
-    LPC_SCT->OUT[AUX_OUTPUT].CLR = 0
-        | (1u << 10)                        /* Event 10 toggles the AUX signal */
-        ;
-    LPC_SCT->OUT[DATA_OUTPUT].SET = 0
-        | (1u << 15)                        /* Event 15 sets the DATA signal */
-        | (1u << 12)                        /* Event 12 sets the DATA signal */
-        | (1u << 11)                        /* Event 11 sets the DATA signal */
-        ;
-    LPC_SCT->OUT[DATA_OUTPUT].CLR = 0
-        | (1u << 14)                        /* Event 14 clears the DATA signal */
-        | (1u << 13)                        /* Event 13 clears the DATA signal */
-        | (1u << 10)                        /* Event 10 clears the DATA signal */
-        ;
+  /* Output actions (TODO: honor previous register settings) */
+  LPC_SCT->OUT[AUX_OUTPUT].SET = 0
+      | (1u << 10)                        /* Event 10 toggles the AUX signal */
+      ;
+  LPC_SCT->OUT[AUX_OUTPUT].CLR = 0
+      | (1u << 10)                        /* Event 10 toggles the AUX signal */
+      ;
+  LPC_SCT->OUT[DATA_OUTPUT].SET = 0
+      | (1u << 15)                        /* Event 15 sets the DATA signal */
+      | (1u << 12)                        /* Event 12 sets the DATA signal */
+      | (1u << 11)                        /* Event 11 sets the DATA signal */
+      ;
+  LPC_SCT->OUT[DATA_OUTPUT].CLR = 0
+      | (1u << 14)                        /* Event 14 clears the DATA signal */
+      | (1u << 13)                        /* Event 13 clears the DATA signal */
+      | (1u << 10)                        /* Event 10 clears the DATA signal */
+      ;
 
-    /* Conflict resolution (TODO: honor previous register settings) */
-    LPC_SCT->RES = 0
-        | (0 << 2 * DATA_OUTPUT)            /* DATA signal doesn't change */
-        | (3 << 2 * AUX_OUTPUT)             /* AUX signal toggles */
-        ;
-    TM_DEBUG("Res: %d", LPC_SCT->RES);
+  /* Conflict resolution (TODO: honor previous register settings) */
+  LPC_SCT->RES = 0
+      | (0 << 2 * DATA_OUTPUT)            /* DATA signal doesn't change */
+      | (3 << 2 * AUX_OUTPUT)             /* AUX signal toggles */
+      ;
 
-    // Clear pending interrupts on period completion
-    LPC_SCT->EVFLAG = (1u << 10);
-    /* Configure interrupt events */
-    LPC_SCT->EVEN |= (1u << 10);            /* Event 10 */
-
-    TM_DEBUG("EVFlag: %d", LPC_SCT->EVFLAG);
-    TM_DEBUG("EVen: %d", LPC_SCT->EVEN);
+  // Clear pending interrupts on period completion
+  LPC_SCT->EVFLAG = (1u << 10);
+  /* Configure interrupt events */
+  LPC_SCT->EVEN |= (1u << 10);            /* Event 10 */
 }
 
 
@@ -149,12 +141,12 @@ void LEDDRIVER_open (void)
 /* Simple function to write to a transmit buffer. */
 void LEDDRIVER_writeRGB (uint32_t rgb)
 {
-    if (LPC_SCT->OUTPUT & (1u << AUX_OUTPUT)) {
-        LPC_SCT->EVENT[12].STATE = rgb;
-    }
-    else {
-        LPC_SCT->EVENT[11].STATE = rgb;
-    }
+  if (LPC_SCT->OUTPUT & (1u << AUX_OUTPUT)) {
+    LPC_SCT->EVENT[12].STATE = rgb;
+  }
+  else {
+    LPC_SCT->EVENT[11].STATE = rgb;
+  }
 }
 
 
@@ -162,12 +154,12 @@ void LEDDRIVER_writeRGB (uint32_t rgb)
 /* Activate or deactivate HALT after next frame. */
 void LEDDRIVER_haltAfterFrame (int on)
 {
-    if (on) {
-        LPC_SCT->HALT_H = (1u << 10);
-    }
-    else {
-        LPC_SCT->HALT_H = 0;
-    }
+  if (on) {
+    LPC_SCT->HALT_H = (1u << 10);
+  }
+  else {
+    LPC_SCT->HALT_H = 0;
+  }
 }
 
 
@@ -175,16 +167,16 @@ void LEDDRIVER_haltAfterFrame (int on)
 /* Start a block transmission */
 void LEDDRIVER_start (void)
 {
-    /* TODO: Check whether timer is really in HALT mode */
+  /* TODO: Check whether timer is really in HALT mode */
 
-    /* Set reset time */
-    LPC_SCT->COUNT_H = - LPC_SCT->MATCHREL_H[0] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
+  /* Set reset time */
+  LPC_SCT->COUNT_H = - LPC_SCT->MATCHREL_H[0] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
 
-    /* Start state */
-    LPC_SCT->STATE_H = 0;
+  /* Start state */
+  LPC_SCT->STATE_H = 0;
 
-    /* Start timer H */
-    LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
+  /* Start timer H */
+  LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
 }
 
 void SCT_IRQHandler (void)
@@ -194,23 +186,14 @@ void SCT_IRQHandler (void)
   /* Acknowledge interrupt */
   LPC_SCT->EVFLAG = (1u << 10);
 
-  // if(LPC_SCT->STATE_H == 24) {
-  //     LPC_GPIO_PORT->NOT[4] = (1u << 13);
-  // }
-
-  if (frameCount) {
-      --frameCount;
-      ++patternIndex;
-      if (frameCount > 0) {
-          LEDDRIVER_writeRGB(neopixelStatus.outputData[patternIndex]);
-
-          continueTX = 1;
-      }
+  if (neopixelStatus.bytesSent < neopixelStatus.outputLength) {
+      LEDDRIVER_writeRGB(neopixelStatus.outputData[neopixelStatus.bytesSent++]);
+      continueTX = 1;
   }
 
   if (!continueTX) {
-      LEDDRIVER_haltAfterFrame(1);
-      tm_event_trigger(&animation_complete_event);
+    LEDDRIVER_haltAfterFrame(1);
+    tm_event_trigger(&animation_complete_event);
   }
 }
 
@@ -227,6 +210,9 @@ void animation_complete() {
 
   tm_event_unref(&animation_complete_event);
 
+  neopixelStatus.bytesSent = 0;
+  neopixelStatus.outputLength = 0;
+
   // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
@@ -242,11 +228,10 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_
     return -1;
   }
 
-  patternIndex = 0;
-  frameCount = 0;
   // TODO: move these calculations client computer side
   neopixelStatus.outputRef = buffer_ref;
   neopixelStatus.outputLength = buffer_size/3;
+  neopixelStatus.bytesSent = 0;
   massageBuffer(buffer, buffer_size);
 
   uint8_t pin = E_G4;
@@ -261,9 +246,7 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_
 
   /* Send block of frames */
   /* Preset first data word */
-  TM_DEBUG("Aux status %d", LPC_SCT->OUTPUT & (1u << AUX_OUTPUT));
   LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
-  frameCount = neopixelStatus.outputLength;
   
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0);
@@ -274,10 +257,9 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_
   LEDDRIVER_start();
 
   tm_event_ref(&animation_complete_event);
+
+  // WHY DO WE NEED THIS?!?
   TIM_Waitms(3);
-  // for (uint32_t i = 0; i < neopixelStatus.outputLength; i++) {
-  //   TM_DEBUG("And now we're going to send %d at %d", neopixelStatus.outputData[i], i);
-  // }
 
   return 0;
 }

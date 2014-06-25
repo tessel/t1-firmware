@@ -27,6 +27,7 @@ void LEDDRIVER_start (void);
 struct neopixel_status_t {
   uint32_t *outputData;
   uint32_t outputLength;
+  uint32_t bytesSent;
   int32_t outputRef;
 };
 
