@@ -55,7 +55,6 @@ void hw_spi_dma_counter (uint8_t channel){
   if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, channel)){
     // Clear error counter Interrupt pending
     GPDMA_ClearIntPending (GPDMA_STATCLR_INTERR, channel);
-    TM_DEBUG("THis error was called...");
     // Register the error in our struct
     spi_async_status.transferError++;
     // Trigger the callback because there was an error

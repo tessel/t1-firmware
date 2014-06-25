@@ -8,9 +8,17 @@
 
 volatile int frameCount;
 volatile int patternIndex = 0;
-volatile uint32_t *outputData;
 
-uint32_t massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
+volatile struct neopixel_status_t neopixelStatus = {
+  .outputData = NULL,
+  .outputLength = 0,
+  .outputRef= LUA_NOREF,
+};
+
+void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
+void animation_complete();
+
+tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
 
 void LEDDRIVER_open (void)
 {
@@ -20,7 +28,6 @@ void LEDDRIVER_open (void)
     /* Halt H timer, and configure counting mode and prescaler.
      * Set the prescaler for 25 timer ticks per bit (TODO: take care of rounding etc)
      */
-//    prescaler = CLKPWR_getBusClock(CLKPWR_CLOCK_SCT) / (25 * DATA_SPEED);
     prescaler = SystemCoreClock / (25 * DATA_SPEED);    //(Assume SCT clock = SystemCoreClock)
     LPC_SCT->CTRL_H = 0
         | (0 << SCT_CTRL_H_DOWN_H_Pos)
@@ -189,7 +196,7 @@ void SCT_IRQHandler (void)
       --frameCount;
       ++patternIndex;
       if (frameCount > 0) {
-          LEDDRIVER_writeRGB(outputData[patternIndex]);
+          LEDDRIVER_writeRGB(neopixelStatus.outputData[patternIndex]);
 
           continueTX = 1;
       }
@@ -197,16 +204,40 @@ void SCT_IRQHandler (void)
 
   if (!continueTX) {
       LEDDRIVER_haltAfterFrame(1);
+      tm_event_trigger(&animation_complete_event);
   }
 }
 
-int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size) {
+void animation_complete() {
+  // Make sure the Lua state exists
+  lua_State* L = tm_lua_state;
+  if (!L) return;
+
+  // Unreference our buffer so it can be garbage collected
+  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.outputRef);
+
+  // Free our data buffer
+  free(neopixelStatus.outputData);
+
+  // Push the _colony_emit helper function onto the stack
+  lua_getglobal(L, "_colony_emit");
+  // The process message identifier
+  lua_pushstring(L, "neopixel_animation_complete");
+  // Clean up our vars so that we can do this again
+  // Call _colony_emit to run the JS callback
+  tm_checked_call(L, 1);
+}
+
+int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_t buffer_ref) {
 
   if (buffer_size <= 0) {
     return -1;
   }
 
-  uint32_t massagedLen = massageBuffer(buffer, buffer_size);
+  // TODO: move these calculations client computer side
+  neopixelStatus.outputRef = buffer_ref;
+  neopixelStatus.outputLength = buffer_size/3;
+  massageBuffer(buffer, buffer_size);
 
   uint8_t pin = E_G4;
   scu_pinmux(g_APinDescription[pin].port,
@@ -222,32 +253,32 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size) {
 
   /* Send block of frames */
   /* Preset first data word */
-  LEDDRIVER_writeRGB(outputData[0]);
-  frameCount = massagedLen;
+  LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
+  frameCount = neopixelStatus.outputLength;
   /* Then start transmission */
   LEDDRIVER_haltAfterFrame(0);
   LEDDRIVER_start();
 
-  // TIM_Waitms(3);
-  // for (uint32_t i = 0; i < massagedLen; i++) {
-  //   TM_DEBUG("And now we're going to send %d at %d", outputData[i], i);
+  tm_event_ref(&animation_complete_event);
+  TIM_Waitms(3);
+  // for (uint32_t i = 0; i < neopixelStatus.outputLength; i++) {
+  //   TM_DEBUG("And now we're going to send %d at %d", neopixelStatus.outputData[i], i);
   // }
 
   return 0;
 }
 
-uint32_t massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
+void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
   // We're going to take a uint8_t buffer and compress
   // the grb values together
   uint32_t packedBufferLen = uncompressedLength/3;
-  outputData = malloc(packedBufferLen);
+  neopixelStatus.outputData = malloc(packedBufferLen);
 
   uint32_t pixel = 0;
   for (uint32_t i = 0; i < uncompressedLength; i+=3) {
-    outputData[pixel++] = uncompressedBuffer[i] << 16 |
+    neopixelStatus.outputData[pixel++] = 
+                    uncompressedBuffer[i + 0] << 16 |
                     uncompressedBuffer[i + 1] << 8 |
                     uncompressedBuffer[i + 2];
   }
-
-  return packedBufferLen;
 }

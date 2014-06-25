@@ -5,10 +5,11 @@
 #include "variant.h"
 #include "lpc18xx_sct.h"
 #include <math.h> 
+#include "colony.h"
 
 void basicTest ();
 
-int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size);
+int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_t buffer_ref);
 
 void LEDDRIVER_open (void);
 
@@ -22,6 +23,12 @@ void LEDDRIVER_haltAfterFrame (int on);
 
 /* Start a block transmission */
 void LEDDRIVER_start (void);
+
+struct neopixel_status_t {
+  uint32_t *outputData;
+  uint32_t outputLength;
+  int32_t outputRef;
+};
 
 /** Macro to define register bits and mask in CMSIS style */
 #define LPCLIB_DefineRegBit(name,pos,width)    \
