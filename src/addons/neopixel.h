@@ -8,7 +8,7 @@
 
 void basicTest ();
 
-void writeColor(uint8_t pin, uint32_t color);
+int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size);
 
 void LEDDRIVER_open (void);
 

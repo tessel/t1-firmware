@@ -670,11 +670,17 @@ static int l_gps_get_speed(lua_State* L) {
 	return 1;
 }
 
-static int l_neopixel_write_color(lua_State* L) {
-	TM_DEBUG("DId we at least get in here?");
-	int pin = lua_tonumber(L, ARG1);
-	int color = lua_tonumber(L, ARG1 + 1);
-	writeColor(pin, color);
+static int l_neopixel_animation_buffer(lua_State* L) {
+	size_t buffer_len;
+	const uint8_t* buffer = colony_toconstdata(L, ARG1, &buffer_len);
+	TM_DEBUG("Buf length %d", buffer_len);
+	// uint32_t buffer_ref = LUA_NOREF;
+	// if (buffer_len != 0) {
+		// lua_pushvalue(L, ARG1);
+		// buffer_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+	// }
+	writeAnimationBuffer(buffer, buffer_len);
+	// lua_pushnumber(L, writeAnimationBuffer(buffer, buffer_len));
 	return 0;
 }
 
@@ -904,8 +910,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "usb_send", l_usb_send },
 
 		// Neopixel
-		{ "neopixel_test", l_neopixel_test },
-		{ "neopixel_write_color", l_neopixel_write_color },
+		{ "neopixel_animation_buffer", l_neopixel_animation_buffer },
 
 
 		// gps
