@@ -37,6 +37,7 @@ void LEDDRIVER_open (void)
         | (0 << SCT_CTRL_H_BIDIR_H_Pos)
         | (((prescaler - 1) << SCT_CTRL_H_PRE_H_Pos) & SCT_CTRL_H_PRE_H_Msk);
         ;
+    TM_DEBUG("CTRL H: %d", LPC_SCT->CTRL_H);
 
     /* Preset the SCTOUTx signals */
     LPC_SCT->OUTPUT &= ~(0
@@ -44,6 +45,7 @@ void LEDDRIVER_open (void)
         | (1u << AUX_OUTPUT)
         | (1u << DUMMY_OUTPUT)
         );
+    TM_DEBUG("Output: %d", LPC_SCT->OUTPUT);
 
     /* Start state */
     LPC_SCT->STATE_H = 24;
@@ -52,7 +54,6 @@ void LEDDRIVER_open (void)
     LPC_SCT->LIMIT_H = (1u << 15);          /* Event 15 */
 
     /* Configure the match registers */
-//    clocksPerBit = CLKPWR_getBusClock(CLKPWR_CLOCK_SCT) / (prescaler * DATA_SPEED);
     clocksPerBit = SystemCoreClock / (prescaler * DATA_SPEED);
     LPC_SCT->MATCHREL_H[0] = clocksPerBit - 1;              /* Bit period */
     LPC_SCT->MATCHREL_H[1] = 8 - 1;          /* T0H */
@@ -132,10 +133,15 @@ void LEDDRIVER_open (void)
         | (0 << 2 * DATA_OUTPUT)            /* DATA signal doesn't change */
         | (3 << 2 * AUX_OUTPUT)             /* AUX signal toggles */
         ;
+    TM_DEBUG("Res: %d", LPC_SCT->RES);
 
+    // Clear pending interrupts on period completion
+    LPC_SCT->EVFLAG = (1u << 10);
     /* Configure interrupt events */
-    LPC_SCT->EVFLAG = 1u << 10;
     LPC_SCT->EVEN |= (1u << 10);            /* Event 10 */
+
+    TM_DEBUG("EVFlag: %d", LPC_SCT->EVFLAG);
+    TM_DEBUG("EVen: %d", LPC_SCT->EVEN);
 }
 
 
@@ -188,9 +194,9 @@ void SCT_IRQHandler (void)
   /* Acknowledge interrupt */
   LPC_SCT->EVFLAG = (1u << 10);
 
-  if(LPC_SCT->STATE_H == 24) {
-      LPC_GPIO_PORT->NOT[4] = (1u << 13);
-  }
+  // if(LPC_SCT->STATE_H == 24) {
+  //     LPC_GPIO_PORT->NOT[4] = (1u << 13);
+  // }
 
   if (frameCount) {
       --frameCount;
@@ -219,6 +225,8 @@ void animation_complete() {
   // Free our data buffer
   free(neopixelStatus.outputData);
 
+  tm_event_unref(&animation_complete_event);
+
   // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
@@ -234,6 +242,8 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_
     return -1;
   }
 
+  patternIndex = 0;
+  frameCount = 0;
   // TODO: move these calculations client computer side
   neopixelStatus.outputRef = buffer_ref;
   neopixelStatus.outputLength = buffer_size/3;
@@ -248,15 +258,19 @@ int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_
 
   // Initialize the LEDDriver
   LEDDRIVER_open();
-  // Allow SCT IRQs (which update the relevant data byte)
-  NVIC_EnableIRQ(SCT_IRQn);
 
   /* Send block of frames */
   /* Preset first data word */
+  TM_DEBUG("Aux status %d", LPC_SCT->OUTPUT & (1u << AUX_OUTPUT));
   LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
   frameCount = neopixelStatus.outputLength;
-  /* Then start transmission */
+  
+  // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0);
+
+  // Allow SCT IRQs (which update the relevant data byte)
+  NVIC_EnableIRQ(SCT_IRQn);
+  /* Then start transmission */
   LEDDRIVER_start();
 
   tm_event_ref(&animation_complete_event);
