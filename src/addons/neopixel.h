@@ -38,7 +38,7 @@ typedef struct {
 } neopixel_sct_status_t;
 
 // int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
-int8_t writeAnimationBuffers(neopixel_animation_status_t *chan_a);
+int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations);
 
 void neopixel_reset_animation();
 
@@ -54,6 +54,8 @@ void LEDDRIVER_haltAfterFrame (int on);
 
 /* Start a block transmission */
 void LEDDRIVER_start (void);
+
+#define MAX_SCT_CHANNELS 3
 
 /** Macro to define register bits and mask in CMSIS style */
 #define LPCLIB_DefineRegBit(name,pos,width)    \
