@@ -582,6 +582,8 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	// Save number of frames into a variable
 	size_t numFrames =  lua_tonumber(L, -1);
 
+	neopixel_animation_status_t *chan_a = malloc(sizeof(neopixel_animation_status_t));
+
 	// Allocate memory for the frame pointers
 	const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
 	// Allocate memory for the length of each frame
@@ -607,8 +609,15 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 		frameRefs[i] = ref;
 	}
 
+	chan_a->animation.frames = frames;
+	chan_a->animation.frameLengths = frameLengths;
+	chan_a->animation.frameRefs = frameRefs;
+	chan_a->animation.numFrames = numFrames;
+	chan_a->bytesSent = 0;
+	chan_a->framesSent = 0;
+
 	// Begin the animation
-	writeAnimationBuffer(frames, frameRefs, frameLengths, numFrames);
+	writeAnimationBuffers(chan_a);
 
 	return 0;
 }

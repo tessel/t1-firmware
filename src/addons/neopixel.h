@@ -7,7 +7,38 @@
 #include <math.h> 
 #include "colony.h"
 
-int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
+/* 
+Struct defining all of the 
+contstructed animation data
+*/
+typedef struct {
+  const uint8_t **frames;
+  uint32_t *frameLengths;
+  int32_t *frameRefs;
+  uint32_t numFrames;
+} neopixel_animation_t;
+
+/*
+Struct containing animation's
+current completion status
+*/
+typedef struct {
+  neopixel_animation_t animation; 
+  uint32_t bytesSent;
+  uint32_t framesSent;
+} neopixel_animation_status_t;
+
+/*
+Struct containing an SCT channel's
+current status
+*/
+typedef struct {
+  neopixel_animation_status_t channelAnimation;
+  uint32_t channelPin;
+} neopixel_sct_status_t;
+
+// int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
+int8_t writeAnimationBuffers(neopixel_animation_status_t *chan_a);
 
 void neopixel_reset_animation();
 
@@ -23,19 +54,6 @@ void LEDDRIVER_haltAfterFrame (int on);
 
 /* Start a block transmission */
 void LEDDRIVER_start (void);
-
-struct neopixel_animation_t {
-  const uint8_t **frames;
-  uint32_t *frameLengths;
-  int32_t *frameRefs;
-  uint32_t numFrames;
-} neopixel_animation_t;
-
-struct neopixel_status_t {
-  struct neopixel_animation_t animation; 
-  uint32_t bytesSent;
-  uint32_t framesSent;
-};
 
 /** Macro to define register bits and mask in CMSIS style */
 #define LPCLIB_DefineRegBit(name,pos,width)    \
