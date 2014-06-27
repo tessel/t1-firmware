@@ -193,18 +193,17 @@ void SCT_IRQHandler (void)
 
   // If we have not yet sent all of our frames
   if (neopixelStatus.framesSent < neopixelStatus.animation.numFrames) {
-    // TM_DEBUG("Not the end of the frame world.");
+
     // If we have not yet sent all of our bytes in the current frame
     if (neopixelStatus.bytesSent < neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
-      // TM_DEBUG("Sending next byte...");
+
       // Send the next byte
-      LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]); // TODO: Replace with actual value
-      // TM_DEBUG("Written...");
+      LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]); 
+
       // If we only have one byte next
       if (neopixelStatus.animation.frameLengths[neopixelStatus.framesSent] - neopixelStatus.bytesSent == 0) {
 
         // We're going to halt 
-        // TM_DEBUG("Halting");
         LEDDRIVER_haltAfterFrame(1);
       }
     }
@@ -213,26 +212,23 @@ void SCT_IRQHandler (void)
     if (neopixelStatus.bytesSent == neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
       
       // Move onto the next
-      // TM_DEBUG("Frame Complete");
       neopixelStatus.framesSent++;
       neopixelStatus.bytesSent = 0;
+
       // If we have now sent all of them
       if (neopixelStatus.framesSent == neopixelStatus.animation.numFrames) {
+        
         // Trigger the end
         tm_event_trigger(&animation_complete_event);
       }
 
       // If not all frames have been sent
       else {
-        // Continue with the next frame (does this wait for the 50ms waiting period?)
+        // Continue with the next frame
         beginAnimationAtCurrentFrame();
       }
     } 
   }
-  else {
-    // TM_DEBUG("Woah dude something bad happened.");
-  }
-  // TM_DEBUG("Clean exit...");
 }
 
 void neopixel_reset_animation() {
@@ -281,7 +277,6 @@ void animation_complete() {
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
   lua_pushstring(L, "neopixel_animation_complete");
-  // TM_DEBUG("About to emit");
   // Call _colony_emit to run the JS callback
   tm_checked_call(L, 1);
 }
