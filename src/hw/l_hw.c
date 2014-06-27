@@ -634,9 +634,10 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 			channels[i] = channel_animation;
 
 		}
-		else {
-			channels[i] = NULL;
-		}
+	}
+
+	for (uint8_t i = iter; i < MAX_SCT_CHANNELS; i++) {
+		channels[i] = NULL;
 	}
 
 	// Begin the animation
