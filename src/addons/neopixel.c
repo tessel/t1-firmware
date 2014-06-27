@@ -1,7 +1,12 @@
 #include "neopixel.h" 
 
-#define DATA_OUTPUT                         8
-#define AUX_OUTPUT                          1
+volatile neopixel_sct_status_t channel_a = {
+  .pin = E_G4,
+  .animationStatus = NULL,
+};
+
+#define CHAN_A_OUTPUT                       g_APinDescription[channel_a.pin].pwm_channel
+#define AUX_A_OUTPUT                        1
 #define DUMMY_OUTPUT                        2
 #define DATA_SPEED                          800000
 #define BITS_PER_INTERRUPT                  8 // Used to be 24
@@ -10,11 +15,7 @@
 #define SCT_CHAN_B                          E_G5
 #define SCT_CHAN_C                          E_G6
 
-
-volatile neopixel_animation_status_t *neopixelStatus;
-
 void beginAnimationAtCurrentFrame();
-// void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
 void animation_complete();
 
 tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
@@ -39,8 +40,8 @@ void LEDDRIVER_open (void)
 
   /* Preset the SCTOUTx signals */
   LPC_SCT->OUTPUT &= ~(0
-      | (1u << DATA_OUTPUT)
-      | (1u << AUX_OUTPUT)
+      | (1u << CHAN_A_OUTPUT)
+      | (1u << AUX_A_OUTPUT)
       | (1u << DUMMY_OUTPUT)
       );
 
@@ -78,7 +79,7 @@ void LEDDRIVER_open (void)
       | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
       | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
       | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-      | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+      | (AUX_A_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
       | (0 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 0 */
       | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
       ;
@@ -86,7 +87,7 @@ void LEDDRIVER_open (void)
       | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
       | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
       | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-      | (AUX_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+      | (AUX_A_OUTPUT << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
       | (3 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 1 */
       | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
       ;
@@ -108,18 +109,18 @@ void LEDDRIVER_open (void)
   LPC_SCT->HALT_H = (1u << 10);           /* Event 10 halts the transfer */
 
   /* Output actions (TODO: honor previous register settings) */
-  LPC_SCT->OUT[AUX_OUTPUT].SET = 0
+  LPC_SCT->OUT[AUX_A_OUTPUT].SET = 0
       | (1u << 10)                        /* Event 10 toggles the AUX signal */
       ;
-  LPC_SCT->OUT[AUX_OUTPUT].CLR = 0
+  LPC_SCT->OUT[AUX_A_OUTPUT].CLR = 0
       | (1u << 10)                        /* Event 10 toggles the AUX signal */
       ;
-  LPC_SCT->OUT[DATA_OUTPUT].SET = 0
+  LPC_SCT->OUT[CHAN_A_OUTPUT].SET = 0
       | (1u << 15)                        /* Event 15 sets the DATA signal */
       | (1u << 12)                        /* Event 12 sets the DATA signal */
       | (1u << 11)                        /* Event 11 sets the DATA signal */
       ;
-  LPC_SCT->OUT[DATA_OUTPUT].CLR = 0
+  LPC_SCT->OUT[CHAN_A_OUTPUT].CLR = 0
       | (1u << 14)                        /* Event 14 clears the DATA signal */
       | (1u << 13)                        /* Event 13 clears the DATA signal */
       | (1u << 10)                        /* Event 10 clears the DATA signal */
@@ -127,8 +128,8 @@ void LEDDRIVER_open (void)
 
   /* Conflict resolution (TODO: honor previous register settings) */
   LPC_SCT->RES = 0
-      | (0 << 2 * DATA_OUTPUT)            /* DATA signal doesn't change */
-      | (3 << 2 * AUX_OUTPUT)             /* AUX signal toggles */
+      | (0 << 2 * CHAN_A_OUTPUT)            /* DATA signal doesn't change */
+      | (3 << 2 * AUX_A_OUTPUT)             /* AUX signal toggles */
       ;
 
   // Clear pending interrupts on period completion
@@ -142,7 +143,7 @@ void LEDDRIVER_open (void)
 /* Simple function to write to a transmit buffer. */
 void LEDDRIVER_writeRGB (uint32_t rgb)
 {
-  if (LPC_SCT->OUTPUT & (1u << AUX_OUTPUT)) {
+  if (LPC_SCT->OUTPUT & (1u << AUX_A_OUTPUT)) {
     LPC_SCT->EVENT[12].STATE = rgb;
   }
   else {
@@ -187,16 +188,16 @@ void SCT_IRQHandler (void)
   LPC_SCT->EVFLAG = (1u << 10);
 
   // If we have not yet sent all of our frames
-  if (neopixelStatus->framesSent < neopixelStatus->animation.numFrames) {
+  if (channel_a.animationStatus->framesSent < channel_a.animationStatus->animation.numFrames) {
 
     // If we have not yet sent all of our bytes in the current frame
-    if (neopixelStatus->bytesSent < neopixelStatus->animation.frameLengths[neopixelStatus->framesSent]) {
+    if (channel_a.animationStatus->bytesSent < channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
 
       // Send the next byte
-      LEDDRIVER_writeRGB(neopixelStatus->animation.frames[neopixelStatus->framesSent][neopixelStatus->bytesSent++]); 
+      LEDDRIVER_writeRGB(channel_a.animationStatus->animation.frames[channel_a.animationStatus->framesSent][channel_a.animationStatus->bytesSent++]); 
 
       // If we only have one byte next
-      if (neopixelStatus->animation.frameLengths[neopixelStatus->framesSent] - neopixelStatus->bytesSent == 0) {
+      if (channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent] - channel_a.animationStatus->bytesSent == 0) {
 
         // We're going to halt 
         LEDDRIVER_haltAfterFrame(1);
@@ -204,14 +205,14 @@ void SCT_IRQHandler (void)
     }
 
     // If we have sent all of the bytes in this frame
-    if (neopixelStatus->bytesSent == neopixelStatus->animation.frameLengths[neopixelStatus->framesSent]) {
+    if (channel_a.animationStatus->bytesSent == channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
       
       // Move onto the next
-      neopixelStatus->framesSent++;
-      neopixelStatus->bytesSent = 0;
+      channel_a.animationStatus->framesSent++;
+      channel_a.animationStatus->bytesSent = 0;
 
       // If we have now sent all of them
-      if (neopixelStatus->framesSent == neopixelStatus->animation.numFrames) {
+      if (channel_a.animationStatus->framesSent == channel_a.animationStatus->animation.numFrames) {
         
         // Trigger the end
         tm_event_trigger(&animation_complete_event);
@@ -239,18 +240,18 @@ void neopixel_reset_animation() {
   if (!L) return;
 
   // If we have an active animation
-  if (neopixelStatus->animation.numFrames != 0) {
+  if (channel_a.animationStatus->animation.numFrames != 0) {
     // Iterate through all of our references
-    for (uint32_t i = 0; i < neopixelStatus->animation.numFrames; i++) {
+    for (uint32_t i = 0; i < channel_a.animationStatus->animation.numFrames; i++) {
       // Unreference our buffer so it can be garbage collected
-      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus->animation.frameRefs[i]);
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, channel_a.animationStatus->animation.frameRefs[i]);
     }
 
     // Free our animation buffers and struct memory
-    free(neopixelStatus->animation.frames);
-    free(neopixelStatus->animation.frameLengths);
-    free(neopixelStatus->animation.frameRefs);
-    free((neopixel_animation_status_t *)neopixelStatus);
+    free(channel_a.animationStatus->animation.frames);
+    free(channel_a.animationStatus->animation.frameLengths);
+    free(channel_a.animationStatus->animation.frameRefs);
+    free((neopixel_animation_status_t *)channel_a.animationStatus);
   }
 
   // Unreference the event
@@ -280,7 +281,7 @@ void beginAnimationAtCurrentFrame() {
 
   /* Send block of frames */
   /* Preset first data word */
-  LEDDRIVER_writeRGB(neopixelStatus->animation.frames[neopixelStatus->framesSent][neopixelStatus->bytesSent++]);
+  LEDDRIVER_writeRGB(channel_a.animationStatus->animation.frames[channel_a.animationStatus->framesSent][channel_a.animationStatus->bytesSent++]);
   
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
@@ -290,22 +291,19 @@ void beginAnimationAtCurrentFrame() {
 }
 
 int8_t writeAnimationBuffers(neopixel_animation_status_t *chan_a) {
-// int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames) {
 
   if (chan_a->animation.numFrames <= 0) {
     return -1;
   }
 
-  uint8_t pin = E_G4;
-
   // Initialize buffers
-  neopixelStatus = chan_a;
+  channel_a.animationStatus = chan_a;
 
   // Set up the pin as SCT out
-  scu_pinmux(g_APinDescription[pin].port,
-    g_APinDescription[pin].pin,
-    g_APinDescription[pin].mode,
-    g_APinDescription[pin].alternate_func);
+  scu_pinmux(g_APinDescription[channel_a.pin].port,
+    g_APinDescription[channel_a.pin].pin,
+    g_APinDescription[channel_a.pin].mode,
+    g_APinDescription[channel_a.pin].alternate_func);
     SystemCoreClock = 180000000;
 
   /* Then start transmission */
