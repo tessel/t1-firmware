@@ -256,21 +256,25 @@ void neopixel_reset_animation() {
   lua_State* L = tm_lua_state;
   if (!L) return;
 
-  // If we have an active animation
-  if (channel_a.animationStatus->animation.numFrames != 0) {
-    // Iterate through all of our references
-    for (uint32_t i = 0; i < channel_a.animationStatus->animation.numFrames; i++) {
-      // Unreference our buffer so it can be garbage collected
-      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, channel_a.animationStatus->animation.frameRefs[i]);
+  for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+      // If we have an active animation
+    if (sct_animation_channels[i]->animationStatus != NULL &&
+        sct_animation_channels[i]->animationStatus->animation.numFrames != 0) {
+      // Iterate through all of our references
+      for (uint32_t j = 0; j < sct_animation_channels[i]->animationStatus->animation.numFrames; j++) {
+        // Unreference our buffer so it can be garbage collected
+        luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i]->animationStatus->animation.frameRefs[j]);
+      }
+
+      // Free our animation buffers and struct memory
+      free(sct_animation_channels[i]->animationStatus->animation.frames);
+      free(sct_animation_channels[i]->animationStatus->animation.frameLengths);
+      free(sct_animation_channels[i]->animationStatus->animation.frameRefs);
+      free((neopixel_animation_status_t *)sct_animation_channels[i]->animationStatus);
+      sct_animation_channels[i]->animationStatus = NULL;
     }
 
-    // Free our animation buffers and struct memory
-    free(channel_a.animationStatus->animation.frames);
-    free(channel_a.animationStatus->animation.frameLengths);
-    free(channel_a.animationStatus->animation.frameRefs);
-    free((neopixel_animation_status_t *)channel_a.animationStatus);
   }
-
   // Unreference the event
   tm_event_unref(&animation_complete_event);
 }
@@ -324,8 +328,7 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
     // If this channel has animation frames
-    if (channel_animations[i]->animation.numFrames > 0) {
-
+    if (channel_animations[i] != NULL) {
       // Assign the data buffers to the memory struct
       sct_animation_channels[i]->animationStatus = channel_animations[i];
 
