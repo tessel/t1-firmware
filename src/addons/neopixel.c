@@ -235,34 +235,53 @@ void SCT_IRQHandler (void)
   // TM_DEBUG("Clean exit...");
 }
 
-void animation_complete() {
+void neopixel_reset_animation() {
+
+  // Disable the SCT IRQ
+  NVIC_DisableIRQ(SCT_IRQn);
+
+  // We should make sure the SCT is halted
+  LEDDRIVER_haltAfterFrame(true);
+
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
   if (!L) return;
 
-  // Iterate through all of our references
-  for (uint32_t i = 0; i < neopixelStatus.animation.numFrames; i++) {
-    // Unreference our buffer so it can be garbage collected
-    luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.animation.frameRefs[i]);
+  // If we have an active animation
+  if (neopixelStatus.animation.numFrames != 0) {
+    // Iterate through all of our references
+    for (uint32_t i = 0; i < neopixelStatus.animation.numFrames; i++) {
+      // Unreference our buffer so it can be garbage collected
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.animation.frameRefs[i]);
+    }
+
+    // Free our animation buffers
+    free(neopixelStatus.animation.frames);
+    free(neopixelStatus.animation.frameLengths);
+    free(neopixelStatus.animation.frameRefs);
+    neopixelStatus.animation.numFrames = 0;
   }
   
-  // Free our animation buffers
-  free(neopixelStatus.animation.frames);
-  free(neopixelStatus.animation.frameLengths);
-  free(neopixelStatus.animation.frameRefs);
-
-  tm_event_unref(&animation_complete_event);
-
   // Reset global counters
   neopixelStatus.bytesSent = 0;
   neopixelStatus.framesSent = 0;
 
-  NVIC_DisableIRQ(SCT_IRQn);
+  // Unreference the event
+  tm_event_unref(&animation_complete_event);
 
+}
+
+void animation_complete() {
+  // Reset all of our variables
+  neopixel_reset_animation();
+
+  lua_State* L = tm_lua_state;
+  if (!L) return;
   // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
   lua_pushstring(L, "neopixel_animation_complete");
+  // TM_DEBUG("About to emit");
   // Call _colony_emit to run the JS callback
   tm_checked_call(L, 1);
 }

@@ -7,9 +7,9 @@
 #include <math.h> 
 #include "colony.h"
 
-void basicTest ();
-
 int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
+
+void neopixel_reset_animation();
 
 void LEDDRIVER_open (void);
 
