@@ -5,15 +5,33 @@ volatile neopixel_sct_status_t channel_a = {
   .animationStatus = NULL,
 };
 
-#define CHAN_A_OUTPUT                       g_APinDescription[channel_a.pin].pwm_channel
+volatile neopixel_sct_status_t channel_b = {
+  .pin = E_G5,
+  .animationStatus = NULL,
+};
+
+volatile neopixel_sct_status_t channel_c = {
+  .pin = E_G6,
+  .animationStatus = NULL,
+};
+
+volatile neopixel_sct_status_t *sct_animation_channels[] = {
+  &channel_a,
+  &channel_b,
+  &channel_c,
+};
+
+#define CHAN_A_OUTPUT                       g_APinDescription[channel_a.pin].pwm_channel // 8 on TM-00-04
 #define AUX_A_OUTPUT                        1
+
+#define CHAN_B_OUTPUT                       g_APinDescription[channel_b.pin].pwm_channel // 5 on TM-00-04
+#define AUX_B_OUTPUT                        2
+
+#define CHAN_C_OUTPUT                       g_APinDescription[channel_c.pin].pwm_channel // 10 on TM-00-04
+#define AUX_C_OUTPUT                        3
 
 #define DATA_SPEED                          800000
 #define BITS_PER_INTERRUPT                  8 // Used to be 24
-
-#define SCT_CHAN_A                          E_G4
-#define SCT_CHAN_B                          E_G5
-#define SCT_CHAN_C                          E_G6
 
 void beginAnimationAtCurrentFrame();
 void animation_complete();
@@ -289,21 +307,41 @@ void beginAnimationAtCurrentFrame() {
   LEDDRIVER_start();
 }
 
-int8_t writeAnimationBuffers(neopixel_animation_status_t *chan_a) {
+void setPinSCTFunc(uint8_t pin) {
+  // Set up the pin as SCT out
+  scu_pinmux(g_APinDescription[pin].port,
+    g_APinDescription[pin].pin,
+    g_APinDescription[pin].mode,
+    g_APinDescription[pin].alternate_func);
+}
 
-  if (chan_a->animation.numFrames <= 0) {
+int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
+
+  // Bool indicating whether any channels have animations ready
+  bool animationsReady = false;
+
+  // For each SCT channel
+  for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+
+    // If this channel has animation frames
+    if (channel_animations[i]->animation.numFrames > 0) {
+
+      // Assign the data buffers to the memory struct
+      sct_animation_channels[i]->animationStatus = channel_animations[i];
+
+      // Set up the pin as SCT
+      setPinSCTFunc(sct_animation_channels[i]->pin);
+
+      animationsReady = true;
+    }
+  }
+
+  if (!animationsReady) {
     return -1;
   }
 
-  // Initialize buffers
-  channel_a.animationStatus = chan_a;
-
-  // Set up the pin as SCT out
-  scu_pinmux(g_APinDescription[channel_a.pin].port,
-    g_APinDescription[channel_a.pin].pin,
-    g_APinDescription[channel_a.pin].mode,
-    g_APinDescription[channel_a.pin].alternate_func);
-    SystemCoreClock = 180000000;
+  // Set the system core clock to 180MHz
+  SystemCoreClock = 180000000;
 
   /* Then start transmission */
   beginAnimationAtCurrentFrame();
