@@ -240,45 +240,47 @@ void SCT_IRQHandler (void)
 {
 
   /* Acknowledge interrupt */
-  LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
+  if (LPC_SCT->EVFLAG & (1u << COMPLETE_FRAME_EVENT)) {
+      LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
 
-  // If we have not yet sent all of our frames
-  if (channel_a.animationStatus->framesSent < channel_a.animationStatus->animation.numFrames) {
+    // If we have not yet sent all of our frames
+    if (channel_a.animationStatus->framesSent < channel_a.animationStatus->animation.numFrames) {
 
-    // If we have not yet sent all of our bytes in the current frame
-    if (channel_a.animationStatus->bytesSent < channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
+      // If we have not yet sent all of our bytes in the current frame
+      if (channel_a.animationStatus->bytesSent < channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
 
-      // Send the next byte
-      LEDDRIVER_writeNextRGBValue(channel_a); 
+        // Send the next byte
+        LEDDRIVER_writeNextRGBValue(channel_a); 
 
-      // If we only have one byte next
-      if (channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent] - channel_a.animationStatus->bytesSent == 0) {
+        // If we only have one byte next
+        if (channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent] - channel_a.animationStatus->bytesSent == 0) {
 
-        // We're going to halt 
-        LEDDRIVER_haltAfterFrame(1);
+          // We're going to halt 
+          LEDDRIVER_haltAfterFrame(1);
+        }
       }
-    }
 
-    // If we have sent all of the bytes in this frame
-    if (channel_a.animationStatus->bytesSent == channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
-      
-      // Move onto the next
-      channel_a.animationStatus->framesSent++;
-      channel_a.animationStatus->bytesSent = 0;
-
-      // If we have now sent all of them
-      if (channel_a.animationStatus->framesSent == channel_a.animationStatus->animation.numFrames) {
+      // If we have sent all of the bytes in this frame
+      if (channel_a.animationStatus->bytesSent == channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
         
-        // Trigger the end
-        tm_event_trigger(&animation_complete_event);
-      }
+        // Move onto the next
+        channel_a.animationStatus->framesSent++;
+        channel_a.animationStatus->bytesSent = 0;
 
-      // If not all frames have been sent
-      else {
-        // Continue with the next frame
-        beginAnimationAtCurrentFrame();
-      }
-    } 
+        // If we have now sent all of them
+        if (channel_a.animationStatus->framesSent == channel_a.animationStatus->animation.numFrames) {
+          
+          // Trigger the end
+          tm_event_trigger(&animation_complete_event);
+        }
+
+        // If not all frames have been sent
+        else {
+          // Continue with the next frame
+          beginAnimationAtCurrentFrame();
+        }
+      } 
+    }
   }
 }
 
