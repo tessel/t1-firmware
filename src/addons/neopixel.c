@@ -5,6 +5,7 @@
 #define AUX_OUTPUT                          1
 #define DUMMY_OUTPUT                        2
 #define DATA_SPEED                          800000
+#define BITS_PER_INTERRUPT                  8 // Could also be 24 if we wanted
 
 volatile struct neopixel_status_t neopixelStatus = {
   .animation = {
@@ -17,6 +18,7 @@ volatile struct neopixel_status_t neopixelStatus = {
   .framesSent = 0,
 };
 
+void beginAnimationAtCurrentFrame();
 // void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
 void animation_complete();
 
@@ -48,7 +50,7 @@ void LEDDRIVER_open (void)
       );
 
   /* Start state */
-  LPC_SCT->STATE_H = 24;
+  LPC_SCT->STATE_H = BITS_PER_INTERRUPT;
 
   /* Counter LIMIT */
   LPC_SCT->LIMIT_H = (1u << 15);          /* Event 15 */
@@ -98,7 +100,7 @@ void LEDDRIVER_open (void)
       | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
       | (1 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH only */
       | (1 << SCT_EVx_CTRL_STATELD_Pos)   /* Set STATE to a value */
-      | (24 << SCT_EVx_CTRL_STATEV_Pos)   /* Set to 24 */
+      | (BITS_PER_INTERRUPT << SCT_EVx_CTRL_STATEV_Pos)   /* Set to 8 */
       ;
   LPC_SCT->EVENT[15].STATE = 0xFFFFFFFF;
   LPC_SCT->EVENT[14].STATE = 0x00FFFFFE;  /* All data bit states except state 0 */
@@ -185,21 +187,52 @@ void LEDDRIVER_start (void)
 
 void SCT_IRQHandler (void)
 {
-  int continueTX = 0;
 
   /* Acknowledge interrupt */
   LPC_SCT->EVFLAG = (1u << 10);
 
-  if (neopixelStatus.bytesSent < neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
-      LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]);
-      continueTX = 1;
-  }
+  // If we have not yet sent all of our frames
+  if (neopixelStatus.framesSent < neopixelStatus.animation.numFrames) {
+    // TM_DEBUG("Not the end of the frame world.");
+    // If we have not yet sent all of our bytes in the current frame
+    if (neopixelStatus.bytesSent < neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
+      // TM_DEBUG("Sending next byte...");
+      // Send the next byte
+      LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]); // TODO: Replace with actual value
+      // TM_DEBUG("Written...");
+      // If we only have one byte next
+      if (neopixelStatus.animation.frameLengths[neopixelStatus.framesSent] - neopixelStatus.bytesSent == 0) {
 
-  if (!continueTX) {
-    LEDDRIVER_haltAfterFrame(1);
-    TM_DEBUG("Triggering completion.");
-    tm_event_trigger(&animation_complete_event);
+        // We're going to halt 
+        // TM_DEBUG("Halting");
+        LEDDRIVER_haltAfterFrame(1);
+      }
+    }
+
+    // If we have sent all of the bytes in this frame
+    if (neopixelStatus.bytesSent == neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
+      
+      // Move onto the next
+      // TM_DEBUG("Frame Complete");
+      neopixelStatus.framesSent++;
+      neopixelStatus.bytesSent = 0;
+      // If we have now sent all of them
+      if (neopixelStatus.framesSent == neopixelStatus.animation.numFrames) {
+        // Trigger the end
+        tm_event_trigger(&animation_complete_event);
+      }
+
+      // If not all frames have been sent
+      else {
+        // Continue with the next frame (does this wait for the 50ms waiting period?)
+        beginAnimationAtCurrentFrame();
+      }
+    } 
   }
+  else {
+    // TM_DEBUG("Woah dude something bad happened.");
+  }
+  // TM_DEBUG("Clean exit...");
 }
 
 void animation_complete() {
@@ -224,12 +257,32 @@ void animation_complete() {
   neopixelStatus.bytesSent = 0;
   neopixelStatus.framesSent = 0;
 
+  NVIC_DisableIRQ(SCT_IRQn);
+
   // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
   lua_pushstring(L, "neopixel_animation_complete");
   // Call _colony_emit to run the JS callback
   tm_checked_call(L, 1);
+}
+
+void beginAnimationAtCurrentFrame() {
+  // Initialize the LEDDriver
+  LEDDRIVER_open();
+
+  // Allow SCT IRQs (which update the relevant data byte)
+  NVIC_EnableIRQ(SCT_IRQn);
+
+  /* Send block of frames */
+  /* Preset first data word */
+  LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]);
+  
+  // Do not halt after the first frame
+  LEDDRIVER_haltAfterFrame(0); 
+
+  // Start the operation
+  LEDDRIVER_start();
 }
 
 int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames) {
@@ -240,7 +293,7 @@ int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t
 
   uint8_t pin = E_G4;
 
-  // TODO: move these calculations client computer side
+  // Initialize buffers
   neopixelStatus.animation.frames = frames;
   neopixelStatus.animation.frameRefs = frameRefs;
   neopixelStatus.animation.frameLengths = frameLengths;
@@ -248,52 +301,18 @@ int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t
   neopixelStatus.framesSent = 0;
   neopixelStatus.bytesSent = 0;
 
-  // uint8_t pin = E_G4;
+  // Set up the pin as SCT out
   scu_pinmux(g_APinDescription[pin].port,
     g_APinDescription[pin].pin,
     g_APinDescription[pin].mode,
     g_APinDescription[pin].alternate_func);
     SystemCoreClock = 180000000;
 
-  // // Initialize the LEDDriver
-  LEDDRIVER_open();
+  /* Then start transmission */
+  beginAnimationAtCurrentFrame();
 
-  // /* Send block of frames */
-  // /* Preset first data word */
-  // LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
-  
-  // // Do not halt after the first frame
-  // LEDDRIVER_haltAfterFrame(0);
-
-  // // Allow SCT IRQs (which update the relevant data byte)
-  // NVIC_EnableIRQ(SCT_IRQn);
-  // /* Then start transmission */
-  // TM_DEBUG("Starting this train up.");
-  // LEDDRIVER_start();
-
-  // tm_event_ref(&animation_complete_event);
-  TM_DEBUG("At index 0 %d w/ ref %d and length %d", frames[1][0], frameRefs[1], frameLengths[1]);
-  for (uint32_t i = 0; i < frameLengths[1]; i++) {
-    TM_DEBUG("Object at index %d is %d", i, frames[1][i%255]);
-  }
-
-  // WHY DO WE NEED THIS?!?
-  // TIM_Waitms(3);
+  // Hold the event queue open until we're done with this event
+  tm_event_ref(&animation_complete_event);
 
   return 0;
 }
-
-// void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
-//   // We're going to take a uint8_t buffer and compress
-//   // the grb values together
-//   uint32_t packedBufferLen = uncompressedLength/3;
-//   neopixelStatus.outputData = malloc(packedBufferLen);
-
-//   uint32_t pixel = 0;
-//   for (uint32_t i = 0; i < uncompressedLength; i+=3) {
-//     neopixelStatus.outputData[pixel++] = 
-//                     uncompressedBuffer[i + 0] << 16 |
-//                     uncompressedBuffer[i + 1] << 8 |
-//                     uncompressedBuffer[i + 2];
-//   }
-// }
