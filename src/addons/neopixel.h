@@ -9,7 +9,7 @@
 
 void basicTest ();
 
-int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_t buffer_ref);
+int8_t writeAnimationBuffer(const uint8_t **frames, uint32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
 
 void LEDDRIVER_open (void);
 
