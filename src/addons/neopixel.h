@@ -35,19 +35,22 @@ current status
 typedef struct {
   neopixel_animation_status_t *animationStatus;
   uint32_t pin;
+  uint8_t sctHighEvent;
+  uint8_t sctLowEvent;
+  uint8_t sctOutputChannel;
+  uint8_t sctAuxChannel;
 } neopixel_sct_status_t;
 
-// int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
-int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations);
+int8_t writeAnimationBuffers (neopixel_animation_status_t **channel_animations);
 
-void neopixel_reset_animation();
+void neopixel_reset_animation ();
 
 void LEDDRIVER_open (void);
 
 /* Simple function to write to a transmit buffer.
  * NOTE: Application must keep track of how many data words have been sent!
  */
-void LEDDRIVER_writeRGB (uint32_t rgb);
+void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel);
 
 /* Activate or deactivate HALT after next frame. */
 void LEDDRIVER_haltAfterFrame (int on);
