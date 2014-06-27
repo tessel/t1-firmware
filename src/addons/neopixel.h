@@ -33,8 +33,8 @@ Struct containing an SCT channel's
 current status
 */
 typedef struct {
-  neopixel_animation_status_t channelAnimation;
-  uint32_t channelPin;
+  neopixel_animation_status_t *animationStatus;
+  uint32_t pin;
 } neopixel_sct_status_t;
 
 // int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
