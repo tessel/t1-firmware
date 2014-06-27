@@ -7,7 +7,7 @@ volatile neopixel_sct_status_t channel_a = {
 
 #define CHAN_A_OUTPUT                       g_APinDescription[channel_a.pin].pwm_channel
 #define AUX_A_OUTPUT                        1
-#define DUMMY_OUTPUT                        2
+
 #define DATA_SPEED                          800000
 #define BITS_PER_INTERRUPT                  8 // Used to be 24
 
@@ -42,7 +42,6 @@ void LEDDRIVER_open (void)
   LPC_SCT->OUTPUT &= ~(0
       | (1u << CHAN_A_OUTPUT)
       | (1u << AUX_A_OUTPUT)
-      | (1u << DUMMY_OUTPUT)
       );
 
   /* Start state */
