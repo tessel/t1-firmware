@@ -501,6 +501,9 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	// Clean up our SPI structs and dereference our lua objects
 	hw_spi_async_cleanup();
 
+	// Clean up the neopixel datastructures and lua refs
+	neopixel_reset_animation();
+
 	initialize_GPIO_interrupts();
 	tessel_gpio_init(0);
 
