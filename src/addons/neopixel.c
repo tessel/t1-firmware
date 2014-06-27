@@ -193,6 +193,7 @@ void SCT_IRQHandler (void)
 
   if (!continueTX) {
     LEDDRIVER_haltAfterFrame(1);
+    TM_DEBUG("Triggering completion.");
     tm_event_trigger(&animation_complete_event);
   }
 }
@@ -200,7 +201,9 @@ void SCT_IRQHandler (void)
 void animation_complete() {
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
-  if (!L) return;
+  if (!L) {
+    return;
+  }
 
   // Unreference our buffer so it can be garbage collected
   luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.outputRef);
@@ -219,47 +222,53 @@ void animation_complete() {
   lua_pushstring(L, "neopixel_animation_complete");
   // Clean up our vars so that we can do this again
   // Call _colony_emit to run the JS callback
+  TM_DEBUG("Ending this shit");
   tm_checked_call(L, 1);
 }
 
-int8_t writeAnimationBuffer(const uint8_t *buffer, uint32_t buffer_size, uint32_t buffer_ref) {
+int8_t writeAnimationBuffer(const uint8_t **frames, uint32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames) {
 
-  if (buffer_size <= 0) {
+  if (numFrames <= 0) {
     return -1;
   }
 
   // TODO: move these calculations client computer side
-  neopixelStatus.outputRef = buffer_ref;
-  neopixelStatus.outputLength = buffer_size/3;
-  neopixelStatus.bytesSent = 0;
-  massageBuffer(buffer, buffer_size);
+  // neopixelStatus.outputRef = buffer_ref;
+  // neopixelStatus.outputLength = buffer_size/3;
+  // neopixelStatus.bytesSent = 0;
+  // massageBuffer(buffer, buffer_size);
 
-  uint8_t pin = E_G4;
-  scu_pinmux(g_APinDescription[pin].port,
-    g_APinDescription[pin].pin,
-    g_APinDescription[pin].mode,
-    g_APinDescription[pin].alternate_func);
-    SystemCoreClock = 180000000;
+  // uint8_t pin = E_G4;
+  // scu_pinmux(g_APinDescription[pin].port,
+  //   g_APinDescription[pin].pin,
+  //   g_APinDescription[pin].mode,
+  //   g_APinDescription[pin].alternate_func);
+  //   SystemCoreClock = 180000000;
 
-  // Initialize the LEDDriver
-  LEDDRIVER_open();
+  // // Initialize the LEDDriver
+  // LEDDRIVER_open();
 
-  /* Send block of frames */
-  /* Preset first data word */
-  LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
+  // /* Send block of frames */
+  // /* Preset first data word */
+  // LEDDRIVER_writeRGB(neopixelStatus.outputData[0]);
   
-  // Do not halt after the first frame
-  LEDDRIVER_haltAfterFrame(0);
+  // // Do not halt after the first frame
+  // LEDDRIVER_haltAfterFrame(0);
 
-  // Allow SCT IRQs (which update the relevant data byte)
-  NVIC_EnableIRQ(SCT_IRQn);
-  /* Then start transmission */
-  LEDDRIVER_start();
+  // // Allow SCT IRQs (which update the relevant data byte)
+  // NVIC_EnableIRQ(SCT_IRQn);
+  // /* Then start transmission */
+  // TM_DEBUG("Starting this train up.");
+  // LEDDRIVER_start();
 
-  tm_event_ref(&animation_complete_event);
+  // tm_event_ref(&animation_complete_event);
+  TM_DEBUG("At index 0 %d w/ ref %d and length %d", frames[1][0], frameRefs[1], frameLengths[1]);
+  for (uint32_t i = 0; i < frameLengths[1]; i++) {
+    TM_DEBUG("Object at index %d is %d", i, frames[1][i%255]);
+  }
 
   // WHY DO WE NEED THIS?!?
-  TIM_Waitms(3);
+  // TIM_Waitms(3);
 
   return 0;
 }
