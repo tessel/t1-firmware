@@ -9,7 +9,7 @@
 
 void basicTest ();
 
-int8_t writeAnimationBuffer(const uint8_t **frames, uint32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
+int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames);
 
 void LEDDRIVER_open (void);
 
@@ -24,11 +24,17 @@ void LEDDRIVER_haltAfterFrame (int on);
 /* Start a block transmission */
 void LEDDRIVER_start (void);
 
+struct neopixel_animation_t {
+  const uint8_t **frames;
+  uint32_t *frameLengths;
+  int32_t *frameRefs;
+  uint32_t numFrames;
+} neopixel_animation_t;
+
 struct neopixel_status_t {
-  uint32_t *outputData;
-  uint32_t outputLength;
+  struct neopixel_animation_t animation; 
   uint32_t bytesSent;
-  int32_t outputRef;
+  uint32_t framesSent;
 };
 
 /** Macro to define register bits and mask in CMSIS style */

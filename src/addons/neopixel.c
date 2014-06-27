@@ -7,13 +7,17 @@
 #define DATA_SPEED                          800000
 
 volatile struct neopixel_status_t neopixelStatus = {
-  .outputData = NULL,
-  .outputLength = 0,
+  .animation = {
+    .frames = NULL,
+    .frameLengths = NULL,
+    .frameRefs = NULL,
+    .numFrames = 0,
+  },
   .bytesSent = 0,
-  .outputRef= LUA_NOREF,
+  .framesSent = 0,
 };
 
-void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
+// void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength);
 void animation_complete();
 
 tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
@@ -186,8 +190,8 @@ void SCT_IRQHandler (void)
   /* Acknowledge interrupt */
   LPC_SCT->EVFLAG = (1u << 10);
 
-  if (neopixelStatus.bytesSent < neopixelStatus.outputLength) {
-      LEDDRIVER_writeRGB(neopixelStatus.outputData[neopixelStatus.bytesSent++]);
+  if (neopixelStatus.bytesSent < neopixelStatus.animation.frameLengths[neopixelStatus.framesSent]) {
+      LEDDRIVER_writeRGB(neopixelStatus.animation.frames[neopixelStatus.framesSent][neopixelStatus.bytesSent++]);
       continueTX = 1;
   }
 
@@ -201,52 +205,58 @@ void SCT_IRQHandler (void)
 void animation_complete() {
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
-  if (!L) {
-    return;
+  if (!L) return;
+
+  // Iterate through all of our references
+  for (uint32_t i = 0; i < neopixelStatus.animation.numFrames; i++) {
+    // Unreference our buffer so it can be garbage collected
+    luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.animation.frameRefs[i]);
   }
-
-  // Unreference our buffer so it can be garbage collected
-  luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, neopixelStatus.outputRef);
-
-  // Free our data buffer
-  free(neopixelStatus.outputData);
+  
+  // Free our animation buffers
+  free(neopixelStatus.animation.frames);
+  free(neopixelStatus.animation.frameLengths);
+  free(neopixelStatus.animation.frameRefs);
 
   tm_event_unref(&animation_complete_event);
 
+  // Reset global counters
   neopixelStatus.bytesSent = 0;
-  neopixelStatus.outputLength = 0;
+  neopixelStatus.framesSent = 0;
 
   // Push the _colony_emit helper function onto the stack
   lua_getglobal(L, "_colony_emit");
   // The process message identifier
   lua_pushstring(L, "neopixel_animation_complete");
-  // Clean up our vars so that we can do this again
   // Call _colony_emit to run the JS callback
-  TM_DEBUG("Ending this shit");
   tm_checked_call(L, 1);
 }
 
-int8_t writeAnimationBuffer(const uint8_t **frames, uint32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames) {
+int8_t writeAnimationBuffer(const uint8_t **frames, int32_t *frameRefs, uint32_t *frameLengths, uint32_t numFrames) {
 
   if (numFrames <= 0) {
     return -1;
   }
 
+  uint8_t pin = E_G4;
+
   // TODO: move these calculations client computer side
-  // neopixelStatus.outputRef = buffer_ref;
-  // neopixelStatus.outputLength = buffer_size/3;
-  // neopixelStatus.bytesSent = 0;
-  // massageBuffer(buffer, buffer_size);
+  neopixelStatus.animation.frames = frames;
+  neopixelStatus.animation.frameRefs = frameRefs;
+  neopixelStatus.animation.frameLengths = frameLengths;
+  neopixelStatus.animation.numFrames = numFrames;
+  neopixelStatus.framesSent = 0;
+  neopixelStatus.bytesSent = 0;
 
   // uint8_t pin = E_G4;
-  // scu_pinmux(g_APinDescription[pin].port,
-  //   g_APinDescription[pin].pin,
-  //   g_APinDescription[pin].mode,
-  //   g_APinDescription[pin].alternate_func);
-  //   SystemCoreClock = 180000000;
+  scu_pinmux(g_APinDescription[pin].port,
+    g_APinDescription[pin].pin,
+    g_APinDescription[pin].mode,
+    g_APinDescription[pin].alternate_func);
+    SystemCoreClock = 180000000;
 
   // // Initialize the LEDDriver
-  // LEDDRIVER_open();
+  LEDDRIVER_open();
 
   // /* Send block of frames */
   // /* Preset first data word */
@@ -273,17 +283,17 @@ int8_t writeAnimationBuffer(const uint8_t **frames, uint32_t *frameRefs, uint32_
   return 0;
 }
 
-void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
-  // We're going to take a uint8_t buffer and compress
-  // the grb values together
-  uint32_t packedBufferLen = uncompressedLength/3;
-  neopixelStatus.outputData = malloc(packedBufferLen);
+// void massageBuffer(const uint8_t *uncompressedBuffer, uint32_t uncompressedLength) {
+//   // We're going to take a uint8_t buffer and compress
+//   // the grb values together
+//   uint32_t packedBufferLen = uncompressedLength/3;
+//   neopixelStatus.outputData = malloc(packedBufferLen);
 
-  uint32_t pixel = 0;
-  for (uint32_t i = 0; i < uncompressedLength; i+=3) {
-    neopixelStatus.outputData[pixel++] = 
-                    uncompressedBuffer[i + 0] << 16 |
-                    uncompressedBuffer[i + 1] << 8 |
-                    uncompressedBuffer[i + 2];
-  }
-}
+//   uint32_t pixel = 0;
+//   for (uint32_t i = 0; i < uncompressedLength; i+=3) {
+//     neopixelStatus.outputData[pixel++] = 
+//                     uncompressedBuffer[i + 0] << 16 |
+//                     uncompressedBuffer[i + 1] << 8 |
+//                     uncompressedBuffer[i + 2];
+//   }
+// }

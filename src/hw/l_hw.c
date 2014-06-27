@@ -677,11 +677,12 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	// Save number of frames into a variable
 	size_t numFrames =  lua_tonumber(L, -1);
 
+	// Allocate memory for the frame pointers
 	const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
+	// Allocate memory for the length of each frame
 	uint32_t *frameLengths = malloc(sizeof(uint32_t) * numFrames);
-	uint32_t *frameRefs = malloc(sizeof(uint32_t) * numFrames);
-
-	TM_DEBUG("Number of frames %d", numFrames);
+	// Allocate memory for the lua references to each frame
+	int32_t *frameRefs = malloc(sizeof(uint32_t) * numFrames);
 
 	uint32_t ref;
 	size_t bufSize;
@@ -691,7 +692,6 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 		lua_rawgeti(L, ARG1, i);
 		// Create a pointer out of that buffer
 		const uint8_t* buffer = colony_toconstdata(L, -1, &bufSize);
-		TM_DEBUG("Found length %d", bufSize);
 		// Grab a lua reference so it doesn't get gc'ed until we're done (or something?)
 		ref = luaL_ref(L, LUA_REGISTRYINDEX);
 		// Add the pointer to the frame to our array
@@ -702,6 +702,7 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 		frameRefs[i] = ref;
 	}
 
+	// Begin the animation
 	writeAnimationBuffer(frames, frameRefs, frameLengths, numFrames);
 
 	return 0;
