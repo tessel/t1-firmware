@@ -58,6 +58,7 @@ volatile neopixel_sct_status_t *sct_animation_channels[] = {
 #define AUX_C_OUTPUT                        channel_c.sctAuxChannel
 
 void beginAnimationAtCurrentFrame();
+bool updateChannelAnimation(neopixel_sct_status_t channel);
 void animation_complete();
 
 tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
@@ -206,8 +207,6 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
   }
 }
 
-
-
 /* Activate or deactivate HALT after next frame. */
 void LEDDRIVER_haltAfterFrame (int on)
 {
@@ -218,8 +217,6 @@ void LEDDRIVER_haltAfterFrame (int on)
     LPC_SCT->HALT_H = 0;
   }
 }
-
-
 
 /* Start a block transmission */
 void LEDDRIVER_start (void)
@@ -238,50 +235,84 @@ void LEDDRIVER_start (void)
 
 void SCT_IRQHandler (void)
 {
-
   /* Acknowledge interrupt */
   if (LPC_SCT->EVFLAG & (1u << COMPLETE_FRAME_EVENT)) {
-      LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
+    // Unset IRQ flag
+    LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
 
-    // If we have not yet sent all of our frames
-    if (channel_a.animationStatus->framesSent < channel_a.animationStatus->animation.numFrames) {
+    // Bool to track if all animations are complete
+    bool complete = true;
+    // Iterate through SCT channels
+    for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
-      // If we have not yet sent all of our bytes in the current frame
-      if (channel_a.animationStatus->bytesSent < channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
-
-        // Send the next byte
-        LEDDRIVER_writeNextRGBValue(channel_a); 
-
-        // If we only have one byte next
-        if (channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent] - channel_a.animationStatus->bytesSent == 0) {
-
-          // We're going to halt 
-          LEDDRIVER_haltAfterFrame(1);
-        }
+      // Attempt to update their channel
+      if (updateChannelAnimation(*(sct_animation_channels[i]))) {
+        // If we did, then we aren't complete with sending data
+        complete = false;
       }
+    }
 
-      // If we have sent all of the bytes in this frame
-      if (channel_a.animationStatus->bytesSent == channel_a.animationStatus->animation.frameLengths[channel_a.animationStatus->framesSent]) {
-        
-        // Move onto the next
-        channel_a.animationStatus->framesSent++;
-        channel_a.animationStatus->bytesSent = 0;
-
-        // If we have now sent all of them
-        if (channel_a.animationStatus->framesSent == channel_a.animationStatus->animation.numFrames) {
-          
-          // Trigger the end
-          tm_event_trigger(&animation_complete_event);
-        }
-
-        // If not all frames have been sent
-        else {
-          // Continue with the next frame
-          beginAnimationAtCurrentFrame();
-        }
-      } 
+    // If we finished sending data
+    if (complete) {
+      // Trigger the callback
+      tm_event_trigger(&animation_complete_event);
     }
   }
+}
+
+// Updates the SCT with the next byte of an animation
+// Returns the number of bytes updated (0 or 1)
+bool updateChannelAnimation(neopixel_sct_status_t channel) {
+
+  bool byteSent = false;
+
+  // If this channel doesn't have an animation, then we can return
+  if (channel.animationStatus == NULL) return byteSent;
+
+  // If we have not yet sent all of our frames
+  if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
+
+    // If we have not yet sent all of our bytes in the current frame
+    if (channel.animationStatus->bytesSent < channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
+
+      // Send the next byte
+      LEDDRIVER_writeNextRGBValue(channel); 
+
+      byteSent = true;
+
+      // If we only have one byte next
+      if (channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent] - channel.animationStatus->bytesSent == 0) {
+
+        // We're going to halt 
+        LEDDRIVER_haltAfterFrame(1);
+      }
+    }
+
+    // If we have sent all of the bytes in this frame
+    if (channel.animationStatus->bytesSent == channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
+      
+      // Move onto the next
+      channel.animationStatus->framesSent++;
+      channel.animationStatus->bytesSent = 0;
+
+      // If we have now sent all of them
+      if (channel.animationStatus->framesSent == channel.animationStatus->animation.numFrames) {
+        
+        // Trigger the end
+        byteSent = false;
+      }
+
+      // If not all frames have been sent
+      else {
+        // Continue with the next frame
+        beginAnimationAtCurrentFrame();
+
+        byteSent = true;
+      }
+    }
+  }
+
+  return byteSent;
 }
 
 void neopixel_reset_animation() {
@@ -343,6 +374,8 @@ void beginAnimationAtCurrentFrame() {
   /* Send block of frames */
   /* Preset first data word */
   LEDDRIVER_writeNextRGBValue(channel_a);
+  LEDDRIVER_writeNextRGBValue(channel_b);
+  LEDDRIVER_writeNextRGBValue(channel_c);
   
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
