@@ -6,20 +6,20 @@
 #define PERIOD_EVENT_NUM                    15
 #define T1H_EVENT_NUM                       14
 #define T0H_EVENT_NUM                       13
-#define CHAN_A_HIGH_EVENT_NUM               12
-#define CHAN_A_LOW_EVENT_NUM                11
-#define CHAN_B_HIGH_EVENT_NUM               10
-#define CHAN_B_LOW_EVENT_NUM                9
-#define CHAN_C_HIGH_EVENT_NUM               8
-#define CHAN_C_LOW_EVENT_NUM                7
+#define CHAN_A_OUTPUT_BUFFER_EVENT_NUM      12
+#define CHAN_A_AUX_BUFFER_EVENT_NUM         11
+#define CHAN_B_OUTPUT_BUFFER_EVENT_NUM      10
+#define CHAN_B_AUX_BUFFER_EVENT_NUM         9
+#define CHAN_C_OUTPUT_BUFFER_EVENT_NUM      8
+#define CHAN_C_AUX_BUFFER_EVENT_NUM         7
 #define COMPLETE_FRAME_EVENT                6
 
 
 volatile neopixel_sct_status_t channel_a = {
   .pin = E_G4,
   .animationStatus = NULL,
-  .sctHighEvent = CHAN_A_HIGH_EVENT_NUM,
-  .sctLowEvent = CHAN_A_LOW_EVENT_NUM,
+  .sctOuputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
+  .sctAuxBuffer = CHAN_A_AUX_BUFFER_EVENT_NUM,
   .sctOutputChannel = 8,
   .sctAuxChannel = 1,
 };
@@ -27,8 +27,8 @@ volatile neopixel_sct_status_t channel_a = {
 volatile neopixel_sct_status_t channel_b = {
   .pin = E_G5,
   .animationStatus = NULL,
-  .sctHighEvent = CHAN_B_HIGH_EVENT_NUM,
-  .sctLowEvent = CHAN_B_LOW_EVENT_NUM,
+  .sctOuputBuffer = CHAN_B_OUTPUT_BUFFER_EVENT_NUM,
+  .sctAuxBuffer = CHAN_B_AUX_BUFFER_EVENT_NUM,
   .sctOutputChannel = 5,
   .sctAuxChannel = 2,
 };
@@ -36,8 +36,8 @@ volatile neopixel_sct_status_t channel_b = {
 volatile neopixel_sct_status_t channel_c = {
   .pin = E_G6,
   .animationStatus = NULL,
-  .sctHighEvent = CHAN_C_HIGH_EVENT_NUM,
-  .sctLowEvent = CHAN_C_LOW_EVENT_NUM,
+  .sctOuputBuffer = CHAN_C_OUTPUT_BUFFER_EVENT_NUM,
+  .sctAuxBuffer = CHAN_C_AUX_BUFFER_EVENT_NUM,
   .sctOutputChannel = 10,
   .sctAuxChannel = 3,
 };
@@ -121,7 +121,7 @@ void LEDDRIVER_open (void)
       LPC_SCT->OUTPUT &= ~(0 | (1u << sct_animation_channels[i]->sctAuxChannel));
       LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctOutputChannel);
 
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctHighEvent].CTRL = 0
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctOuputBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
         | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
@@ -129,7 +129,7 @@ void LEDDRIVER_open (void)
         | (0 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 0 */
         | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
         ;
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctLowEvent].CTRL = 0
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctAuxBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
         | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
@@ -138,8 +138,8 @@ void LEDDRIVER_open (void)
         | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
         ;
 
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctHighEvent].STATE = 0;
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctLowEvent].STATE = 0; 
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctOuputBuffer].STATE = 0;
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctAuxBuffer].STATE = 0; 
 
       LPC_SCT->OUT[sct_animation_channels[i]->sctAuxChannel].SET = 0
           | (1u << COMPLETE_FRAME_EVENT)                        /* Complete Event toggles the AUX signal */
@@ -149,8 +149,8 @@ void LEDDRIVER_open (void)
           ;
       LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].SET = 0
           | (1u << PERIOD_EVENT_NUM)                        /* Event 15 sets the DATA signal */
-          | (1u << sct_animation_channels[i]->sctHighEvent)                        /* Event 12 sets the DATA signal */
-          | (1u << sct_animation_channels[i]->sctLowEvent)                        /* Event 11 sets the DATA signal */
+          | (1u << sct_animation_channels[i]->sctOuputBuffer)                        /* Event 12 sets the DATA signal */
+          | (1u << sct_animation_channels[i]->sctAuxBuffer)                        /* Event 11 sets the DATA signal */
           ;
       LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].CLR = 0
           | (1u << T1H_EVENT_NUM)                        /* Event 14 clears the DATA signal */
@@ -198,10 +198,10 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
     uint32_t rgb = sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent++];
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
-      LPC_SCT->EVENT[sct_channel.sctHighEvent].STATE = (rgb & 0xFFFFFF);
+      LPC_SCT->EVENT[sct_channel.sctOuputBuffer].STATE = (rgb & 0xFFFFFF);
     }
     else {
-      LPC_SCT->EVENT[sct_channel.sctLowEvent].STATE = (rgb & 0xFFFFFF);
+      LPC_SCT->EVENT[sct_channel.sctAuxBuffer].STATE = (rgb & 0xFFFFFF);
     }
   }
 }
@@ -400,9 +400,9 @@ void beginAnimation() {
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
 
-  // LPC_SCT->EVENT[channel_a.sctHighEvent].STATE = (0x555555 & 0xFFFFFF);
+  // LPC_SCT->EVENT[channel_a.sctOuputBuffer].STATE = (0x555555 & 0xFFFFFF);
 
-  // LPC_SCT->EVENT[channel_a.sctLowEvent].STATE = (0x555555 & 0xFFFFFF);
+  // LPC_SCT->EVENT[channel_a.sctAuxBuffer].STATE = (0x555555 & 0xFFFFFF);
   // Start the operation
   LEDDRIVER_start();
 }

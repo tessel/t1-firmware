@@ -35,8 +35,8 @@ current status
 typedef struct {
   neopixel_animation_status_t *animationStatus;
   uint32_t pin;
-  uint8_t sctHighEvent;
-  uint8_t sctLowEvent;
+  uint8_t sctOuputBuffer;
+  uint8_t sctAuxBuffer;
   uint8_t sctOutputChannel;
   uint8_t sctAuxChannel;
 } neopixel_sct_status_t;
