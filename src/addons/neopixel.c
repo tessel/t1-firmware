@@ -58,6 +58,7 @@ volatile neopixel_sct_status_t *sct_animation_channels[] = {
 #define AUX_C_OUTPUT                        channel_c.sctAuxChannel
 
 void beginAnimationAtCurrentFrame();
+void continueAnimation();
 bool updateChannelAnimation(neopixel_sct_status_t channel);
 void animation_complete();
 
@@ -117,10 +118,8 @@ void LEDDRIVER_open (void)
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
     if (sct_animation_channels[i]->animationStatus != NULL) {
 
-      LPC_SCT->OUTPUT &= ~(0
-        | (1u << sct_animation_channels[i]->sctOutputChannel)
-        | (1u << sct_animation_channels[i]->sctAuxChannel)
-        );
+      LPC_SCT->OUTPUT &= ~(0 | (1u << sct_animation_channels[i]->sctAuxChannel));
+      LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctOutputChannel);
 
       LPC_SCT->EVENT[sct_animation_channels[i]->sctHighEvent].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
@@ -179,7 +178,7 @@ void LEDDRIVER_open (void)
   LPC_SCT->EVENT[COMPLETE_FRAME_EVENT].STATE = 0x00000001; /* Only in state 0 */
 
       /* Default is to halt the block transfer after the next frame */
-  LPC_SCT->HALT_H = (1u << COMPLETE_FRAME_EVENT);           /* Complete Event halts the transfer */
+  // LPC_SCT->HALT_H = (1u << COMPLETE_FRAME_EVENT);           /* Complete Event halts the transfer */
 
   // Clear pending interrupts on period completion
   LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
@@ -199,10 +198,10 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
     uint32_t rgb = sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent++];
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
-      LPC_SCT->EVENT[sct_channel.sctHighEvent].STATE = rgb;
+      LPC_SCT->EVENT[sct_channel.sctHighEvent].STATE = (rgb & 0xFFFFFF);
     }
     else {
-      LPC_SCT->EVENT[sct_channel.sctLowEvent].STATE = rgb;
+      LPC_SCT->EVENT[sct_channel.sctLowEvent].STATE = (rgb & 0xFFFFFF);
     }
   }
 }
@@ -227,7 +226,8 @@ void LEDDRIVER_start (void)
   LPC_SCT->COUNT_H = - LPC_SCT->MATCHREL_H[0] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
 
   /* Start state */
-  LPC_SCT->STATE_H = 0;
+  // LPC_SCT->STATE_H = 0;
+  LPC_SCT->STATE_H = BITS_PER_INTERRUPT;
 
   /* Start timer H */
   LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
@@ -305,7 +305,7 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
       // If not all frames have been sent
       else {
         // Continue with the next frame
-        beginAnimationAtCurrentFrame();
+        continueAnimation();
 
         byteSent = true;
       }
@@ -364,7 +364,27 @@ void animation_complete() {
   tm_checked_call(L, 1);
 }
 
-void beginAnimationAtCurrentFrame() {
+void continueAnimation() {
+
+  LEDDRIVER_writeNextRGBValue(channel_a);
+
+  // Don't halt
+  LPC_SCT->HALT_H = 0;
+
+  // Set the flag to get an interrupt when byte transfer is complete
+  LPC_SCT->EVEN |= (1u << COMPLETE_FRAME_EVENT);
+
+   /* Set reset time */
+  LPC_SCT->COUNT_H = - LPC_SCT->MATCHREL_H[0] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
+
+  // Set the state to the default
+  LPC_SCT->STATE_H = BITS_PER_INTERRUPT;
+
+  /* Start timer H */
+  LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
+}
+
+void beginAnimation() {
   // Initialize the LEDDriver
   LEDDRIVER_open();
 
@@ -380,6 +400,9 @@ void beginAnimationAtCurrentFrame() {
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
 
+  // LPC_SCT->EVENT[channel_a.sctHighEvent].STATE = (0x555555 & 0xFFFFFF);
+
+  // LPC_SCT->EVENT[channel_a.sctLowEvent].STATE = (0x555555 & 0xFFFFFF);
   // Start the operation
   LEDDRIVER_start();
 }
@@ -420,7 +443,7 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
   SystemCoreClock = 180000000;
 
   /* Then start transmission */
-  beginAnimationAtCurrentFrame();
+  beginAnimation();
 
   // Hold the event queue open until we're done with this event
   tm_event_ref(&animation_complete_event);
