@@ -1,7 +1,7 @@
 #include "neopixel.h" 
 
 #define DATA_SPEED                          800000  
-#define BITS_PER_INTERRUPT                  8 // Used to be 24
+#define BITS_PER_INTERRUPT                  24 // Used to be 24
 
 #define PERIOD_EVENT_NUM                    15
 #define T1H_EVENT_NUM                       14
@@ -197,7 +197,9 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
   // Make sure this channel actually has animations
   if (sct_channel.animationStatus != NULL) {
     // Get the current rgb value
-    uint32_t rgb = sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent];
+    uint32_t rgb = (sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent] << 16
+                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent + 1] << 8
+                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent + 2]);
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
       LPC_SCT->EVENT[sct_channel.sctOuputBuffer].STATE = (rgb & 0xFFFFFF);
@@ -270,7 +272,7 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
   // If this channel doesn't have an animation, then we can return
   if (channel.animationStatus == NULL) return byteSent;
 
-  channel.animationStatus->bytesSent++;
+  channel.animationStatus->bytesSent+=3;
 
   // If we have not yet sent all of our frames
   if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
@@ -286,7 +288,7 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
       uint32_t bytesRemaining = channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent] - channel.animationStatus->bytesSent;
 
       // If we only have one byte left (but it's double buffered, so the 2nd last byte is current being sent)
-      if (bytesRemaining == 1) {
+      if (bytesRemaining == 3) {
 
         // We're going to halt 
         LEDDRIVER_haltAfterFrame(1);
