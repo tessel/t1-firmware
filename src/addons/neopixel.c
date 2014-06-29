@@ -1,6 +1,6 @@
 #include "neopixel.h" 
 
-#define DATA_SPEED                          800000
+#define DATA_SPEED                          800000  
 #define BITS_PER_INTERRUPT                  8 // Used to be 24
 
 #define PERIOD_EVENT_NUM                    15
@@ -118,9 +118,11 @@ void LEDDRIVER_open (void)
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
     if (sct_animation_channels[i]->animationStatus != NULL) {
 
-      LPC_SCT->OUTPUT &= ~(0 | (1u << sct_animation_channels[i]->sctAuxChannel));
-      LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctOutputChannel);
-
+      LPC_SCT->OUTPUT &= ~(0 
+        | (1u << sct_animation_channels[i]->sctOutputChannel)
+      );
+      LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctAuxChannel);
+      
       LPC_SCT->EVENT[sct_animation_channels[i]->sctOuputBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
@@ -178,7 +180,7 @@ void LEDDRIVER_open (void)
   LPC_SCT->EVENT[COMPLETE_FRAME_EVENT].STATE = 0x00000001; /* Only in state 0 */
 
       /* Default is to halt the block transfer after the next frame */
-  // LPC_SCT->HALT_H = (1u << COMPLETE_FRAME_EVENT);           /* Complete Event halts the transfer */
+  LPC_SCT->HALT_H = (1u << COMPLETE_FRAME_EVENT);           /* Complete Event halts the transfer */
 
   // Clear pending interrupts on period completion
   LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
@@ -195,7 +197,7 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
   // Make sure this channel actually has animations
   if (sct_channel.animationStatus != NULL) {
     // Get the current rgb value
-    uint32_t rgb = sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent++];
+    uint32_t rgb = sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent];
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
       LPC_SCT->EVENT[sct_channel.sctOuputBuffer].STATE = (rgb & 0xFFFFFF);
@@ -226,7 +228,6 @@ void LEDDRIVER_start (void)
   LPC_SCT->COUNT_H = - LPC_SCT->MATCHREL_H[0] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
 
   /* Start state */
-  // LPC_SCT->STATE_H = 0;
   LPC_SCT->STATE_H = BITS_PER_INTERRUPT;
 
   /* Start timer H */
@@ -269,45 +270,50 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
   // If this channel doesn't have an animation, then we can return
   if (channel.animationStatus == NULL) return byteSent;
 
+  channel.animationStatus->bytesSent++;
+
   // If we have not yet sent all of our frames
   if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
 
     // If we have not yet sent all of our bytes in the current frame
-    if (channel.animationStatus->bytesSent < channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
+    if (channel.animationStatus->bytesSent <= channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
 
       // Send the next byte
       LEDDRIVER_writeNextRGBValue(channel); 
 
       byteSent = true;
 
-      // If we only have one byte next
-      if (channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent] - channel.animationStatus->bytesSent == 0) {
+      uint32_t bytesRemaining = channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent] - channel.animationStatus->bytesSent;
+
+      // If we only have one byte left (but it's double buffered, so the 2nd last byte is current being sent)
+      if (bytesRemaining == 1) {
 
         // We're going to halt 
         LEDDRIVER_haltAfterFrame(1);
-      }
-    }
 
-    // If we have sent all of the bytes in this frame
-    if (channel.animationStatus->bytesSent == channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
-      
-      // Move onto the next
-      channel.animationStatus->framesSent++;
-      channel.animationStatus->bytesSent = 0;
-
-      // If we have now sent all of them
-      if (channel.animationStatus->framesSent == channel.animationStatus->animation.numFrames) {
-        
-        // Trigger the end
-        byteSent = false;
       }
 
-      // If not all frames have been sent
-      else {
-        // Continue with the next frame
-        continueAnimation();
+      // If we have sent all of the bytes in this frame (bytesSent is pre-)
+      else if (bytesRemaining == 0) {
 
-        byteSent = true;
+        // Move onto the next
+        channel.animationStatus->framesSent++;
+        channel.animationStatus->bytesSent = 0;
+
+        // If we have now sent all of them
+        if (channel.animationStatus->framesSent == channel.animationStatus->animation.numFrames) {
+          
+          // Trigger the end
+          byteSent = false;
+        }
+
+        // If not all frames have been sent
+        else {
+          // Continue with the next frame
+          continueAnimation();
+
+          byteSent = true;
+        }
       }
     }
   }
@@ -391,18 +397,16 @@ void beginAnimation() {
   // Allow SCT IRQs (which update the relevant data byte)
   NVIC_EnableIRQ(SCT_IRQn);
 
-  /* Send block of frames */
-  /* Preset first data word */
-  LEDDRIVER_writeNextRGBValue(channel_a);
-  LEDDRIVER_writeNextRGBValue(channel_b);
-  LEDDRIVER_writeNextRGBValue(channel_c);
+  // Fill the double buffer with the first two bytes
+  for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+    LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
+    LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i]->sctAuxChannel);
+    LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
+  }
   
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
 
-  // LPC_SCT->EVENT[channel_a.sctOuputBuffer].STATE = (0x555555 & 0xFFFFFF);
-
-  // LPC_SCT->EVENT[channel_a.sctAuxBuffer].STATE = (0x555555 & 0xFFFFFF);
   // Start the operation
   LEDDRIVER_start();
 }
