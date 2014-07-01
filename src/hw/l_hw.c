@@ -642,7 +642,6 @@ static int l_audio_stop_recording(lua_State* L) {
  * NTP
  */
 
-
 // synchronous function for getting the current time.
 // this is a poor design.
 
