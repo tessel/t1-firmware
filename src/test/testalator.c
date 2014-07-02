@@ -28,7 +28,7 @@
 #define DAC_TEST 0x41
 #define DAC_READ 0x42
 #define I2C_TEST 0x51
-#define OK 	0x0F
+#define TEST_OK	0x0F
 
 #define TESTALTOR_PORT 		LPC_I2C1
 #define TESTALTOR_ALT_PORT 	LPC_I2C0
@@ -97,7 +97,7 @@ void pinTest() {
 	hw_digital_write(E_G6, HW_LOW);
 
 	// respond
-	uint8_t txbuff[] = {OK};
+	uint8_t txbuff[] = {TEST_OK};
 
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, txbuff, 1);
 	TM_DEBUG("done sending message");
@@ -134,7 +134,7 @@ void sckTest(uint8_t number) {
 	hw_digital_write(CC3K_CONN_LED, 0);
 
 	// reply with something
-	uint8_t ok[1] = {OK};
+	uint8_t ok[1] = {TEST_OK};
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, ok, 1);
 	TM_DEBUG("ok put into sck test mode");
 
@@ -192,7 +192,7 @@ void adcTest(){
 		hw_analog_write(E_A4, 512);
 	}
 	// respond
-	uint8_t txbuff[1] = {OK};
+	uint8_t txbuff[1] = {TEST_OK};
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, txbuff, 1);
 }
 
@@ -203,7 +203,7 @@ void dacTest(){
 	hw_digital_write(CC3K_CONN_LED, 1);
 
 	uint32_t dacReading = 0;
-	uint8_t txbuff[5] = {OK, 0x00, 0x00, 0x00, 0x00};
+	uint8_t txbuff[5] = {TEST_OK, 0x00, 0x00, 0x00, 0x00};
 
 	if (tessel_board_version() >= 3) {
 		dacReading = hw_analog_read(E_A1);
@@ -234,7 +234,7 @@ void i2cTest(){
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 0);
 
-	uint8_t txbuff[1] = {OK};
+	uint8_t txbuff[1] = {TEST_OK};
 	hw_i2c_slave_send((uint32_t)TESTALTOR_PORT, txbuff, 1);
 
 	// reset txbuff
@@ -253,7 +253,7 @@ void i2cTest(){
 	hw_i2c_slave_receive((uint32_t)TESTALTOR_ALT_PORT, rxbuff, 2);
 	if (rxbuff[0] == I2C_TEST){
 		// sweet it passed
-		txbuff[0] = OK;
+		txbuff[0] = TEST_OK;
 	}
 
 	hw_i2c_slave_send((uint32_t)TESTALTOR_ALT_PORT, txbuff, 1);
