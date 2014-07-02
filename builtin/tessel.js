@@ -1411,10 +1411,6 @@ function Tessel() {
   this.deviceId = function(){
     return hw.device_id();
   };
-
-  this.approxidate_milli = function(date_string) {
-    return tm.approxidate_milli(date_string);
-  } 
 }
 
 util.inherits(Tessel, EventEmitter);
