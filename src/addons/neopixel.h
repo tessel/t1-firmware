@@ -13,8 +13,8 @@ contstructed animation data
 */
 typedef struct {
   const uint8_t **frames;
-  uint32_t *frameLengths;
-  int32_t *frameRefs;
+  uint32_t frameLength;
+  int32_t frameRef;
   uint32_t numFrames;
 } neopixel_animation_t;
 
@@ -58,7 +58,7 @@ void LEDDRIVER_haltAfterFrame (int on);
 /* Start a block transmission */
 void LEDDRIVER_start (void);
 
-#define MAX_SCT_CHANNELS 3
+#define MAX_SCT_CHANNELS 1
 
 /** Macro to define register bits and mask in CMSIS style */
 #define LPCLIB_DefineRegBit(name,pos,width)    \

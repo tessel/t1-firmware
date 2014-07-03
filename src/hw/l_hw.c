@@ -672,71 +672,44 @@ static int l_gps_get_speed(lua_State* L) {
 
 static int l_neopixel_animation_buffer(lua_State* L) {
 
-	neopixel_animation_status_t *channels[3];
+	size_t frameLength =  lua_tonumber(L, ARG1);
 
-	// Check how many strands were passed in
-	uint8_t num_strands = lua_gettop(L);
+	size_t animationLength = 0;
+	size_t numFrames = 0;
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &animationLength);
+	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	// We can only do so many strands (3 for TM-00-04)
-	uint8_t iter = num_strands > MAX_SCT_CHANNELS ? MAX_SCT_CHANNELS : num_strands;
+	// Allocate memory for an animation
+	neopixel_animation_status_t *channel_animation;
 
-	// Iterate through each strand
-	for (uint8_t i = 0; i < iter; i++) {
-		// Push the number of frames onto the stack
-		lua_getfield(L, ARG1 + i, "length");
-		// Save number of frames into a variable
-		size_t numFrames =  lua_tonumber(L, -1);
+	// If there are frames for this channel
+	if (frameLength != 0 && animationLength != 0) {
 
-		// If there are frames for this channel
-		if (numFrames != 0) {
+		numFrames = animationLength/frameLength;
 
-			// Allocate memory for an animation
-			neopixel_animation_status_t *channel_animation = malloc(sizeof(neopixel_animation_status_t));
+		// Allocate memory for an animation
+		channel_animation = malloc(sizeof(neopixel_animation_status_t));
 
-			// Allocate memory for the frame pointers
-			const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
-			// Allocate memory for the length of each frame
-			uint32_t *frameLengths = malloc(sizeof(uint32_t) * numFrames);
-			// Allocate memory for the lua references to each frame
-			int32_t *frameRefs = malloc(sizeof(uint32_t) * numFrames);
+		// Allocate memory for the frame pointers
+		const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
+		// Allocate memory for the length of each frame (TODO Remove this. Don't need an array)
 
-			uint32_t ref;
-			size_t bufSize;
-
-			// Iterate through frames
-			for (uint32_t j = 0; j < numFrames; j++) {
-				// Put the frame element onto the stack
-				lua_rawgeti(L, ARG1 + i, j);
-				// Create a pointer out of that buffer
-				const uint8_t* buffer = colony_toconstdata(L, -1, &bufSize);
-				// Grab a lua reference so it doesn't get gc'ed until we're done (or something?)
-				ref = luaL_ref(L, LUA_REGISTRYINDEX);
-				// Add the pointer to the frame to our array
-				frames[j] = buffer;
-				// Add the frame length
-				frameLengths[j] = bufSize;
-				// Add the lua ref to our ref array
-				frameRefs[j] = ref;
-			}
-
-			channel_animation->animation.frames = frames;
-			channel_animation->animation.frameLengths = frameLengths;
-			channel_animation->animation.frameRefs = frameRefs;
-			channel_animation->animation.numFrames = numFrames;
-			channel_animation->bytesSent = 0;
-			channel_animation->framesSent = 0;
-
-			channels[i] = channel_animation;
-
+		// Iterate through frames
+		for (uint32_t i = 0; i < numFrames; i++) {
+			// Put the frame element onto the stack
+			frames[i] = (uint8_t *)&(txbuf[i * frameLength]);
 		}
-	}
 
-	for (uint8_t i = iter; i < MAX_SCT_CHANNELS; i++) {
-		channels[i] = NULL;
+		channel_animation->animation.frames = frames;
+		channel_animation->animation.frameLength = frameLength;
+		channel_animation->animation.frameRef = frameRef;
+		channel_animation->animation.numFrames = numFrames;
+		channel_animation->bytesSent = 0;
+		channel_animation->framesSent = 0;
 	}
 
 	// Begin the animation
-	writeAnimationBuffers(channels);
+	writeAnimationBuffers(&channel_animation);
 
 	return 0;
 }

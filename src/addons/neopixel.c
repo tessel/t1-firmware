@@ -278,14 +278,14 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
   if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
 
     // If we have not yet sent all of our bytes in the current frame
-    if (channel.animationStatus->bytesSent <= channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent]) {
+    if (channel.animationStatus->bytesSent <= channel.animationStatus->animation.frameLength) {
 
       // Send the next byte
       LEDDRIVER_writeNextRGBValue(channel); 
 
       byteSent = true;
 
-      uint32_t bytesRemaining = channel.animationStatus->animation.frameLengths[channel.animationStatus->framesSent] - channel.animationStatus->bytesSent;
+      uint32_t bytesRemaining = channel.animationStatus->animation.frameLength - channel.animationStatus->bytesSent;
 
       // If we only have one byte left (but it's double buffered, so the 2nd last byte is current being sent)
       if (bytesRemaining == 3) {
@@ -338,17 +338,13 @@ void neopixel_reset_animation() {
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
       // If we have an active animation
     if (sct_animation_channels[i]->animationStatus != NULL &&
-        sct_animation_channels[i]->animationStatus->animation.numFrames != 0) {
-      // Iterate through all of our references
-      for (uint32_t j = 0; j < sct_animation_channels[i]->animationStatus->animation.numFrames; j++) {
-        // Unreference our buffer so it can be garbage collected
-        luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i]->animationStatus->animation.frameRefs[j]);
-      }
+      sct_animation_channels[i]->animationStatus->animation.numFrames != 0) {
+      // Unreference our buffer so it can be garbage collected
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i]->animationStatus->animation.frameRef);
 
       // Free our animation buffers and struct memory
       free(sct_animation_channels[i]->animationStatus->animation.frames);
-      free(sct_animation_channels[i]->animationStatus->animation.frameLengths);
-      free(sct_animation_channels[i]->animationStatus->animation.frameRefs);
+      
       free((neopixel_animation_status_t *)sct_animation_channels[i]->animationStatus);
       sct_animation_channels[i]->animationStatus = NULL;
     }
