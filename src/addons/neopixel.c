@@ -8,10 +8,6 @@
 #define T0H_EVENT_NUM                       13
 #define CHAN_A_OUTPUT_BUFFER_EVENT_NUM      12
 #define CHAN_A_AUX_BUFFER_EVENT_NUM         11
-#define CHAN_B_OUTPUT_BUFFER_EVENT_NUM      10
-#define CHAN_B_AUX_BUFFER_EVENT_NUM         9
-#define CHAN_C_OUTPUT_BUFFER_EVENT_NUM      8
-#define CHAN_C_AUX_BUFFER_EVENT_NUM         7
 #define COMPLETE_FRAME_EVENT                6
 
 
@@ -24,38 +20,10 @@ volatile neopixel_sct_status_t channel_a = {
   .sctAuxChannel = 1,
 };
 
-volatile neopixel_sct_status_t channel_b = {
-  .pin = E_G5,
-  .animationStatus = NULL,
-  .sctOuputBuffer = CHAN_B_OUTPUT_BUFFER_EVENT_NUM,
-  .sctAuxBuffer = CHAN_B_AUX_BUFFER_EVENT_NUM,
-  .sctOutputChannel = 5,
-  .sctAuxChannel = 2,
-};
-
-volatile neopixel_sct_status_t channel_c = {
-  .pin = E_G6,
-  .animationStatus = NULL,
-  .sctOuputBuffer = CHAN_C_OUTPUT_BUFFER_EVENT_NUM,
-  .sctAuxBuffer = CHAN_C_AUX_BUFFER_EVENT_NUM,
-  .sctOutputChannel = 10,
-  .sctAuxChannel = 3,
-};
-
 volatile neopixel_sct_status_t *sct_animation_channels[] = {
   &channel_a,
-  &channel_b,
-  &channel_c,
 };
 
-
-#define AUX_A_OUTPUT                        channel_a.sctAuxChannel
-
-#define CHAN_B_OUTPUT                       g_APinDescription[channel_b.pin].pwm_channel // 5 on TM-00-04
-#define AUX_B_OUTPUT                        channel_b.sctAuxChannel
-
-#define CHAN_C_OUTPUT                       g_APinDescription[channel_c.pin].pwm_channel // 10 on TM-00-04
-#define AUX_C_OUTPUT                        channel_c.sctAuxChannel
 
 void beginAnimationAtCurrentFrame();
 void continueAnimation();
