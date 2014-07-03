@@ -17,9 +17,16 @@ var hw = process.binding('hw');
 
 var tessel_version = process.versions.tessel_board;
 
-process.on('raw-message', function (buf) {
+process.on('serialized-message', function (buf) {
   try {
     process.emit('message', clone.deserialize(buf));
+  } catch (e) { }
+});
+
+process.on('unserialized-message', function (buf) {
+  console.log('we got a mofo raw message', buf.length);
+  try {
+    process.emit('raw-message', buf);
   } catch (e) { }
 });
 
