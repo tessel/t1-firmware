@@ -1,7 +1,9 @@
 #include "neopixel.h" 
 
-#define DATA_SPEED                          800000  
+#define SYSTEM_CORE_CLOCK                   180000000
+#define DATA_SPEED                          10  
 #define BITS_PER_INTERRUPT                  24 // Used to be 24
+#define PRESCALER                           SYSTEM_CORE_CLOCK / (25 * DATA_SPEED)
 
 #define PERIOD_EVENT_NUM                    15
 #define T1H_EVENT_NUM                       14
@@ -14,7 +16,7 @@
 volatile neopixel_sct_status_t channel_a = {
   .pin = E_G4,
   .animationStatus = NULL,
-  .sctOuputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
+  .sctOutputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
   .sctAuxBuffer = CHAN_A_AUX_BUFFER_EVENT_NUM,
   .sctOutputChannel = 8,
   .sctAuxChannel = 1,
@@ -35,19 +37,16 @@ tm_event animation_complete_event = TM_EVENT_INIT(animation_complete);
 void LEDDRIVER_open (void)
 {
   uint32_t clocksPerBit;
-  uint32_t prescaler;
 
   /* Halt H timer, and configure counting mode and prescaler.
-   * Set the prescaler for 25 timer ticks per bit (TODO: take care of rounding etc)
    */
-  prescaler = SystemCoreClock / (25 * DATA_SPEED);    //(Assume SCT clock = SystemCoreClock)
   LPC_SCT->CTRL_H = 0
       | (0 << SCT_CTRL_H_DOWN_H_Pos)
       | (0 << SCT_CTRL_H_STOP_H_Pos)
       | (1 << SCT_CTRL_H_HALT_H_Pos)      /* HALT counter */
       | (1 << SCT_CTRL_H_CLRCTR_H_Pos)
       | (0 << SCT_CTRL_H_BIDIR_H_Pos)
-      | (((prescaler - 1) << SCT_CTRL_H_PRE_H_Pos) & SCT_CTRL_H_PRE_H_Msk);
+      | (((PRESCALER - 1) << SCT_CTRL_H_PRE_H_Pos) & SCT_CTRL_H_PRE_H_Msk);
       ;
 
   /* Start state */
@@ -57,7 +56,7 @@ void LEDDRIVER_open (void)
   LPC_SCT->LIMIT_H = (1u << PERIOD_EVENT_NUM);          /* Event 15 */
 
   /* Configure the match registers */
-  clocksPerBit = SystemCoreClock / (prescaler * DATA_SPEED);
+  clocksPerBit = SYSTEM_CORE_CLOCK / (PRESCALER * DATA_SPEED);
   LPC_SCT->MATCHREL_H[0] = clocksPerBit - 1;              /* Bit period */
   LPC_SCT->MATCHREL_H[1] = 8 - 1;          /* T0H */
   LPC_SCT->MATCHREL_H[2] = 16 - 1;  /* T1H */
@@ -91,7 +90,7 @@ void LEDDRIVER_open (void)
       );
       LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctAuxChannel);
       
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctOuputBuffer].CTRL = 0
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctOutputBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
         | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
@@ -108,7 +107,7 @@ void LEDDRIVER_open (void)
         | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
         ;
 
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctOuputBuffer].STATE = 0;
+      LPC_SCT->EVENT[sct_animation_channels[i]->sctOutputBuffer].STATE = 0;
       LPC_SCT->EVENT[sct_animation_channels[i]->sctAuxBuffer].STATE = 0; 
 
       LPC_SCT->OUT[sct_animation_channels[i]->sctAuxChannel].SET = 0
@@ -119,7 +118,7 @@ void LEDDRIVER_open (void)
           ;
       LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].SET = 0
           | (1u << PERIOD_EVENT_NUM)                        /* Event 15 sets the DATA signal */
-          | (1u << sct_animation_channels[i]->sctOuputBuffer)                        /* Event 12 sets the DATA signal */
+          | (1u << sct_animation_channels[i]->sctOutputBuffer)                        /* Event 12 sets the DATA signal */
           | (1u << sct_animation_channels[i]->sctAuxBuffer)                        /* Event 11 sets the DATA signal */
           ;
       LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].CLR = 0
@@ -170,9 +169,11 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
                  | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent + 2]);
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
-      LPC_SCT->EVENT[sct_channel.sctOuputBuffer].STATE = (rgb & 0xFFFFFF);
+      // TM_DEBUG("writing to Output");
+      LPC_SCT->EVENT[sct_channel.sctOutputBuffer].STATE = (rgb & 0xFFFFFF);
     }
     else {
+      // TM_DEBUG("writing to Aux");
       LPC_SCT->EVENT[sct_channel.sctAuxBuffer].STATE = (rgb & 0xFFFFFF);
     }
   }
@@ -241,6 +242,8 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
   if (channel.animationStatus == NULL) return byteSent;
 
   channel.animationStatus->bytesSent+=3;
+
+  // TM_DEBUG("Sent %d bytes", channel.animationStatus->bytesSent);
 
   // If we have not yet sent all of our frames
   if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
@@ -357,18 +360,24 @@ void continueAnimation() {
 }
 
 void beginAnimation() {
+
   // Initialize the LEDDriver
   LEDDRIVER_open();
 
-  // Allow SCT IRQs (which update the relevant data byte)
-  NVIC_EnableIRQ(SCT_IRQn);
-
   // Fill the double buffer with the first two bytes
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+    // Write the first bytes to the output
     LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
+    // Increment the number of bytes we've sent
+    sct_animation_channels[i]->animationStatus->bytesSent+=3;
+    // Toggle the AUX Output so the next write will go to Aux
     LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i]->sctAuxChannel);
+    // Write the next bytes to Aux
     LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
   }
+
+  // Allow SCT IRQs (which update the relevant data byte)
+  NVIC_EnableIRQ(SCT_IRQn);
   
   // Do not halt after the first frame
   LEDDRIVER_haltAfterFrame(0); 
@@ -408,9 +417,6 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
   if (!animationsReady) {
     return -1;
   }
-
-  // Set the system core clock to 180MHz
-  SystemCoreClock = 180000000;
 
   /* Then start transmission */
   beginAnimation();
