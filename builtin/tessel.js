@@ -24,7 +24,6 @@ process.on('serialized-message', function (buf) {
 });
 
 process.on('unserialized-message', function (buf) {
-  console.log('we got a mofo raw message', buf.length);
   try {
     process.emit('raw-message', buf);
   } catch (e) { }

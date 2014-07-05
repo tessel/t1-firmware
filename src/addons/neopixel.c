@@ -1,7 +1,7 @@
 #include "neopixel.h" 
 
 #define SYSTEM_CORE_CLOCK                   180000000
-#define DATA_SPEED                          10  
+#define DATA_SPEED                          800000  
 #define BITS_PER_INTERRUPT                  24 // Used to be 24
 #define PRESCALER                           SYSTEM_CORE_CLOCK / (25 * DATA_SPEED)
 
