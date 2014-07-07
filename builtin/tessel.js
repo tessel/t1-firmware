@@ -1026,19 +1026,32 @@ _asyncSPIQueue._execute_async = function() {
     transfer.port._activeChipSelect(1);
 
     // When the transfer is complete, process it and call callback
+
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-    return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+    if (transfer.batch && transfer.repeat > 0) {  
+      return hw.spi_transfer_batch_repeat(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf, transfer.start, transfer.chunking, transfer.cs_pin, transfer.repeat);
+    } else if (transfer.batch) {
+      return hw.spi_transfer_batch(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf, transfer.start, transfer.chunking, transfer.cs_pin);
+    } else {
+      return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+    }
   }
 };
 
-function AsyncSPITransfer(port, txbuf, rxbuf, callback, raw) {
+function AsyncSPITransfer(port, txbuf, rxbuf, callback, raw, batch, start, chunking, cs_pin, repeat) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
   this.callback = callback;
   this.raw = raw;
+  
+  this.batch = batch;
+  this.start = start;
+  this.chunking = chunking;
+  this.cs_pin = cs_pin;
+  this.repeat = repeat;
 }
 
 // SPI parameters may be changed by different invocations,
@@ -1150,6 +1163,28 @@ SPI.prototype.transfer = function (txbuf, callback)
   return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback, false));
 };
 
+SPI.prototype.transferBatch = function (txbuf, options, callback)
+{
+  if (arguments.length == 2) {
+    if (typeof options == "function") {
+      callback = options;
+    }
+  }
+
+  var start = options.start || 0;
+  var chunking = options.chunking || 1;
+  var repeat = options.repeat || 0;
+
+  // Create a new receive buffer
+  var rxbuf = new Buffer(txbuf.length - start);
+  // Fill it with 0 to avoid any confusion
+  rxbuf.fill(0);
+
+  // Push it into the queue to be completed
+  // Returns a -1 on error and 0 on successful queueing
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback, false, true, start, chunking, this.chipSelect.pin, repeat));
+};
+
 SPI.prototype.send = function (txbuf, callback)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
@@ -1157,6 +1192,24 @@ SPI.prototype.send = function (txbuf, callback)
   return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback, false));
 };
 
+SPI.prototype.sendBatch = function (txbuf, start, chunking, repeat, callback)
+{
+  if (arguments.length == 2) {
+    if (typeof options == "function") {
+      callback = options;
+    }
+  }
+
+  var start = options.start || 0;
+  var chunking = options.chunking || 1;
+  var repeat = options.repeat || 0;
+
+  // Create a new receive buffer
+
+  // Push it into the queue to be completed
+  // Returns a -1 on error and 0 on successful queueing
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback, false, true, start, chunking, this.chipSelect.pin, repeat));
+};
 
 SPI.prototype.receive = function (buf_len, callback)
 {
