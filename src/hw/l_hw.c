@@ -110,7 +110,6 @@ static int l_hw_spi_disable(lua_State* L)
 
 static int l_hw_spi_transfer(lua_State* L)
 {
-
 	// If the is currently a transfer underway, don't continue
 	if (spi_async_status.rxRef > 0 || spi_async_status.txRef > 0) {
 		// Push an error code onto the stack
@@ -142,6 +141,91 @@ static int l_hw_spi_transfer(lua_State* L)
 
 	// Begin the transfer
 	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, NULL);
+	// Push a success code onto the stack
+	lua_pushnumber(L, 0);
+	return 1;
+}
+
+static int l_hw_spi_transfer_batch(lua_State* L)
+{
+	// If the is currently a transfer underway, don't continue
+	if (spi_async_status.rxRef > 0 || spi_async_status.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+	// Grab the spi port number
+	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	// Create the tx/rx buffers
+	size_t txlen = (size_t)lua_tonumber(L, ARG1 + 1);
+	size_t rxlen = (size_t)lua_tonumber(L, ARG1 + 2);
+
+	const uint8_t* txbuf = NULL;
+	uint8_t* rxbuf = NULL;
+
+	uint32_t txref = LUA_NOREF;
+	if (txlen != 0) {
+		txbuf = colony_toconstdata(L, ARG1 + 3, NULL);
+		lua_pushvalue(L, ARG1 + 3);
+		txref = luaL_ref(L, LUA_REGISTRYINDEX);
+	}
+
+	uint32_t rxref = LUA_NOREF;
+	if (rxlen != 0) {
+		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
+		lua_pushvalue(L, ARG1 + 4);
+		rxref = luaL_ref(L, LUA_REGISTRYINDEX);
+	}
+
+	uint32_t start = (uint32_t)lua_tonumber(L, ARG1 + 5);
+	uint32_t chunking = (uint32_t)lua_tonumber(L, ARG1 + 6);
+	uint8_t cs_pin = (uint8_t)lua_tonumber(L, ARG1 + 7);
+
+	// Begin the transfer
+	hw_spi_transfer_batch(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, start, chunking, cs_pin, NULL);
+	// Push a success code onto the stack
+	lua_pushnumber(L, 0);
+	return 1;
+}
+
+static int l_hw_spi_transfer_batch_repeat(lua_State* L)
+{
+	// If the is currently a transfer underway, don't continue
+	if (spi_async_status.rxRef > 0 || spi_async_status.txRef > 0) {
+		// Push an error code onto the stack
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+	// Grab the spi port number
+	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	// Create the tx/rx buffers
+	size_t txlen = (size_t)lua_tonumber(L, ARG1 + 1);
+	size_t rxlen = (size_t)lua_tonumber(L, ARG1 + 2);
+
+	const uint8_t* txbuf = NULL;
+	uint8_t* rxbuf = NULL;
+
+	uint32_t txref = LUA_NOREF;
+	if (txlen != 0) {
+		txbuf = colony_toconstdata(L, ARG1 + 3, NULL);
+		lua_pushvalue(L, ARG1 + 3);
+		txref = luaL_ref(L, LUA_REGISTRYINDEX);
+	}
+
+	uint32_t rxref = LUA_NOREF;
+	if (rxlen != 0) {
+		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
+		lua_pushvalue(L, ARG1 + 4);
+		rxref = luaL_ref(L, LUA_REGISTRYINDEX);
+	}
+
+	uint32_t start = (uint32_t)lua_tonumber(L, ARG1 + 5);
+	uint32_t chunking = (uint32_t)lua_tonumber(L, ARG1 + 6);
+	uint8_t cs_pin = (uint8_t)lua_tonumber(L, ARG1 + 7);
+	uint32_t repeat = (uint32_t)lua_tonumber(L, ARG1 + 8);
+
+	// Begin the transfer
+	hw_spi_transfer_batch_repeat(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, start, chunking, cs_pin, repeat, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
@@ -715,6 +799,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "spi_enable", l_hw_spi_enable },
 		{ "spi_disable", l_hw_spi_disable },
 		{ "spi_transfer", l_hw_spi_transfer },
+		{ "spi_transfer_batch", l_hw_spi_transfer_batch },
+		{ "spi_transfer_batch_repeat", l_hw_spi_transfer_batch_repeat},
 
 		// i2c
 		{ "i2c_initialize", l_hw_i2c_initialize },

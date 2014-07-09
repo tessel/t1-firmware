@@ -176,9 +176,8 @@ void async_spi_callback (void) {
   tm_checked_call(L, 2);
 }
 
-
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
-{
+// Helper function used to handle spi transfers for hw_spi_transfer and hw_spi_transfer_batch
+void hw_spi_transfer_helper (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)()) {
   hw_spi_t *SPIx = find_spi(port);
 
   uint8_t tx_chan = 0;
@@ -258,9 +257,124 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   if (SPIx->is_slave) {
     scu_pinmux(0xF, 1u, PUP_DISABLE | PDN_ENABLE |  MD_EZI | MD_ZI | MD_EHS, FUNC2);  //  SSP0 SSEL0
   }
+}
 
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
+{
   // Tell the runtime to keep the event loop active until this event is done
+  hw_spi_transfer_helper(port, txlen, rxlen, txbuf, rxbuf, txref, rxref, callback);
   tm_event_ref(&async_spi_event);
+
+  return 0;
+}
+
+struct spi_context spi_batch_context = {
+  .port = 0,
+};
+
+// cycles the CS pin to start a new spi transfer
+void cycleCS (uint8_t cs_pin) {
+  hw_digital_write(cs_pin, 1);
+  hw_digital_write(cs_pin, 0);
+}
+
+// batch spi recursive callback. each call writes another chunk of spi data
+void hw_spi_transfer_batch_callback () {
+  tm_event_unref(&async_spi_event);
+  
+  spi_batch_context.chunks_index++;
+
+  cycleCS(spi_batch_context.cspin);
+
+  // move to next spi command
+  spi_batch_context.txbuf = &spi_batch_context.txbuf[spi_batch_context.chunking];
+  spi_batch_context.rxbuf = &spi_batch_context.rxbuf[spi_batch_context.chunking];
+
+  // handle remainder chunk
+  if ((spi_batch_context.chunks_left - spi_batch_context.chunks_index) == 0 ) {
+    hw_spi_transfer(spi_batch_context.port, spi_batch_context.remainder, spi_batch_context.remainder,
+      spi_batch_context.txbuf, spi_batch_context.rxbuf, spi_batch_context.txref, spi_batch_context.rxref,
+      spi_batch_context.callback);
+
+  } else if (((spi_batch_context.chunks_left - spi_batch_context.chunks_index) == 1 ) && (spi_batch_context.remainder == 0)) {
+    hw_spi_transfer(spi_batch_context.port, spi_batch_context.chunking, spi_batch_context.chunking, 
+      spi_batch_context.txbuf, spi_batch_context.rxbuf, spi_batch_context.txref, spi_batch_context.rxref,
+      spi_batch_context.callback);
+  } else { // perform a spi command and recursively call callback 
+    hw_spi_transfer_helper(spi_batch_context.port, spi_batch_context.chunking, spi_batch_context.chunking,
+      spi_batch_context.txbuf, spi_batch_context.rxbuf, spi_batch_context.txref, spi_batch_context.rxref, 
+      &hw_spi_transfer_batch_callback);
+    tm_event_ref(&async_spi_event);
+  }
+}
+
+// hw_spi_transfer_batch takes in an array of spi commands and calls them one by one
+void hw_spi_transfer_batch (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, uint32_t start, uint32_t chunking, uint8_t cs_pin, void (*callback)())
+{
+  spi_batch_context.port = port;
+  spi_batch_context.txlen = txlen;
+  spi_batch_context.rxlen = rxlen;
+  spi_batch_context.txbuf = &txbuf[start];
+  spi_batch_context.rxbuf = rxbuf;
+  spi_batch_context.txref = txref;
+  spi_batch_context.rxref = rxref;
+  spi_batch_context.start = start;
+  spi_batch_context.chunking = chunking;
+  spi_batch_context.callback = callback;
+  spi_batch_context.cspin = cs_pin;
+
+  spi_batch_context.chunks_left = (txlen - start) / chunking;
+  spi_batch_context.chunks_index = 0;
+
+  if ((txlen - start) % chunking) {
+    spi_batch_context.remainder = (txlen - start) % chunking;
+  } else {
+    spi_batch_context.remainder = 0;
+  }
+
+  cycleCS(cs_pin);
+
+  if ((spi_batch_context.chunks_left == 1) && (spi_batch_context.remainder == 0)) { // chunk size == command size, do a normal transfer
+    hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, txref, rxref, callback);
+  } else if (((spi_batch_context.chunks_left - spi_batch_context.chunks_index)) == 0 && (spi_batch_context.remainder > 0)) { // if the (len - start offset is larger than  enough that a full chunk of data doesnt send
+    hw_spi_transfer(port, spi_batch_context.remainder, spi_batch_context.remainder, txbuf, rxbuf, txref, rxref, callback);
+  } else { // The chunk size is less than the command size, do a batch transfer
+    hw_spi_transfer_helper(port, chunking, chunking, txbuf, rxbuf, txref, rxref, &hw_spi_transfer_batch_callback);
+    tm_event_ref(&async_spi_event);
+  }
+}
+
+struct spi_repeat_context spi_batch_repeat_context = {
+  .repeat = 0,
+};
+
+void hw_spi_transfer_batch_repeat_callback () {
+  spi_batch_repeat_context.repeat--;
+  if (spi_batch_repeat_context.repeat == 0) {
+    hw_spi_transfer_batch(spi_batch_context.port, spi_batch_context.txlen, spi_batch_context.rxlen, 
+      spi_batch_repeat_context.txbuf, spi_batch_repeat_context.rxbuf, spi_batch_context.txref, spi_batch_context.rxref, 
+      spi_batch_context.start, spi_batch_context.chunking, spi_batch_context.cspin, spi_batch_repeat_context.callback);
+  } else {
+    hw_spi_transfer_batch(spi_batch_context.port, spi_batch_context.txlen, spi_batch_context.rxlen, 
+      spi_batch_repeat_context.txbuf, spi_batch_repeat_context.rxbuf, spi_batch_context.txref, spi_batch_context.rxref, 
+      spi_batch_context.start, spi_batch_context.chunking, spi_batch_context.cspin, &hw_spi_transfer_batch_repeat_callback);
+  }
+}
+
+// Runs the hw_spi_transfer_batch n times
+int hw_spi_transfer_batch_repeat (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, uint32_t start, uint32_t chunking, uint8_t cs_pin, uint32_t repeat, void (*callback)())
+{
+  spi_batch_repeat_context.repeat = repeat;
+  spi_batch_repeat_context.callback = callback;
+  spi_batch_repeat_context.txbuf = txbuf;
+  spi_batch_repeat_context.rxbuf = rxbuf;
+
+  if (repeat == 0) {
+    hw_spi_transfer_batch(port, txlen, rxlen, txbuf, rxbuf, txref, rxref, start, chunking, cs_pin, callback);
+  } else {
+    hw_spi_transfer_batch(port, txlen, rxlen, txbuf, rxbuf, txref, rxref, start, chunking, cs_pin, 
+      &hw_spi_transfer_batch_repeat_callback);
+  }
 
   return 0;
 }

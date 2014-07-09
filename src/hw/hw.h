@@ -180,6 +180,30 @@ struct spi_async_status_t {
   void (*callback)();
 };
 
+struct spi_context {
+  size_t port;
+  size_t txlen;
+  size_t rxlen;
+  const uint8_t * txbuf;
+  uint8_t * rxbuf;
+  uint32_t txref;
+  uint32_t rxref;
+  uint32_t start;
+  uint32_t chunking;
+  uint32_t cspin;
+  uint32_t chunks_left;
+  uint32_t chunks_index;
+  uint32_t remainder;
+  void (* callback)();
+};
+
+struct spi_repeat_context {
+  uint32_t repeat;
+  const uint8_t * txbuf;
+  uint8_t * rxbuf;
+  void (* callback)();
+};
+
 // Configuration for a port
 typedef struct hw_spi {
   LPC_SSPn_Type *port;
@@ -208,6 +232,8 @@ void _hw_spi_irq_interrupt();
 
 
 int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());
+void hw_spi_transfer_batch (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, uint32_t start, uint32_t chunking, uint8_t cs_pin, void (*callback)());
+int hw_spi_transfer_batch_repeat (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, uint32_t start, uint32_t chunking, uint8_t cs_pin, uint32_t repeat, void (*callback)());
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 
