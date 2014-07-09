@@ -138,7 +138,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			memcpy(wifi_security, &buf[96], 32);
 			memcpy(wifi_ssid, &buf[0], 32);
 			memcpy(wifi_pass, &buf[32], 64);
-			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
+			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass, strlen(wifi_ssid), strlen(wifi_pass));
 		}
 
 	} else if (cmd == 'Y') {

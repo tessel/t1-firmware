@@ -20,7 +20,7 @@ void tessel_wifi_smart_config ();
 
 void tessel_wifi_init ();
 void tessel_wifi_check(uint8_t output);
-int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass);
+int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen);
 void tessel_wifi_fastconnect();
 
 void _tessel_cc3000_irq_interrupt ();

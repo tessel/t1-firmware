@@ -69,13 +69,16 @@ void wifi_connection_callback (void) {
 	// push whether we got an error (1 or 0)
 	lua_pushnumber(L, wifi_status.callback_err);
 	lua_pushstring(L, wifi_status.callback_payload);
-	// Call _colony_emit to run the JS callback
-	tm_checked_call(L, 3);
 
 	if (wifi_status.callback_payload_free) {
 		free(wifi_status.callback_payload);
 		wifi_status.callback_payload_free = false;
 	}
+	
+	tm_event_unref(&wifi_connect_event);
+
+	// Call _colony_emit to run the JS callback
+	tm_checked_call(L, 3);
 }
 
 uint8_t get_cc3k_irq_flag () {
@@ -285,11 +288,9 @@ void tessel_wifi_check (uint8_t asevent)
 			wifi_status.callback_err = 0;
 			wifi_status.callback_payload = payload;
 			wifi_status.callback_payload_free = true;
+			wifi_status.post_connect = false;
 			// callback
 			tm_event_trigger(&wifi_connect_event);
-			// clean it up
-			tm_event_unref(&wifi_connect_event);
-			wifi_status.post_connect = false;
 		} else {
 			free(payload); 
 		}
@@ -303,16 +304,17 @@ void tessel_wifi_check (uint8_t asevent)
 			wifi_status.callback_err = 1;
 			wifi_status.callback_payload = "Could not get connection";
 			wifi_status.callback_payload_free = false;
+			wifi_status.post_connect = false;
 
 			tm_event_trigger(&wifi_connect_event);
-			tm_event_unref(&wifi_connect_event);
+
 		}
 		
 		
 	}
 }
 
-int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
+int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen)
 {
 	// Check arguments.
 	if (wifi_ssid[0] == 0 ) {
@@ -332,7 +334,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 	// }
 
 	// Connect to given network.
-	hw_net_connect(wifi_security, wifi_ssid, wifi_pass); // use this for using tessel wifi from command line
+	hw_net_connect(wifi_security, wifi_ssid, wifi_pass, ssidlen, passlen); // use this for using tessel wifi from command line
 
 	return 0;
 }

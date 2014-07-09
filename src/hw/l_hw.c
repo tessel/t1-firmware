@@ -723,39 +723,28 @@ static int l_wifi_connect(lua_State* L)
 		return 1;
 	}
 
-	size_t ssidlen = (size_t)lua_tonumber(L, ARG1);
-	size_t passlen = (size_t)lua_tonumber(L, ARG1 + 1);
-	size_t securitylen = (size_t)lua_tonumber(L, ARG1 + 2);
+	size_t ssidlen = 0;
+	size_t passlen = 0;
+	size_t securitylen = 0;
 
 	const uint8_t* ssidbuf = NULL;
 	const uint8_t* passbuf = NULL;
 	const uint8_t* securitybuf = NULL;
 
-	// uint32_t ssidref = LUA_NOREF;
-	if (ssidlen != 0) {
-		ssidbuf = colony_toconstdata(L, ARG1 + 3, NULL);
-		lua_pushvalue(L, ARG1 + 3);
-		// ssidref = luaL_ref(L, LUA_REGISTRYINDEX);
-	}
+	ssidbuf = colony_toconstdata(L, ARG1, &ssidlen);
+	lua_pushvalue(L, ARG1);
 
-	// uint32_t passref = LUA_NOREF;
-	if (passlen != 0) {
-		passbuf = colony_toconstdata(L, ARG1 + 4, NULL);
-		lua_pushvalue(L, ARG1 + 4);
-		// passref = luaL_ref(L, LUA_REGISTRYINDEX);
-	}
+	passbuf = colony_toconstdata(L, ARG1 + 1, &passlen);
+	lua_pushvalue(L, ARG1 + 1);
 
-	// uint32_t securityref = LUA_NOREF;
-	if (securitylen != 0) {
-		securitybuf = colony_toconstdata(L, ARG1 + 5, NULL);
-		lua_pushvalue(L, ARG1 + 5);
-		// securityref = luaL_ref(L, LUA_REGISTRYINDEX);
-	}
+	securitybuf = colony_toconstdata(L, ARG1 + 2, &securitylen);
+	lua_pushvalue(L, ARG1 + 2);
 
 	TM_DEBUG("l_wifi_connect %s, %s, %s", (char *) securitybuf, (char *) ssidbuf, (char *) passbuf);
 
 	// begin the connection call
-	tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, (char *) passbuf);
+	tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, (char *) passbuf
+		, ssidlen, passlen);
 
 	// push a success code
 	lua_pushnumber(L, 0);
