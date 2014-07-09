@@ -176,6 +176,10 @@ struct spi_async_status_t {
   uint32_t rxLength;
   int32_t txRef;
   int32_t rxRef;
+  const uint8_t * txbuf;
+  uint8_t * rxbuf;
+  hw_GPDMA_Chan_Config tx_config;
+  hw_GPDMA_Chan_Config rx_config;
   // Callback is a shim to allow C code to receive callbacks
   void (*callback)();
 };
@@ -198,7 +202,7 @@ typedef struct hw_spi {
 
 #define SPI_MAX_DMA_SIZE 0xFFF
 
-extern volatile struct spi_async_status_t spi_async_status;
+extern struct spi_async_status_t spi_async_status;
 
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);

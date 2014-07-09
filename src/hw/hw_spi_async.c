@@ -11,12 +11,15 @@
 #include "tm.h"
 #include "colony.h"
 
+static const uint8_t tx_chan = 0;
+static const uint8_t rx_chan = 1;
+
 void async_spi_callback();
 void default_complete_cb();
 /// The event triggered by the timer callback
 tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 
-volatile struct spi_async_status_t spi_async_status = {
+struct spi_async_status_t spi_async_status = {
   .txRef = LUA_NOREF,
   .rxRef = LUA_NOREF,
   .txLength = 0,
@@ -62,19 +65,28 @@ void default_complete_cb() {
   tm_event_trigger(&async_spi_event);
 }
 
-hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, const uint8_t *source, uint8_t *destination, uint8_t txBool) {
-
+uint32_t hw_spi_dma_num_linked_lists (size_t buf_len) {
   // Get the number of complete packets (0xFFF bytes)
   uint32_t num_full_packets = buf_len/SPI_MAX_DMA_SIZE;
   // Get the number of bytes in final packets (if not a multiple of 0xFFF)
   uint32_t num_remaining_bytes = buf_len % SPI_MAX_DMA_SIZE;
   // Get the total number of packets including incomplete packets
-  uint32_t num_linked_lists = num_full_packets + (num_remaining_bytes ? 1 : 0);
+  return num_full_packets + (num_remaining_bytes ? 1 : 0);
+}
+
+hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize_setup (size_t buf_len) {
 
   // Generate an array of linked lists to send (will need to be freed)
-  hw_GPDMA_Linked_List_Type * Linked_List = calloc(num_linked_lists, sizeof(hw_GPDMA_Linked_List_Type));
+  hw_GPDMA_Linked_List_Type * linked_list = calloc(hw_spi_dma_num_linked_lists(buf_len), sizeof(hw_GPDMA_Linked_List_Type));
 
+  return linked_list;
+}
+
+void hw_spi_dma_packetize_step (hw_GPDMA_Linked_List_Type * linked_list, size_t buf_len, const uint8_t *source, uint8_t *destination, uint8_t txBool) {
   uint32_t base_control;
+
+  uint32_t num_linked_lists = hw_spi_dma_num_linked_lists(buf_len);
+  uint32_t num_remaining_bytes = buf_len % SPI_MAX_DMA_SIZE;
 
   // If we are transmitting
   if (txBool) {
@@ -87,34 +99,34 @@ hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, const uint8_t 
     base_control = ((1UL<<24)) | ((1UL<<27));
   }
 
-  // For each packet
+    // For each packet
   for (uint32_t i = 0; i < num_linked_lists; i++) {
     // Set the source to the same as rx config source
-    Linked_List[i].Source = (uint32_t) source;
+    linked_list[i].Source = (uint32_t) source;
     // Set the detination to where our reading pointer is located
-    Linked_List[i].Destination = (uint32_t) destination;
+    linked_list[i].Destination = (uint32_t) destination;
     // Se tthe control to read 4 byte bursts with max buf len, and increment the destination counter
-    Linked_List[i].Control = base_control;
+    linked_list[i].Control = base_control;
 
     // If this is the last packet
     if (i == num_linked_lists-1) {
       // Set this as the end of linked list
-      Linked_List[i].NextLLI = (uint32_t)0;
+      linked_list[i].NextLLI = (uint32_t)0;
       // Set the interrupt control bit
-      Linked_List[i].Control |= ((1UL<<31));
+      linked_list[i].Control |= ((1UL<<31));
       // If the packet has fewer then max bytes
       if (num_remaining_bytes) {
         // Set those as num to read with interrupt at the end!
-        Linked_List[i].Control = num_remaining_bytes | base_control | ((1UL<<31));
+        linked_list[i].Control = num_remaining_bytes | base_control | ((1UL<<31));
       }
     }
     // If it's not the last packet
     else {
       // Set the maximum number of bytes to read
-      Linked_List[i].Control |= SPI_MAX_DMA_SIZE;
+      linked_list[i].Control |= SPI_MAX_DMA_SIZE;
 
       // Point next linked list item to subsequent packet
-      Linked_List[i].NextLLI = (uint32_t) &Linked_List[i + 1];
+      linked_list[i].NextLLI = (uint32_t) &linked_list[i + 1];
 
       // If this is a transmit buffer
       if (txBool) {
@@ -128,10 +140,11 @@ hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize (size_t buf_len, const uint8_t 
       }
     }
   }
-
-  return Linked_List;
 }
 
+void hw_spi_dma_packetize_cleanup (hw_GPDMA_Linked_List_Type * linked_list) {
+  free(linked_list);
+}
 
 void hw_spi_async_cancel_transfers () {
   hw_gpdma_cancel_transfer(0);
@@ -146,8 +159,8 @@ void hw_spi_async_cleanup () {
   }
   
   // Free our linked list 
-  free(spi_async_status.tx_Linked_List);
-  free(spi_async_status.rx_Linked_List);
+  hw_spi_dma_packetize_cleanup(spi_async_status.tx_Linked_List);
+  hw_spi_dma_packetize_cleanup(spi_async_status.rx_Linked_List);
 
   // Clear our config struct
   hw_spi_async_status_reset();
@@ -176,33 +189,19 @@ void async_spi_callback (void) {
   tm_checked_call(L, 2);
 }
 
-
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
+int hw_spi_transfer_setup (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
 {
   hw_spi_t *SPIx = find_spi(port);
 
-  uint8_t tx_chan = 0;
-  uint8_t rx_chan = 1;
-  
-  // set up TX
-  hw_GPDMA_Chan_Config tx_config;
-  // set up RX
-  hw_GPDMA_Chan_Config rx_config;
-
   // Set the source and destination connection items based on port
   if (SPIx->port == LPC_SSP0){
-    tx_config.DestConn = SSP0_TX_CONN;
-    rx_config.SrcConn = SSP0_RX_CONN;
+    spi_async_status.tx_config.DestConn = SSP0_TX_CONN;
+    spi_async_status.rx_config.SrcConn = SSP0_RX_CONN;
   } 
   else {
-    tx_config.DestConn = SSP1_TX_CONN;
-    rx_config.SrcConn = SSP1_RX_CONN;
+    spi_async_status.tx_config.DestConn = SSP1_TX_CONN;
+    spi_async_status.rx_config.SrcConn = SSP1_RX_CONN;
   }
-
-  spi_async_status.txRef = txref;
-  spi_async_status.rxRef = rxref;
-  spi_async_status.transferCount = 0;
-  spi_async_status.transferError = 0;
 
   // This allows C hooks to be provided as callbacks
   if (callback) {
@@ -219,39 +218,35 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   spi_async_status.rxRef = rxref;
   spi_async_status.transferCount = 0;
   spi_async_status.transferError = 0;
+  spi_async_status.txbuf = txbuf;
+  spi_async_status.rxbuf = rxbuf;
 
   if (rxlen != 0) {
     // Destination connection - unused
-    rx_config.DestConn = 0;
+    spi_async_status.rx_config.DestConn = 0;
     // Transfer type
-    rx_config.TransferType = p2m;
+    spi_async_status.rx_config.TransferType = p2m;
 
     // Configure the rx transfer on channel 1
     // TODO: Get next available channel
-    hw_gpdma_transfer_config(rx_chan, &rx_config);
+    hw_gpdma_transfer_config(rx_chan, &spi_async_status.rx_config);
 
     // Generate the linked list structure for receiving
-    spi_async_status.rx_Linked_List = hw_spi_dma_packetize(rxlen, hw_gpdma_get_lli_conn_address(rx_config.SrcConn), rxbuf, 0);
-
-    // Begin the reception
-    hw_gpdma_transfer_begin(rx_chan, spi_async_status.rx_Linked_List);
+    spi_async_status.rx_Linked_List = hw_spi_dma_packetize_setup(rxlen); 
   }
 
   if (txlen != 0) {
      // Source Connection - unused
-    tx_config.SrcConn = 0;
+    spi_async_status.tx_config.SrcConn = 0;
     // Transfer type
-    tx_config.TransferType = m2p;
+    spi_async_status.tx_config.TransferType = m2p;
 
     // Configure the tx transfer on channel 0
     // TODO: Get next available channel
-    hw_gpdma_transfer_config(tx_chan, &tx_config);
+    hw_gpdma_transfer_config(tx_chan, &spi_async_status.tx_config);
 
     // Generate the linked list structure for transmission
-    spi_async_status.tx_Linked_List = hw_spi_dma_packetize(txlen, txbuf, hw_gpdma_get_lli_conn_address(tx_config.DestConn), 1);
-
-    // Begin the transmission
-    hw_gpdma_transfer_begin(tx_chan, spi_async_status.tx_Linked_List);
+    spi_async_status.tx_Linked_List = hw_spi_dma_packetize_setup(txlen); 
   }
 
   // if it's a slave pull down CS
@@ -262,5 +257,28 @@ int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txb
   // Tell the runtime to keep the event loop active until this event is done
   tm_event_ref(&async_spi_event);
 
+  return 0;
+}
+
+void hw_spi_transfer_step() {
+  if (spi_async_status.rxLength != 0) {
+    hw_spi_dma_packetize_step(spi_async_status.rx_Linked_List, spi_async_status.rxLength, hw_gpdma_get_lli_conn_address(spi_async_status.rx_config.SrcConn), spi_async_status.rxbuf, 0);
+
+    // Begin the reception
+    hw_gpdma_transfer_begin(rx_chan, spi_async_status.rx_Linked_List); 
+  }
+
+  if (spi_async_status.txLength != 0) {
+    hw_spi_dma_packetize_step(spi_async_status.tx_Linked_List, spi_async_status.txLength, spi_async_status.txbuf, hw_gpdma_get_lli_conn_address(spi_async_status.tx_config.DestConn), 1);
+
+    // Begin the transmission
+    hw_gpdma_transfer_begin(tx_chan, spi_async_status.tx_Linked_List);
+  }
+}
+
+int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)())
+{
+  hw_spi_transfer_setup (port, txlen, rxlen, txbuf, rxbuf, txref, rxref, callback);
+  hw_spi_transfer_step();
   return 0;
 }

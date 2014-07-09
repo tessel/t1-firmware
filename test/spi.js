@@ -35,7 +35,7 @@ test('small async transfer', function(t) {
 });
 
 test('large async transfer', function(t) {
-  var outBuf = testBuf(24000);
+  var outBuf = testBuf(9000);
   spi.transfer(outBuf, wrapCallback(t, function(err, d) {
     t.error(err);
     t.equal(d.toString('hex'), outBuf.toString('hex'));
