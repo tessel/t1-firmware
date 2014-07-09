@@ -1,6 +1,6 @@
 {
   "name": "tessel-firmware",
-  "version": "v0.1.6",
+  "version": "v0.1.7",
   "scripts": {
     "test": "tinytap -e 'tessel run' test/*.js",
     "install": "true"
