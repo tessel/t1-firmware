@@ -27,6 +27,7 @@
  */
 
 static volatile int inuse = 0;
+bool hw_wifi_enabled = true;
 uint8_t hw_wifi_ip[4] = {0, 0, 0, 0};
 uint8_t hw_cc_ver[2] = {0, 0};
 
@@ -283,6 +284,10 @@ void hw_net_disable (void)
 {
 	CC3000_START;
 	wlan_stop();
+	// clear out all wifi data
+	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
+	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
+	hw_wifi_enabled = false;
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;

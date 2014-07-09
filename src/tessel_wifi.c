@@ -27,6 +27,7 @@
 
 static uint8_t MAX_CC_BOOT_TICKS = 120;
 int wifi_initialized = 0;
+int wifi_is_connecting = 0;
 
 volatile int validirqcount = 0;
 
@@ -213,6 +214,13 @@ void _cc3000_cb_tcp_close (int socket)
 	}
 }
 
+int tessel_wifi_initialized(){
+	return wifi_initialized;
+}
+
+int tessel_wifi_is_connecting(){
+	return wifi_is_connecting;
+}
 
 void tessel_wifi_disable ()
 {
@@ -249,39 +257,52 @@ void tessel_wifi_smart_config ()
 
 #define TM_BYTE(A, B) ((A >> (B*8)) & 0xFF)
 
+char* tessel_wifi_info(){
+	uint32_t ip_addr = (hw_wifi_ip[3] << 24) | (hw_wifi_ip[2] << 16) | (hw_wifi_ip[1] << 8) | (hw_wifi_ip[0]);
+	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0));
+	
+	uint32_t ip_dns = 0;
+	uint32_t ip_dhcp = 0;
+	uint32_t ip_gw = 0;
+	if (wifi_initialized) {
+		ip_dns = hw_net_dnsserver();
+		ip_dhcp = hw_net_dhcpserver();
+		ip_gw = hw_net_defaultgateway();
+	}
+	TM_DEBUG("DNS: %ld.%ld.%ld.%ld", TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0));
+	TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0));
+	TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0));
+	TM_DEBUG("Connected to WiFi!");
+
+	char ssid[33] = { 0 };
+	hw_net_ssid((char*) ssid);
+
+	char* payload = 0;
+	asprintf(&payload, "{\"event\": \"status\""
+		"," "\"connected\": 1"
+		"," "\"ip\": \"%ld.%ld.%ld.%ld\""
+		"," "\"dns\": \"%ld.%ld.%ld.%ld\""
+		"," "\"dhcp\": \"%ld.%ld.%ld.%ld\"" 
+		"," "\"gateway\": \"%ld.%ld.%ld.%ld\""
+		"," "\"ssid\": \"%s\""
+		"}",
+		TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0),
+		TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0),
+		TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0),
+		TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0),
+		ssid
+	);
+
+	return payload;
+}
+
 void tessel_wifi_check (uint8_t asevent)
 {
 	(void) asevent;
 
 	if (hw_net_online_status()){
-		uint32_t ip_addr = (hw_wifi_ip[3] << 24) | (hw_wifi_ip[2] << 16) | (hw_wifi_ip[1] << 8) | (hw_wifi_ip[0]);
-		TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0));
-		uint32_t ip_dns = hw_net_dnsserver();
-		TM_DEBUG("DNS: %ld.%ld.%ld.%ld", TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0));
-		uint32_t ip_dhcp = hw_net_dhcpserver();
-		TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0));
-		uint32_t ip_gw = hw_net_defaultgateway();
-		TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0));
-		TM_DEBUG("Connected to WiFi!");
-
-		char ssid[33] = { 0 };
-		hw_net_ssid((char*) ssid);
-
-		char* payload = 0;
-		asprintf(&payload, "{\"event\": \"status\""
-			"," "\"connected\": 1"
-			"," "\"ip\": \"%ld.%ld.%ld.%ld\""
-			"," "\"dns\": \"%ld.%ld.%ld.%ld\""
-			"," "\"dhcp\": \"%ld.%ld.%ld.%ld\"" 
-			"," "\"gateway\": \"%ld.%ld.%ld.%ld\""
-			"," "\"ssid\": \"%s\""
-			"}",
-			TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0),
-			TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0),
-			TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0),
-			TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0),
-			ssid
-		);
+		
+		char * payload = tessel_wifi_info();
 		TM_COMMAND('W', payload);
 
 		if (wifi_status.post_connect) {
@@ -312,6 +333,8 @@ void tessel_wifi_check (uint8_t asevent)
 		
 		
 	}
+
+	wifi_is_connecting = 0;
 }
 
 int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen)
@@ -335,7 +358,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass,
 
 	// Connect to given network.
 	hw_net_connect(wifi_security, wifi_ssid, wifi_pass, ssidlen, passlen); // use this for using tessel wifi from command line
-
+	wifi_is_connecting = 1;
 	return 0;
 }
 
@@ -346,4 +369,5 @@ void tessel_wifi_fastconnect() {
 
 	hw_net_initialize();
 	wifi_initialized = 1;
+	wifi_is_connecting = 1;
 }

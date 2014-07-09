@@ -17,6 +17,9 @@ extern volatile int netconnected;
 void tessel_wifi_enable ();
 void tessel_wifi_disable ();
 void tessel_wifi_smart_config ();
+int tessel_wifi_is_connecting();
+int tessel_wifi_initialized();
+char* tessel_wifi_info();
 
 void tessel_wifi_init ();
 void tessel_wifi_check(uint8_t output);
