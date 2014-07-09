@@ -32,6 +32,51 @@ volatile int validirqcount = 0;
 
 volatile uint8_t CC3K_EVENT_ENABLED = 0;
 volatile uint8_t CC3K_IRQ_FLAG = 0;
+int CC3K_callback_err = 0;
+char *CC3K_callback_payload = 0; 
+
+struct wifi_status_t {
+  int callback_err;
+  char* callback_payload;
+  bool callback_payload_free;
+  bool post_connect;
+};
+
+void clear_wifi_events();
+void wifi_no_func();
+void wifi_connection_callback();
+
+/// The event triggered by the cc callback
+tm_event wifi_connect_event = TM_EVENT_INIT(wifi_connection_callback);
+
+struct wifi_status_t wifi_status = {
+  .callback_err = 0,
+  .callback_payload = 0,
+  .callback_payload_free = false,
+  .post_connect = false,
+};
+
+void wifi_connection_callback (void) {
+	// Make sure the Lua state exists
+	lua_State* L = tm_lua_state;
+	if (!L) return;
+
+	// Push the _colony_emit helper function onto the stack
+	lua_getglobal(L, "_colony_emit");
+	// The process message identifier
+	lua_pushstring(L, "wifi_connect_complete");
+	TM_DEBUG("wifi connection emitted %s", wifi_status.callback_payload);
+	// push whether we got an error (1 or 0)
+	lua_pushnumber(L, wifi_status.callback_err);
+	lua_pushstring(L, wifi_status.callback_payload);
+	// Call _colony_emit to run the JS callback
+	tm_checked_call(L, 3);
+
+	if (wifi_status.callback_payload_free) {
+		free(wifi_status.callback_payload);
+		wifi_status.callback_payload_free = false;
+	}
+}
 
 uint8_t get_cc3k_irq_flag () {
 	return CC3K_IRQ_FLAG;
@@ -103,6 +148,7 @@ void _cc3000_cb_animation_tick (size_t frame)
 void _cc3000_cb_acquire ()
 {
 	TM_COMMAND('W', "{\"event\": \"acquire\"}");
+	TM_DEBUG("wifi acquiring");
 	cc_blink = 1;
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 0);
@@ -119,6 +165,9 @@ void _cc3000_cb_error (int connected)
 void _cc3000_cb_wifi_connect ()
 {
 	TM_COMMAND('W', "{\"event\": \"connect\"}");
+	TM_DEBUG("wifi connect");
+	// only dhcp events that come after this are valid
+	wifi_status.post_connect = true;
 	cc_blink = 1;
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 0);
@@ -127,7 +176,6 @@ void _cc3000_cb_wifi_connect ()
 void _cc3000_cb_wifi_disconnect ()
 {
 	TM_COMMAND('W', "{\"event\": \"disconnect\"}");
-	tessel_wifi_check(1);
 	cc_blink = 0;
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
@@ -138,6 +186,7 @@ void _cc3000_cb_dhcp_failed ()
 	TM_DEBUG("DHCP failed. Try reconnecting.");
 	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
 	cc_blink = 0;
+	tessel_wifi_check(1);
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
 }
@@ -231,18 +280,43 @@ void tessel_wifi_check (uint8_t asevent)
 			ssid
 		);
 		TM_COMMAND('W', payload);
-		free(payload);
+
+		if (wifi_status.post_connect) {
+			wifi_status.callback_err = 0;
+			wifi_status.callback_payload = payload;
+			wifi_status.callback_payload_free = true;
+			// callback
+			tm_event_trigger(&wifi_connect_event);
+			// clean it up
+			tm_event_unref(&wifi_connect_event);
+			wifi_status.post_connect = false;
+		} else {
+			free(payload); 
+		}
+
 	} else {
 		TM_COMMAND('W', "{\"event\": \"status\""
 			"," "\"connected\": 0"
 			"}");
+		
+		if (wifi_status.post_connect) {
+			wifi_status.callback_err = 1;
+			wifi_status.callback_payload = "Could not get connection";
+			wifi_status.callback_payload_free = false;
+
+			tm_event_trigger(&wifi_connect_event);
+			tm_event_unref(&wifi_connect_event);
+		}
+		
+		
 	}
 }
 
 int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass)
 {
 	// Check arguments.
-	if (wifi_ssid[0] == 0) {
+	if (wifi_ssid[0] == 0 ) {
+		TM_DEBUG("hw_net is in use");
 		return 1;
 	}
 
