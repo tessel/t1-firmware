@@ -23,7 +23,7 @@ tm_event async_spi_event = TM_EVENT_INIT(async_spi_callback);
 struct spi_async_status_t spi_async_status = {
   .txRef = LUA_NOREF,
   .rxRef = LUA_NOREF,
-  .bufferLength = 0,
+  .buffer_length = 0,
   .tx_Linked_List = 0,
   .rx_Linked_List = 0,
   .callback = &default_complete_cb,
@@ -32,7 +32,7 @@ struct spi_async_status_t spi_async_status = {
 void hw_spi_async_status_reset () {
   spi_async_status.tx_Linked_List = 0;
   spi_async_status.rx_Linked_List = 0;
-  spi_async_status.bufferLength = 0;
+  spi_async_status.buffer_length = 0;
   spi_async_status.txRef = LUA_NOREF;
   spi_async_status.rxRef = LUA_NOREF;
   spi_async_status.callback = &default_complete_cb;
@@ -64,7 +64,7 @@ void default_complete_cb() {
   // Set offset to next command in the txbuf
   spi_async_status.chunk_offset += spi_async_status.chunk_size;
 
-  if ((spi_async_status.chunk_offset + spi_async_status.chunk_size) > spi_async_status.bufferLength) {
+  if ((spi_async_status.chunk_offset + spi_async_status.chunk_size) > spi_async_status.buffer_length) {
     spi_async_status.chunk_offset = 0;
     
     if (--spi_async_status.repeat == 0) {
@@ -206,7 +206,7 @@ void async_spi_callback (void) {
   tm_checked_call(L, 2);
 }
 
-int hw_spi_transfer_setup (size_t port, size_t bufferLength, const uint8_t *txbuf, uint8_t *rxbuf, 
+int hw_spi_transfer_setup (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, 
   uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, void (*callback)())
 {
   hw_spi_t *SPIx = find_spi(port);
@@ -230,7 +230,7 @@ int hw_spi_transfer_setup (size_t port, size_t bufferLength, const uint8_t *txbu
   }
 
   // Save the length that we're transferring
-  spi_async_status.bufferLength = bufferLength;
+  spi_async_status.buffer_length = buffer_length;
   spi_async_status.txRef = txref;
   spi_async_status.rxRef = rxref;
   spi_async_status.transferCount = 0;
@@ -253,7 +253,7 @@ int hw_spi_transfer_setup (size_t port, size_t bufferLength, const uint8_t *txbu
     hw_gpdma_transfer_config(rx_chan, &spi_async_status.rx_config);
 
     // Generate the linked list structure for receiving
-    spi_async_status.rx_Linked_List = hw_spi_dma_packetize_setup(bufferLength); 
+    spi_async_status.rx_Linked_List = hw_spi_dma_packetize_setup(buffer_length); 
   }
 
   if (txbuf != NULL) {
@@ -267,7 +267,7 @@ int hw_spi_transfer_setup (size_t port, size_t bufferLength, const uint8_t *txbu
     hw_gpdma_transfer_config(tx_chan, &spi_async_status.tx_config);
 
     // Generate the linked list structure for transmission
-    spi_async_status.tx_Linked_List = hw_spi_dma_packetize_setup(bufferLength); 
+    spi_async_status.tx_Linked_List = hw_spi_dma_packetize_setup(buffer_length); 
   }
 
   // if it's a slave pull down CS
@@ -282,8 +282,10 @@ int hw_spi_transfer_setup (size_t port, size_t bufferLength, const uint8_t *txbu
 }
 
 void hw_spi_transfer_step() {
-  TM_DEBUG("step");
   hw_spi_cycle_cs(spi_async_status.chip_select);
+
+  spi_async_status.transferCount = 0;
+  spi_async_status.transferError = 0;
 
   if (spi_async_status.rxbuf != NULL) {
     hw_spi_dma_packetize_step(spi_async_status.rx_Linked_List, spi_async_status.chunk_size, hw_gpdma_get_lli_conn_address(spi_async_status.rx_config.SrcConn), spi_async_status.rxbuf + spi_async_status.chunk_offset, 0);
@@ -296,14 +298,12 @@ void hw_spi_transfer_step() {
     hw_spi_dma_packetize_step(spi_async_status.tx_Linked_List, spi_async_status.chunk_size, spi_async_status.txbuf + spi_async_status.chunk_offset, hw_gpdma_get_lli_conn_address(spi_async_status.tx_config.DestConn), 1);
 
     // Begin the transmission
-    TM_DEBUG("dma transmission begin");
     hw_gpdma_transfer_begin(tx_chan, spi_async_status.tx_Linked_List);
   }
 }
 
 int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, void (*callback)())
 {
-  TM_DEBUG("bufferLength %d, chunk size %d, repeat %d, chip_select %d", buffer_length, chunk_size, repeat, chip_select);
   hw_spi_transfer_setup (port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, callback);
   if (repeat == 0 || chunk_size > buffer_length) {
     tm_event_trigger(&async_spi_event);

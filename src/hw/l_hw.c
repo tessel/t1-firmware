@@ -120,7 +120,7 @@ static int l_hw_spi_transfer(lua_State* L)
 	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	// Create the tx/rx buffers
-	size_t bufferLength = (size_t)lua_tonumber(L, ARG1 + 1);
+	size_t buffer_length = (size_t)lua_tonumber(L, ARG1 + 1);
 	size_t buffer_check = 0;
 
 	const uint8_t* txbuf = NULL;
@@ -130,7 +130,7 @@ static int l_hw_spi_transfer(lua_State* L)
 
 	txbuf = colony_toconstdata(L, ARG1 + 2, &buffer_check);
 	// TODO - throw exception instead of throwing out txbuf
-	if (bufferLength != buffer_check) {
+	if (buffer_length != buffer_check) {
 		txbuf = NULL;
 	}
 	lua_pushvalue(L, ARG1 + 2);
@@ -140,7 +140,7 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint32_t rxref = LUA_NOREF;
 	rxbuf = colony_tobuffer(L, ARG1 + 3, &buffer_check);
 	// TODO - throw exception instead of throwing out rxbuf
-	if (bufferLength != buffer_check) {
+	if (buffer_length != buffer_check) {
 		rxbuf = NULL;
 	}
 	lua_pushvalue(L, ARG1 + 3);
@@ -151,7 +151,7 @@ static int l_hw_spi_transfer(lua_State* L)
 	uint32_t repeat = (uint32_t) lua_tonumber(L, ARG1 + 5);
 	uint8_t chip_select = (uint8_t) lua_tonumber(L, ARG1 + 6);
 	// Begin the transfer
-	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, NULL);
+	hw_spi_transfer(port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;

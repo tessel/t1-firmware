@@ -172,7 +172,7 @@ struct spi_async_status_t {
   uint32_t transferError;
   hw_GPDMA_Linked_List_Type *tx_Linked_List;
   hw_GPDMA_Linked_List_Type *rx_Linked_List;
-  size_t bufferLength;
+  size_t buffer_length;
   int32_t txRef;
   int32_t rxRef;
   const uint8_t * txbuf;

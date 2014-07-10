@@ -890,7 +890,11 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
 
   // Begin the transfer
   var length = computeBufferLength(rxbuf, txbuf);
-  var ret = hw.spi_transfer(this.port, length, txbuf, rxbuf, length, 1);
+  if (length % transfer.chunkSize > 0) {
+    throw new Error("Buffer length must be a multiple of chunk size");
+  }
+
+  var ret = hw.spi_transfer(this.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
 
   if (ret < 0) {
     process.removeListener('spi_async_complete', rawComplete);
@@ -1049,6 +1053,9 @@ _asyncSPIQueue._execute_async = function() {
 
     // Begin the transfer
     var length = computeBufferLength(transfer.rxbuf, transfer.txbuf);
+    if (length % transfer.chunkSize > 0) {
+      throw new Error("Buffer length must be a multiple of chunk size");
+    }
     return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
   }
 };
