@@ -222,11 +222,17 @@ int tessel_wifi_is_connecting(){
 	return wifi_is_connecting;
 }
 
-void tessel_wifi_disable ()
-{
+void tessel_wifi_disconnect(){
 	wlan_ioctl_set_connection_policy(0, 0, 1);
 	hw_net_disconnect();
-	// hw_wait_ms(1000);
+	TM_DEBUG("hw_net disconnected");
+	wifi_initialized = 0;
+}
+
+void tessel_wifi_disable ()
+{
+	hw_net_disable();
+	TM_DEBUG("hw_net disabled");
 	wifi_initialized = 0;
 } 
 
@@ -239,7 +245,7 @@ void tessel_wifi_enable ()
 		tm_net_initialize_dhcp_server();
 	} else {
 		// disable and re-enable
-		tessel_wifi_disable();
+		tessel_wifi_disconnect();
 		tessel_wifi_enable();
 	}
 }
@@ -248,7 +254,7 @@ void tessel_wifi_enable ()
 void tessel_wifi_smart_config ()
 {
 	if (hw_net_online_status()) {
-		tessel_wifi_disable();
+		tessel_wifi_disconnect();
 	}
 //  tm_task_idle_start(tm_task_default_loop(), StartSmartConfig, 0);
 //  tm_net_initialize();
@@ -264,28 +270,34 @@ char* tessel_wifi_info(){
 	uint32_t ip_dns = 0;
 	uint32_t ip_dhcp = 0;
 	uint32_t ip_gw = 0;
-	if (wifi_initialized) {
+	uint8_t connected = 0;
+	char ssid[33] = { 0 };
+
+	if (wifi_initialized && hw_net_online_status()) {
 		ip_dns = hw_net_dnsserver();
 		ip_dhcp = hw_net_dhcpserver();
 		ip_gw = hw_net_defaultgateway();
-	}
-	TM_DEBUG("DNS: %ld.%ld.%ld.%ld", TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0));
-	TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0));
-	TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0));
-	TM_DEBUG("Connected to WiFi!");
+		connected = 1;
+		hw_net_ssid((char*) ssid);
 
-	char ssid[33] = { 0 };
-	hw_net_ssid((char*) ssid);
+		TM_DEBUG("DNS: %ld.%ld.%ld.%ld", TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0));
+		TM_DEBUG("DHCP server: %ld.%ld.%ld.%ld", TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0));
+		TM_DEBUG("Default Gateway: %ld.%ld.%ld.%ld", TM_BYTE(ip_gw, 3), TM_BYTE(ip_gw, 2), TM_BYTE(ip_gw, 1), TM_BYTE(ip_gw, 0));
+		TM_DEBUG("Connected to WiFi!");
+	} else {
+		TM_DEBUG("Not yet connected to wifi");
+	}
 
 	char* payload = 0;
 	asprintf(&payload, "{\"event\": \"status\""
-		"," "\"connected\": 1"
+		"," "\"connected\": %d"
 		"," "\"ip\": \"%ld.%ld.%ld.%ld\""
 		"," "\"dns\": \"%ld.%ld.%ld.%ld\""
 		"," "\"dhcp\": \"%ld.%ld.%ld.%ld\"" 
 		"," "\"gateway\": \"%ld.%ld.%ld.%ld\""
 		"," "\"ssid\": \"%s\""
 		"}",
+		connected,
 		TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0),
 		TM_BYTE(ip_dns, 3), TM_BYTE(ip_dns, 2), TM_BYTE(ip_dns, 1), TM_BYTE(ip_dns, 0),
 		TM_BYTE(ip_dhcp, 3), TM_BYTE(ip_dhcp, 2), TM_BYTE(ip_dhcp, 1), TM_BYTE(ip_dhcp, 0),
@@ -348,7 +360,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass,
 	// if (hw_net_online_status()){
 	// 	TM_DEBUG("Disconnecting from current network.");
 	// 	TM_COMMAND('W', "{\"connected\": 0}");
-	// 	tessel_wifi_disable();
+	// 	tessel_wifi_disconnect();
 	// }
 
 	TM_DEBUG("Starting up wifi (already initialized: %d)", wifi_initialized);

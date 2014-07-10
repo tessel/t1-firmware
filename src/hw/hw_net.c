@@ -78,6 +78,7 @@ int hw_net_online_status(){
 
 int hw_net_ssid (char ssid[33])
 {
+	if (hw_net_online_status())
 	CC3000_START;
 	tNetappIpconfigRetArgs ipinfo;
 	netapp_ipconfig(&ipinfo);
@@ -283,7 +284,8 @@ void hw_net_smartconfig_initialize (void)
 void hw_net_disable (void)
 {
 	CC3000_START;
-	wlan_stop();
+	// wlan_stop();
+	SpiDeInit();
 	// clear out all wifi data
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
@@ -358,5 +360,9 @@ void hw_net_disconnect (void)
 {
 	CC3000_START;
 	wlan_disconnect();
+	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
+	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
+	hw_digital_write(CC3K_CONN_LED, 0);
+	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
 }

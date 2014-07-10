@@ -219,6 +219,11 @@ void SpiInit(uint32_t clock_speed) {
 	csn(HW_HIGH);
 }
 
+void SpiDeInit(){
+	// disable cc3000
+	hw_digital_write(HOST_VBAT_SW_EN, 0);
+}
+
 //*****************************************************************************
 //
 //!  SpiClose

@@ -142,7 +142,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		}
 
 	} else if (cmd == 'Y') {
-		tessel_wifi_disable();
+		tessel_wifi_disconnect();
 
 	} else if (cmd == 'C') {
 		// check wifi for connection

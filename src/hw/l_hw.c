@@ -752,6 +752,16 @@ static int l_wifi_connect(lua_State* L)
 	return 1;
 }
 
+static int l_wifi_is_busy(lua_State* L) {
+	if (hw_net_inuse() || tessel_wifi_is_connecting()) {
+		lua_pushnumber(L, 1);
+	} else {
+		lua_pushnumber(L, 0);
+	}
+	
+	return 1;
+}
+
 static int l_wifi_is_connected(lua_State* L) {
 	lua_pushnumber(L, tessel_wifi_initialized() && hw_net_online_status());
 	return 1;
@@ -760,6 +770,7 @@ static int l_wifi_is_connected(lua_State* L) {
 static int l_wifi_connection(lua_State* L) {
 	char * payload = tessel_wifi_info();
 	lua_pushstring(L, payload);
+	TM_DEBUG("l_wifi_connection %s", payload);
 	free(payload);
 	return 1;
 }
@@ -868,7 +879,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "wifi_connect", l_wifi_connect },
 		{ "wifi_is_connected", l_wifi_is_connected},
 		{ "wifi_connection", l_wifi_connection },
-		// { "wifi_reset", l_wifi_reset },
+		{ "wifi_is_busy", l_wifi_is_busy },
 		{ "wifi_disable", l_wifi_disable },
 		{ "wifi_enable", l_wifi_enable },
 
