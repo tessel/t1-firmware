@@ -148,7 +148,7 @@ static int l_hw_spi_transfer(lua_State* L)
 
 
 	// Begin the transfer
-	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, rxref, txref, NULL);
+	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, txref, rxref, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
