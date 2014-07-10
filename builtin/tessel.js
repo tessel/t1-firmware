@@ -839,6 +839,24 @@ function AsyncSPIQueue() {
   this.locks = [];
 }
 
+function computeBufferLength(rxbuf, txbuf) {
+  var length;
+  if (txbuf != null && rxbuf != null) {
+    if (txbuf.length == rxbuf.length) {
+      length = txbuf.length;
+    } else {
+      throw new Error("Tx buffer length must equal Rx buffer length");
+    }
+  } else if (txbuf != null) {
+    length = txbuf.length;
+  } else if (rxbuf != null) {
+    length = rxbuf.length;
+  } else {
+    throw new Error("At least one buffer (Tx or Rx) required");
+  }
+  return length;
+}
+
 function SPILock(port) 
 {
   this.id = ++_masterLockGen;
@@ -871,7 +889,8 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
   process.once('spi_async_complete', rawComplete);
 
   // Begin the transfer
-  var ret = hw.spi_transfer(this.port, txbuf.length, rxbuf ? rxbuf.length : 0, txbuf, rxbuf);
+  var length = computeBufferLength(rxbuf, txbuf);
+  var ret = hw.spi_transfer(this.port, length, txbuf, rxbuf);
 
   if (ret < 0) {
     process.removeListener('spi_async_complete', rawComplete);
@@ -1029,7 +1048,8 @@ _asyncSPIQueue._execute_async = function() {
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-    return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+    var length = computeBufferLength(transfer.rxbuf, transfer.txbuf);
+    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf);
   }
 };
 

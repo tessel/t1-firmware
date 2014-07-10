@@ -172,8 +172,7 @@ struct spi_async_status_t {
   uint32_t transferError;
   hw_GPDMA_Linked_List_Type *tx_Linked_List;
   hw_GPDMA_Linked_List_Type *rx_Linked_List;
-  uint32_t txLength;
-  uint32_t rxLength;
+  size_t bufferLength;
   int32_t txRef;
   int32_t rxRef;
   const uint8_t * txbuf;
@@ -211,7 +210,7 @@ int hw_spi_disable (size_t port);
 void _hw_spi_irq_interrupt();
 
 
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());
+int hw_spi_transfer (size_t port, size_t bufferLength, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 

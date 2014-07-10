@@ -120,28 +120,35 @@ static int l_hw_spi_transfer(lua_State* L)
 	// Grab the spi port number
 	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
 	// Create the tx/rx buffers
-	size_t txlen = (size_t)lua_tonumber(L, ARG1 + 1);
-	size_t rxlen = (size_t)lua_tonumber(L, ARG1 + 2);
+	size_t bufferLength = (size_t)lua_tonumber(L, ARG1 + 1);
+	size_t buffer_check = 0;
 
 	const uint8_t* txbuf = NULL;
 	uint8_t* rxbuf = NULL;
 
 	uint32_t txref = LUA_NOREF;
-	if (txlen != 0) {
-		txbuf = colony_toconstdata(L, ARG1 + 3, NULL);
-		lua_pushvalue(L, ARG1 + 3);
-		txref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+	txbuf = colony_toconstdata(L, ARG1 + 2, &buffer_check);
+	// TODO - throw exception instead of throwing out txbuf
+	if (bufferLength != buffer_check) {
+		txbuf = NULL;
 	}
+	lua_pushvalue(L, ARG1 + 2);
+	txref = luaL_ref(L, LUA_REGISTRYINDEX);
+
 
 	uint32_t rxref = LUA_NOREF;
-	if (rxlen != 0) {
-		rxbuf = colony_tobuffer(L, ARG1 + 4, NULL);
-		lua_pushvalue(L, ARG1 + 4);
-		rxref = luaL_ref(L, LUA_REGISTRYINDEX);
+	rxbuf = colony_tobuffer(L, ARG1 + 3, &buffer_check);
+	// TODO - throw exception instead of throwing out rxbuf
+	if (bufferLength != buffer_check) {
+		rxbuf = NULL;
 	}
+	lua_pushvalue(L, ARG1 + 3);
+	rxref = luaL_ref(L, LUA_REGISTRYINDEX);
+
 
 	// Begin the transfer
-	hw_spi_transfer(port, txlen, rxlen, txbuf, rxbuf, rxref, txref, NULL);
+	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, rxref, txref, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
