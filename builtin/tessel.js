@@ -839,6 +839,24 @@ function AsyncSPIQueue() {
   this.locks = [];
 }
 
+function computeBufferLength(rxbuf, txbuf) {
+  var length;
+  if (txbuf != null && rxbuf != null) {
+    if (txbuf.length == rxbuf.length) {
+      length = txbuf.length;
+    } else {
+      throw new Error("Tx buffer length must equal Rx buffer length");
+    }
+  } else if (txbuf != null) {
+    length = txbuf.length;
+  } else if (rxbuf != null) {
+    length = rxbuf.length;
+  } else {
+    throw new Error("At least one buffer (Tx or Rx) required");
+  }
+  return length;
+}
+
 function SPILock(port) 
 {
   this.id = ++_masterLockGen;
@@ -871,7 +889,12 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
   process.once('spi_async_complete', rawComplete);
 
   // Begin the transfer
-  var ret = hw.spi_transfer(this.port, txbuf.length, rxbuf ? rxbuf.length : 0, txbuf, rxbuf);
+  var length = computeBufferLength(rxbuf, txbuf);
+  if (length % transfer.chunkSize > 0) {
+    throw new Error("Buffer length must be a multiple of chunk size");
+  }
+
+  var ret = hw.spi_transfer(this.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
 
   if (ret < 0) {
     process.removeListener('spi_async_complete', rawComplete);
@@ -983,9 +1006,6 @@ _asyncSPIQueue._execute_async = function() {
     // Get the recently completed transfer
     var completed = self.transfers.shift();
 
-    // De-assert chip select
-    transfer.port._activeChipSelect(0);
-
     // If this was a pending transfer that completed
     // just after we added one or more locks
     if (!completed.raw && self.locks.length) {
@@ -1022,23 +1042,27 @@ _asyncSPIQueue._execute_async = function() {
     // Switch SPI to these settings
     transfer.port._initialize();
 
-    // Activate chip select if it was provided
-    transfer.port._activeChipSelect(1);
-
     // When the transfer is complete, process it and call callback
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-    return hw.spi_transfer(transfer.port, transfer.txbuf.length, transfer.rxbuf ? transfer.rxbuf.length : 0, transfer.txbuf, transfer.rxbuf);
+    var length = computeBufferLength(transfer.rxbuf, transfer.txbuf);
+    if (length % transfer.chunkSize > 0) {
+      throw new Error("Buffer length must be a multiple of chunk size");
+    }
+    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
   }
 };
 
-function AsyncSPITransfer(port, txbuf, rxbuf, callback, raw) {
+function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, callback, raw) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
   this.callback = callback;
   this.raw = raw;
+  this.chunkSize = chunkSize;
+  this.repeat = repeat;
+  this.chipSelect = chipSelect;
 }
 
 // SPI parameters may be changed by different invocations,
@@ -1079,43 +1103,11 @@ function SPI (params)
 
   this.chipSelectActive = params.chipSelectActive == 'high' || params.chipSelectActive == 1 ? 1 : 0;
 
-  if (this.chipSelect) {
-    this.chipSelect.output();
-    if (this.chipSelectActive) {
-      this.chipSelect.low();
-    } else {
-      this.chipSelect.high();
-    }
-  }
-
-  // initialize here to pull sck, mosi, miso pins to default state
   this._initialize();
 }
 
 
 util.inherits(SPI, EventEmitter);
-
-
-SPI.prototype._activeChipSelect = function (flag)
-{
-  if (this.chipSelect) {
-    if (this.chipSelectActive) {
-      if (flag) {
-        this.chipSelect.high();
-      }
-      else {
-        this.chipSelect.low();
-      }
-    } else {
-      if (flag) {
-        this.chipSelect.low();
-      }
-      else {
-        this.chipSelect.high();
-      }
-    }
-  }
-};
 
 SPI.prototype._initialize = function ()
 {
@@ -1147,16 +1139,21 @@ SPI.prototype.transfer = function (txbuf, callback)
 
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback, false));
+  var chunkSize = txbuf.length;
+  var repeat = 1;
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
 };
 
 SPI.prototype.send = function (txbuf, callback)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback, false));
+  var chunkSize = txbuf.length;
+  var repeat = 1;
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
 };
-
 
 SPI.prototype.receive = function (buf_len, callback)
 {
@@ -1168,6 +1165,41 @@ SPI.prototype.receive = function (buf_len, callback)
   this.transfer(txbuf, callback);
 };
 
+SPI.prototype.transferBatch = function (txbuf, options, callback)
+{
+  // Create a new receive buffer
+  var rxbuf = new Buffer(txbuf.length);
+  // Fill it with 0 to avoid any confusion
+  rxbuf.fill(0);
+
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  if (!options) {
+    options = {};
+  }
+  var chunkSize = options.chunkSize || txbuf.length;
+  var repeat = options.repeat || 1;
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
+};
+
+SPI.prototype.sendBatch = function (txbuf, options, callback)
+{
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  if (!options) {
+    options = {};
+  }
+
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  var chunkSize = options.chunkSize || txbuf.length;
+  var repeat = options.repeat || 1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
+};
 
 SPI.prototype.setBitOrder = function (bitOrder)
 {

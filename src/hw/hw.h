@@ -172,10 +172,17 @@ struct spi_async_status_t {
   uint32_t transferError;
   hw_GPDMA_Linked_List_Type *tx_Linked_List;
   hw_GPDMA_Linked_List_Type *rx_Linked_List;
-  uint32_t txLength;
-  uint32_t rxLength;
+  size_t buffer_length;
   int32_t txRef;
   int32_t rxRef;
+  const uint8_t * txbuf;
+  uint8_t * rxbuf;
+  hw_GPDMA_Chan_Config tx_config;
+  hw_GPDMA_Chan_Config rx_config;
+  size_t chunk_size;
+  uint32_t repeat;
+  int8_t chip_select;
+  uint32_t chunk_offset;
   // Callback is a shim to allow C code to receive callbacks
   void (*callback)();
 };
@@ -198,7 +205,7 @@ typedef struct hw_spi {
 
 #define SPI_MAX_DMA_SIZE 0xFFF
 
-extern volatile struct spi_async_status_t spi_async_status;
+extern struct spi_async_status_t spi_async_status;
 
 hw_spi_t * find_spi (size_t port);
 int hw_spi_initialize (size_t port, uint32_t clockspeed, uint8_t spimode, uint8_t cpol, uint8_t cpha, uint8_t frameformat);
@@ -206,8 +213,7 @@ int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
 void _hw_spi_irq_interrupt();
 
-
-int hw_spi_transfer (size_t port, size_t txlen, size_t rxlen, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, void (*callback)());
+int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, int8_t chip_select, void (*callback)());
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 
