@@ -61,6 +61,10 @@ void hw_spi_dma_counter (uint8_t channel){
 }
 
 void default_complete_cb() {
+  // Pull cs pin high if a cs pin is set
+  if (spi_async_status.chip_select != -1) {
+    hw_digital_write(spi_async_status.chip_select, 1);
+  }
   // Set offset to next command in the txbuf
   spi_async_status.chunk_offset += spi_async_status.chunk_size;
 
@@ -83,12 +87,6 @@ uint32_t hw_spi_dma_num_linked_lists (size_t buf_len) {
   uint32_t num_remaining_bytes = buf_len % SPI_MAX_DMA_SIZE;
   // Get the total number of packets including incomplete packets
   return num_full_packets + (num_remaining_bytes ? 1 : 0);
-}
-
-void hw_spi_cycle_cs (uint8_t cs_pin) {
-  hw_digital_write(cs_pin, 1);
-  hw_wait_us(1);
-  hw_digital_write(cs_pin, 0);
 }
 
 hw_GPDMA_Linked_List_Type * hw_spi_dma_packetize_setup (size_t buf_len) {
@@ -282,8 +280,10 @@ int hw_spi_transfer_setup (size_t port, size_t buffer_length, const uint8_t *txb
 }
 
 void hw_spi_transfer_step() {
-  hw_spi_cycle_cs(spi_async_status.chip_select);
-
+  // Pull cs pin low if a cs pin is set
+  if (spi_async_status.chip_select != -1) {
+    hw_digital_write(spi_async_status.chip_select, 0);
+  }
   spi_async_status.transferCount = 0;
   spi_async_status.transferError = 0;
 
@@ -302,8 +302,13 @@ void hw_spi_transfer_step() {
   }
 }
 
-int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, void (*callback)())
+int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, int8_t chip_select, void (*callback)())
 {
+  // Make sure that cs pin is high to start
+  if (chip_select != -1) {
+    hw_digital_output(chip_select);
+    hw_digital_write(chip_select, 1);
+  }
   hw_spi_transfer_setup (port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, callback);
   if (repeat == 0 || chunk_size > buffer_length) {
     tm_event_trigger(&async_spi_event);

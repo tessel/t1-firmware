@@ -1006,9 +1006,6 @@ _asyncSPIQueue._execute_async = function() {
     // Get the recently completed transfer
     var completed = self.transfers.shift();
 
-    // De-assert chip select
-    transfer.port._activeChipSelect(0);
-
     // If this was a pending transfer that completed
     // just after we added one or more locks
     if (!completed.raw && self.locks.length) {
@@ -1044,9 +1041,6 @@ _asyncSPIQueue._execute_async = function() {
 
     // Switch SPI to these settings
     transfer.port._initialize();
-
-    // Activate chip select if it was provided
-    transfer.port._activeChipSelect(1);
 
     // When the transfer is complete, process it and call callback
     process.once('spi_async_complete', processTransferCB);
@@ -1109,43 +1103,11 @@ function SPI (params)
 
   this.chipSelectActive = params.chipSelectActive == 'high' || params.chipSelectActive == 1 ? 1 : 0;
 
-  if (this.chipSelect) {
-    this.chipSelect.output();
-    if (this.chipSelectActive) {
-      this.chipSelect.low();
-    } else {
-      this.chipSelect.high();
-    }
-  }
-
-  // initialize here to pull sck, mosi, miso pins to default state
   this._initialize();
 }
 
 
 util.inherits(SPI, EventEmitter);
-
-
-SPI.prototype._activeChipSelect = function (flag)
-{
-  if (this.chipSelect) {
-    if (this.chipSelectActive) {
-      if (flag) {
-        this.chipSelect.high();
-      }
-      else {
-        this.chipSelect.low();
-      }
-    } else {
-      if (flag) {
-        this.chipSelect.low();
-      }
-      else {
-        this.chipSelect.high();
-      }
-    }
-  }
-};
 
 SPI.prototype._initialize = function ()
 {
@@ -1179,7 +1141,8 @@ SPI.prototype.transfer = function (txbuf, callback)
   // Returns a -1 on error and 0 on successful queueing
   var chunkSize = txbuf.length;
   var repeat = 1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, this.chipSelect.pin, callback, false));
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
 };
 
 SPI.prototype.send = function (txbuf, callback)
@@ -1188,7 +1151,8 @@ SPI.prototype.send = function (txbuf, callback)
   // Returns a -1 on error and 0 on successful queueing
   var chunkSize = txbuf.length;
   var repeat = 1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, this.chipSelect.pin, callback, false));
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
 };
 
 SPI.prototype.receive = function (buf_len, callback)
@@ -1217,7 +1181,8 @@ SPI.prototype.transferBatch = function (txbuf, options, callback)
   }
   var chunkSize = options.chunkSize || txbuf.length;
   var repeat = options.repeat || 1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, this.chipSelect.pin, callback, false));
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
 };
 
 SPI.prototype.sendBatch = function (txbuf, options, callback)
@@ -1230,9 +1195,10 @@ SPI.prototype.sendBatch = function (txbuf, options, callback)
     options = {};
   }
 
+  var pin = this.chipSelect ? this.chipSelect.pin : -1;
   var chunkSize = options.chunkSize || txbuf.length;
   var repeat = options.repeat || 1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, this.chipSelect.pin, callback, false));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
 };
 
 SPI.prototype.setBitOrder = function (bitOrder)
