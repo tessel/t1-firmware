@@ -181,7 +181,8 @@ struct spi_async_status_t {
   hw_GPDMA_Chan_Config rx_config;
   size_t chunk_size;
   uint32_t repeat;
-  uint32_t chunk_offset;
+  uint32_t chip_select;
+  uint8_t chunk_offset;
   // Callback is a shim to allow C code to receive callbacks
   void (*callback)();
 };
@@ -212,7 +213,7 @@ int hw_spi_enable (size_t port);
 int hw_spi_disable (size_t port);
 void _hw_spi_irq_interrupt();
 
-int hw_spi_transfer (size_t port, size_t bufferLength, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, void (*callback)());
+int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, void (*callback)());
 void hw_spi_dma_counter (uint8_t channel);
 void hw_spi_async_cleanup (void);
 
