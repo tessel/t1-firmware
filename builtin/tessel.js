@@ -890,7 +890,7 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
 
   // Begin the transfer
   var length = computeBufferLength(rxbuf, txbuf);
-  var ret = hw.spi_transfer(this.port, length, txbuf, rxbuf);
+  var ret = hw.spi_transfer(this.port, length, txbuf, rxbuf, length, 1);
 
   if (ret < 0) {
     process.removeListener('spi_async_complete', rawComplete);
@@ -1049,16 +1049,19 @@ _asyncSPIQueue._execute_async = function() {
 
     // Begin the transfer
     var length = computeBufferLength(transfer.rxbuf, transfer.txbuf);
-    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf);
+    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat);
   }
 };
 
-function AsyncSPITransfer(port, txbuf, rxbuf, callback, raw) {
+function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, callback, raw) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
   this.callback = callback;
   this.raw = raw;
+  this.chunkSize = chunkSize;
+  this.repeat = repeat;
+  this.chipSelect = chipSelect;
 }
 
 // SPI parameters may be changed by different invocations,
@@ -1167,14 +1170,18 @@ SPI.prototype.transfer = function (txbuf, callback)
 
   // Push it into the queue to be completed
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, callback, false));
+  var chunkSize = txbuf.length;
+  var repeat = 1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, chipSelect, callback, false));
 };
 
 SPI.prototype.send = function (txbuf, callback)
 {
   // Push the transfer into the queue. Don't bother receiving any bytes
   // Returns a -1 on error and 0 on successful queueing
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, callback, false));
+  var chunkSize = txbuf.length;
+  var repeat = 1;
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, chipSelect, callback, false));
 };
 
 

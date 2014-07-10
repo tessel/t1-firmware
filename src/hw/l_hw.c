@@ -147,8 +147,11 @@ static int l_hw_spi_transfer(lua_State* L)
 	rxref = luaL_ref(L, LUA_REGISTRYINDEX);
 
 
+	size_t chunk_size = (size_t) lua_tonumber(L, ARG1 + 4);
+	uint32_t repeat = (uint32_t) lua_tonumber(L, ARG1 + 5);
+
 	// Begin the transfer
-	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, txref, rxref, NULL);
+	hw_spi_transfer(port, bufferLength, txbuf, rxbuf, txref, rxref, chunk_size, repeat, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
