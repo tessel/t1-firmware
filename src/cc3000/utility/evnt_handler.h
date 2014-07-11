@@ -67,7 +67,7 @@ extern "C" {
 //!                  event handler from global array of handlers pointers
 //
 //*****************************************************************************
-extern UINT8 *hci_event_handler(void *pRetParams, UINT8 *from, UINT8 *fromlen);
+extern unsigned char *hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen);
 
 //*****************************************************************************
 //
@@ -81,7 +81,7 @@ extern UINT8 *hci_event_handler(void *pRetParams, UINT8 *from, UINT8 *fromlen);
 //!  @brief              Handle unsolicited events
 //
 //*****************************************************************************
-extern INT32 hci_unsol_event_handler(CHAR *event_hdr);
+extern long hci_unsol_event_handler(char *event_hdr);
 
 //*****************************************************************************
 //
@@ -95,9 +95,9 @@ extern INT32 hci_unsol_event_handler(CHAR *event_hdr);
 //!                  corresponding event handler.
 //
 //*****************************************************************************
-extern INT32 hci_unsolicited_event_handler(void);
+extern long hci_unsolicited_event_handler(void);
 
-#define M_BSD_RESP_PARAMS_OFFSET(hci_event_hdr)((CHAR *)(hci_event_hdr) + HCI_EVENT_HEADER_SIZE)
+#define M_BSD_RESP_PARAMS_OFFSET(hci_event_hdr)((char *)(hci_event_hdr) + HCI_EVENT_HEADER_SIZE)
 
 #define SOCKET_STATUS_ACTIVE       0
 #define SOCKET_STATUS_INACTIVE     1
@@ -107,15 +107,15 @@ extern INT32 hci_unsolicited_event_handler(void);
 #define M_IS_VALID_SD(sd) ((0 <= (sd)) && ((sd) <= 7))
 #define M_IS_VALID_STATUS(status) (((status) == SOCKET_STATUS_ACTIVE)||((status) == SOCKET_STATUS_INACTIVE))
 
-extern UINT32 socket_active_status;
+extern unsigned long socket_active_status;
 
-extern void set_socket_active_status(INT32 Sd, INT32 Status);
-extern INT32 get_socket_active_status(INT32 Sd);
+extern void set_socket_active_status(long Sd, long Status);
+extern long get_socket_active_status(long Sd);
 
 typedef struct _bsd_accept_return_t
 {
-    INT32             iSocketDescriptor;
-    INT32             iStatus;
+    long             iSocketDescriptor;
+    long             iStatus;
     sockaddr   		tSocketAddress;
     
 } tBsdReturnParams;
@@ -123,9 +123,9 @@ typedef struct _bsd_accept_return_t
 
 typedef struct _bsd_read_return_t
 {
-    INT32             iSocketDescriptor;
-    INT32             iNumberOfBytes;
-    UINT32	 uiFlags;
+    long             iSocketDescriptor;
+    long             iNumberOfBytes;
+    unsigned long	 uiFlags;
 } tBsdReadReturnParams;
 
 #define BSD_RECV_FROM_FROMLEN_OFFSET	(4)
@@ -134,23 +134,23 @@ typedef struct _bsd_read_return_t
 
 typedef struct _bsd_select_return_t
 {
-    INT32					iStatus;
-	UINT32 			uiRdfd;
-	UINT32 			uiWrfd;
-	UINT32 			uiExfd;
+    long					iStatus;
+	unsigned long 			uiRdfd;
+	unsigned long 			uiWrfd;
+	unsigned long 			uiExfd;
 } tBsdSelectRecvParams;
 
 
 typedef struct _bsd_getsockopt_return_t
 {
-	UINT8			ucOptValue[4];
-	CHAR						iStatus;
+	unsigned char			ucOptValue[4];
+	char						iStatus;
 } tBsdGetSockOptReturnParams;
 
 typedef struct _bsd_gethostbyname_return_t
 {
-    INT32             retVal;
-    INT32             outputAddress;
+    long             retVal;
+    long             outputAddress;
 } tBsdGethostbynameParams;
 
 //*****************************************************************************

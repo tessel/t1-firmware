@@ -231,7 +231,7 @@ void hw_net_initialize (void)
 		TM_DEBUG("Fail setting policy %i", r);
 	}
 
-	r = wlan_ioctl_set_scan_params(10000, 100, 100, 5, 0x7FF, -100, 0, 205, (unsigned long*) wifi_intervals);
+	r = wlan_ioctl_set_scan_params(10000, 100, 100, 5, 0x7FF, -100, 0, 205, wifi_intervals);
 	if (r != 0) {
 		TM_DEBUG("Fail setting scan params %i", r);
 	}
