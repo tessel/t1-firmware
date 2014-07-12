@@ -15,15 +15,6 @@ extern "C" {
 #endif /** CPP **/
 
 #include <stdint.h>
-
-// Prevent de-definition in CC3000 code.
-// data_types.h will check to see #ifndef TRUE, then define
-// TRUE as 0. LPC code wants to define TRUE and FALSE as an enum.
-// Here we trick the CC3000 into not defining these as constants
-// by defining them as their own tokens.
-#define FALSE FALSE
-#define TRUE TRUE
-
 extern uint8_t hw_wifi_ip[];
 extern uint8_t hw_cc_ver[];
 
@@ -46,9 +37,8 @@ void hw_usb_init(void);
 
 // Net
 
-#include "utility/cc3000_common.h"
-#include "utility/data_types.h"
 #include "utility/socket.h"
+#include "utility/cc3000_common.h"
 #include "host_spi.h"
 
 void hw_net_initialize (void);
@@ -86,7 +76,7 @@ typedef enum {
   UART0_TX_CONN,
   MAT0_1_CONN,
   UART0_RX_CONN,
-  MAT1_0_CONN,
+  MAT1_0_CONN, 
   UART1_TX_CONN,
   MAT1_1_CONN,
   UART1_RX_CONN,

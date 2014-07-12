@@ -13,7 +13,7 @@
 //#include <stdlib.h>
 //#include <stdio.h>
 //#include "utility/wlan.h"
-#include <stdint.h>
+
 
 
 //*****************************************************************************
@@ -28,8 +28,6 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-void CC_BLOCKS ();
 
 extern unsigned volatile long ulSmartConfigFinished, ulCC3000Connected, ulCC3000DHCP, OkToDoShutDown, ulCC3000DHCP_configured, smartconfig_process;
 

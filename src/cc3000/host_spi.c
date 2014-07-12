@@ -14,9 +14,7 @@
 
 #include "tessel.h"
 #include "hw.h"
-
 #include "host_spi.h"
-#include "utility/cc3000_common.h"
 #include "utility/wlan.h"
 #include "utility/nvmem.h"
 #include "utility/security.h"
