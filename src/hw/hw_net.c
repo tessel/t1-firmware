@@ -27,7 +27,6 @@
  */
 
 static volatile int inuse = 0;
-bool hw_wifi_enabled = true;
 uint8_t hw_wifi_ip[4] = {0, 0, 0, 0};
 uint8_t hw_cc_ver[2] = {0, 0};
 
@@ -55,20 +54,21 @@ int hw_net_erase_profiles()
 	int deleted = wlan_ioctl_del_profile(255);
 	// power cycle
 	hw_net_disable();
-	hw_wait_ms(100);
+	hw_wait_ms(10);
 	hw_net_initialize();
-
+	ulCC3000Connected = 0;
+	ulCC3000DHCP = 0;
 	return deleted;
 }
 
 int hw_net_is_connected ()
 {
-  return ulCC3000Connected;
+	return ulCC3000Connected;
 }
 
 int hw_net_has_ip ()
 {
-  return ulCC3000DHCP;
+	return ulCC3000DHCP;
 }
 
 int hw_net_online_status(){
@@ -289,7 +289,6 @@ void hw_net_disable (void)
 	// clear out all wifi data
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
-	hw_wifi_enabled = false;
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
@@ -356,13 +355,15 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
   return connected;
 }
 
-void hw_net_disconnect (void)
+int hw_net_disconnect (void)
 {
 	CC3000_START;
-	wlan_disconnect();
+	int disconnect = wlan_disconnect();
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
+
+	return disconnect;
 }

@@ -740,8 +740,6 @@ static int l_wifi_connect(lua_State* L)
 	securitybuf = colony_toconstdata(L, ARG1 + 2, &securitylen);
 	lua_pushvalue(L, ARG1 + 2);
 
-	TM_DEBUG("l_wifi_connect %s, %s, %s", (char *) securitybuf, (char *) ssidbuf, (char *) passbuf);
-
 	// begin the connection call
 	tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, (char *) passbuf
 		, ssidlen, passlen);
@@ -770,7 +768,6 @@ static int l_wifi_is_connected(lua_State* L) {
 static int l_wifi_connection(lua_State* L) {
 	char * payload = tessel_wifi_info();
 	lua_pushstring(L, payload);
-	TM_DEBUG("l_wifi_connection %s", payload);
 	free(payload);
 	return 1;
 }
@@ -784,6 +781,25 @@ static int l_wifi_disable(lua_State* L) {
 static int l_wifi_enable(lua_State* L) {
 	tessel_wifi_enable();
 	lua_pushnumber(L, tessel_wifi_initialized());
+	return 1;
+}
+
+static int l_wifi_is_enabled(lua_State* L) {
+	lua_pushnumber(L, tessel_wifi_initialized());
+	return 1;
+}
+
+static int l_wifi_disconnect(lua_State* L) {
+
+	// if we're not connected return an error
+	if (hw_net_inuse() || tessel_wifi_is_connecting() || !hw_net_is_connected()) {
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+
+	int disconnect = tessel_wifi_disconnect();
+	lua_pushnumber(L, disconnect);
+
 	return 1;
 }
 
@@ -880,6 +896,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "wifi_is_connected", l_wifi_is_connected},
 		{ "wifi_connection", l_wifi_connection },
 		{ "wifi_is_busy", l_wifi_is_busy },
+		{ "wifi_is_enabled", l_wifi_is_enabled},
+		{ "wifi_disconnect", l_wifi_disconnect },
 		{ "wifi_disable", l_wifi_disable },
 		{ "wifi_enable", l_wifi_enable },
 

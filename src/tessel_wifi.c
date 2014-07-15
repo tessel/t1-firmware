@@ -43,12 +43,12 @@ struct wifi_status_t {
   bool post_connect;
 };
 
-void clear_wifi_events();
-void wifi_no_func();
 void wifi_connection_callback();
+void wifi_disconnect_callback();
 
 /// The event triggered by the cc callback
 tm_event wifi_connect_event = TM_EVENT_INIT(wifi_connection_callback);
+tm_event wifi_disconnect_event = TM_EVENT_INIT(wifi_disconnect_callback);
 
 struct wifi_status_t wifi_status = {
   .callback_err = 0,
@@ -66,7 +66,6 @@ void wifi_connection_callback (void) {
 	lua_getglobal(L, "_colony_emit");
 	// The process message identifier
 	lua_pushstring(L, "wifi_connect_complete");
-	TM_DEBUG("wifi connection emitted %s", wifi_status.callback_payload);
 	// push whether we got an error (1 or 0)
 	lua_pushnumber(L, wifi_status.callback_err);
 	lua_pushstring(L, wifi_status.callback_payload);
@@ -80,6 +79,19 @@ void wifi_connection_callback (void) {
 
 	// Call _colony_emit to run the JS callback
 	tm_checked_call(L, 3);
+}
+
+void wifi_disconnect_callback(void) {
+	lua_State* L = tm_lua_state;
+	if (!L) return;
+
+	lua_getglobal(L, "_colony_emit");
+	lua_pushstring(L, "wifi_disconnect_complete");
+	lua_pushnumber(L, 0);
+
+	tm_event_unref(&wifi_disconnect_event);
+
+	tm_checked_call(L, 2);
 }
 
 uint8_t get_cc3k_irq_flag () {
@@ -144,6 +156,8 @@ void _cc3000_cb_animation_tick (size_t frame)
 				hw_digital_write(CC3K_CONN_LED, 0);
 				cc_blink = 0;
 				cc_bootup = -1;
+				wifi_is_connecting = 0;
+
 			}
 		}
 	}
@@ -152,7 +166,6 @@ void _cc3000_cb_animation_tick (size_t frame)
 void _cc3000_cb_acquire ()
 {
 	TM_COMMAND('W', "{\"event\": \"acquire\"}");
-	TM_DEBUG("wifi acquiring");
 	cc_blink = 1;
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 0);
@@ -162,6 +175,7 @@ void _cc3000_cb_error (int connected)
 {
 	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
 	cc_blink = 0;
+	wifi_is_connecting = 0;
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
 }
@@ -169,7 +183,6 @@ void _cc3000_cb_error (int connected)
 void _cc3000_cb_wifi_connect ()
 {
 	TM_COMMAND('W', "{\"event\": \"connect\"}");
-	TM_DEBUG("wifi connect");
 	// only dhcp events that come after this are valid
 	wifi_status.post_connect = true;
 	cc_blink = 1;
@@ -181,15 +194,20 @@ void _cc3000_cb_wifi_disconnect ()
 {
 	TM_COMMAND('W', "{\"event\": \"disconnect\"}");
 	cc_blink = 0;
+	wifi_is_connecting = 0;
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
+
+	tm_event_trigger(&wifi_disconnect_event);
 }
 
 void _cc3000_cb_dhcp_failed ()
 {
 	TM_DEBUG("DHCP failed. Try reconnecting.");
 	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
+	wifi_is_connecting = 0;
 	cc_blink = 0;
+	cc_bootup = -1;
 	tessel_wifi_check(1);
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
@@ -199,6 +217,7 @@ void _cc3000_cb_dhcp_success ()
 {
 	hw_digital_write(CC3K_CONN_LED, 1);
 	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
+	wifi_is_connecting = 0;
 	tessel_wifi_check(1);
 	cc_blink = 0;
 	cc_bootup = -1;
@@ -222,17 +241,16 @@ int tessel_wifi_is_connecting(){
 	return wifi_is_connecting;
 }
 
-void tessel_wifi_disconnect(){
-	wlan_ioctl_set_connection_policy(0, 0, 1);
-	hw_net_disconnect();
-	TM_DEBUG("hw_net disconnected");
-	wifi_initialized = 0;
+int tessel_wifi_disconnect(){
+	// wlan_ioctl_set_connection_policy(0, 0, 1);
+	// prevent a connection from taking place before we can get a response
+	wifi_is_connecting = 1; 
+	return hw_net_disconnect();
 }
 
 void tessel_wifi_disable ()
 {
 	hw_net_disable();
-	TM_DEBUG("hw_net disabled");
 	wifi_initialized = 0;
 } 
 
@@ -242,6 +260,8 @@ void tessel_wifi_enable ()
 	if (!wifi_initialized) {
 		hw_net_initialize();
 		wifi_initialized = 1;
+		wifi_is_connecting = 1;
+		cc_bootup = 0;
 		tm_net_initialize_dhcp_server();
 	} else {
 		// disable and re-enable
@@ -345,15 +365,12 @@ void tessel_wifi_check (uint8_t asevent)
 		
 		
 	}
-
-	wifi_is_connecting = 0;
 }
 
 int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen)
 {
 	// Check arguments.
 	if (wifi_ssid[0] == 0 ) {
-		TM_DEBUG("hw_net is in use");
 		return 1;
 	}
 
@@ -382,4 +399,5 @@ void tessel_wifi_fastconnect() {
 	hw_net_initialize();
 	wifi_initialized = 1;
 	wifi_is_connecting = 1;
+	cc_bootup = 0;
 }
