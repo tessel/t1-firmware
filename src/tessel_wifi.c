@@ -39,7 +39,6 @@ char *CC3K_callback_payload = 0;
 struct wifi_status_t {
   int callback_err;
   char* callback_payload;
-  bool callback_payload_free;
   bool post_connect;
 };
 
@@ -52,8 +51,7 @@ tm_event wifi_disconnect_event = TM_EVENT_INIT(wifi_disconnect_callback);
 
 struct wifi_status_t wifi_status = {
   .callback_err = 0,
-  .callback_payload = 0,
-  .callback_payload_free = false,
+  .callback_payload = NULL,
   .post_connect = false,
 };
 
@@ -62,21 +60,22 @@ void wifi_connection_callback (void) {
 	lua_State* L = tm_lua_state;
 	if (!L) return;
 
+	tm_event_unref(&wifi_connect_event);
+
 	// Push the _colony_emit helper function onto the stack
 	lua_getglobal(L, "_colony_emit");
 	// The process message identifier
 	lua_pushstring(L, "wifi_connect_complete");
 	// push whether we got an error (1 or 0)
 	lua_pushnumber(L, wifi_status.callback_err);
-	lua_pushstring(L, wifi_status.callback_payload);
 
-	if (wifi_status.callback_payload_free) {
+	if (wifi_status.callback_payload != NULL) {
+		lua_pushstring(L, wifi_status.callback_payload);
 		free(wifi_status.callback_payload);
-		wifi_status.callback_payload_free = false;
+	} else {
+		lua_pushstring(L, "");
 	}
-	
-	tm_event_unref(&wifi_connect_event);
-
+ 
 	// Call _colony_emit to run the JS callback
 	tm_checked_call(L, 3);
 }
@@ -85,11 +84,11 @@ void wifi_disconnect_callback(void) {
 	lua_State* L = tm_lua_state;
 	if (!L) return;
 
+	tm_event_unref(&wifi_disconnect_event);
+
 	lua_getglobal(L, "_colony_emit");
 	lua_pushstring(L, "wifi_disconnect_complete");
 	lua_pushnumber(L, 0);
-
-	tm_event_unref(&wifi_disconnect_event);
 
 	tm_checked_call(L, 2);
 }
@@ -265,7 +264,7 @@ void tessel_wifi_enable ()
 		tm_net_initialize_dhcp_server();
 	} else {
 		// disable and re-enable
-		tessel_wifi_disconnect();
+		tessel_wifi_disable();
 		tessel_wifi_enable();
 	}
 }
@@ -283,7 +282,7 @@ void tessel_wifi_smart_config ()
 
 #define TM_BYTE(A, B) ((A >> (B*8)) & 0xFF)
 
-char* tessel_wifi_info(){
+char* tessel_wifi_json(){
 	uint32_t ip_addr = (hw_wifi_ip[3] << 24) | (hw_wifi_ip[2] << 16) | (hw_wifi_ip[1] << 8) | (hw_wifi_ip[0]);
 	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0));
 	
@@ -334,13 +333,12 @@ void tessel_wifi_check (uint8_t asevent)
 
 	if (hw_net_online_status()){
 		
-		char * payload = tessel_wifi_info();
+		char * payload = tessel_wifi_json();
 		TM_COMMAND('W', payload);
 
 		if (wifi_status.post_connect) {
 			wifi_status.callback_err = 0;
 			wifi_status.callback_payload = payload;
-			wifi_status.callback_payload_free = true;
 			wifi_status.post_connect = false;
 			// callback
 			tm_event_trigger(&wifi_connect_event);
@@ -355,8 +353,7 @@ void tessel_wifi_check (uint8_t asevent)
 		
 		if (wifi_status.post_connect) {
 			wifi_status.callback_err = 1;
-			wifi_status.callback_payload = "Could not get connection";
-			wifi_status.callback_payload_free = false;
+			wifi_status.callback_payload = NULL;
 			wifi_status.post_connect = false;
 
 			tm_event_trigger(&wifi_connect_event);
@@ -367,10 +364,10 @@ void tessel_wifi_check (uint8_t asevent)
 	}
 }
 
-int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen)
+int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, size_t ssidlen, char* wifi_pass, size_t passlen)
 {
 	// Check arguments.
-	if (wifi_ssid[0] == 0 ) {
+	if (wifi_ssid[0] == 0) {
 		return 1;
 	}
 
@@ -386,7 +383,7 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass,
 	// }
 
 	// Connect to given network.
-	hw_net_connect(wifi_security, wifi_ssid, wifi_pass, ssidlen, passlen); // use this for using tessel wifi from command line
+	hw_net_connect(wifi_security, wifi_ssid, ssidlen, wifi_pass, passlen); // use this for using tessel wifi from command line
 	wifi_is_connecting = 1;
 	return 0;
 }

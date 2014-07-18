@@ -20,11 +20,11 @@ int tessel_wifi_disconnect ();
 void tessel_wifi_smart_config ();
 int tessel_wifi_is_connecting();
 int tessel_wifi_initialized();
-char* tessel_wifi_info();
+char* tessel_wifi_json();
 
 void tessel_wifi_init ();
 void tessel_wifi_check(uint8_t output);
-int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, char* wifi_pass, size_t ssidlen, size_t passlen);
+int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, size_t ssidlen, char* wifi_pass, size_t passlen);
 void tessel_wifi_fastconnect();
 
 void _tessel_cc3000_irq_interrupt ();

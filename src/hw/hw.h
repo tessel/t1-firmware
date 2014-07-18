@@ -46,7 +46,7 @@ void hw_net_config(int should_connect_to_open_ap, int should_use_fast_connect, i
 void hw_net_smartconfig_initialize(void);
 void hw_net_disable (void);
 // extern uint8_t tm_net_firmware_version ();
-int hw_net_connect(const char *security_type, const char *ssid, const char *keys, size_t ssidlen, size_t keyslen);
+int hw_net_connect(const char *security_type, const char *ssid, size_t ssid_len, const char *keys, size_t keys_len);
 int hw_net_disconnect (void);
 int hw_net_erase_profiles();
 int hw_net_inuse ();

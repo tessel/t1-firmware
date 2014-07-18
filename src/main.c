@@ -139,18 +139,19 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			memcpy(wifi_ssid, &buf[0], 32);
 			memcpy(wifi_pass, &buf[32], 64);
 			
-			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass, strlen(wifi_ssid), strlen(wifi_pass));
+			tessel_wifi_connect(wifi_security, wifi_ssid, strlen(wifi_ssid), wifi_pass, strlen(wifi_pass));
 		}
 
 	} else if (cmd == 'w') {
 		TM_COMMAND('W', "{\"event\": \"busy\",\"busy\": %d}", hw_net_inuse() || tessel_wifi_is_connecting());
 	} else if (cmd == 'Y') {
 		tessel_wifi_disconnect();
+	} else if (cmd == 'E') {
+		tessel_wifi_enable();
+		TM_COMMAND('W', "{\"event\": \"enable\"}");
 	} else if (cmd == 'R') {
 		tessel_wifi_disable();
-		hw_wait_ms(10);
-		tessel_wifi_enable();
-		TM_COMMAND('W', "{\"event\": \"restart\"}");
+		TM_COMMAND('W', "{\"event\": \"disable\"}");
 	} else if (cmd == 'C') {
 		// check wifi for connection
 		tessel_wifi_check(1);

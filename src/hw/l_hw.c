@@ -719,7 +719,7 @@ static int l_wifi_connect(lua_State* L)
 	// if we're currently in the middle of something, don't continue
 	if (hw_net_inuse() || tessel_wifi_is_connecting()) {
 		// push error code onto the stack
-		lua_pushnumber(L, -1);
+		lua_pushnumber(L, 1);
 		return 1;
 	}
 
@@ -732,30 +732,23 @@ static int l_wifi_connect(lua_State* L)
 	const uint8_t* securitybuf = NULL;
 
 	ssidbuf = colony_toconstdata(L, ARG1, &ssidlen);
-	lua_pushvalue(L, ARG1);
 
 	passbuf = colony_toconstdata(L, ARG1 + 1, &passlen);
-	lua_pushvalue(L, ARG1 + 1);
 
 	securitybuf = colony_toconstdata(L, ARG1 + 2, &securitylen);
-	lua_pushvalue(L, ARG1 + 2);
 
 	// begin the connection call
-	tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, (char *) passbuf
-		, ssidlen, passlen);
+	int ret = tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, ssidlen
+		, (char *) passbuf, passlen);
 
 	// push a success code
-	lua_pushnumber(L, 0);
+	lua_pushnumber(L, ret);
 
 	return 1;
 }
 
 static int l_wifi_is_busy(lua_State* L) {
-	if (hw_net_inuse() || tessel_wifi_is_connecting()) {
-		lua_pushnumber(L, 1);
-	} else {
-		lua_pushnumber(L, 0);
-	}
+	lua_pushnumber(L, hw_net_inuse() || tessel_wifi_is_connecting() ? 1 : 0);
 	
 	return 1;
 }
@@ -766,7 +759,7 @@ static int l_wifi_is_connected(lua_State* L) {
 }
 
 static int l_wifi_connection(lua_State* L) {
-	char * payload = tessel_wifi_info();
+	char * payload = tessel_wifi_json();
 	lua_pushstring(L, payload);
 	free(payload);
 	return 1;
@@ -793,7 +786,7 @@ static int l_wifi_disconnect(lua_State* L) {
 
 	// if we're not connected return an error
 	if (hw_net_inuse() || tessel_wifi_is_connecting() || !hw_net_is_connected()) {
-		lua_pushnumber(L, -1);
+		lua_pushnumber(L, 1);
 		return 1;
 	}
 

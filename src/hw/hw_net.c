@@ -78,13 +78,16 @@ int hw_net_online_status(){
 
 int hw_net_ssid (char ssid[33])
 {
-	if (hw_net_online_status())
-	CC3000_START;
-	tNetappIpconfigRetArgs ipinfo;
-	netapp_ipconfig(&ipinfo);
-	memset(ssid, 0, 33);
-	memcpy(ssid, ipinfo.uaSSID, 32);
-	CC3000_END;
+	if (hw_net_online_status()) {
+		CC3000_START;
+		tNetappIpconfigRetArgs ipinfo;
+		netapp_ipconfig(&ipinfo);
+		memset(ssid, 0, 33);
+		memcpy(ssid, ipinfo.uaSSID, 32);
+		CC3000_END;
+	} else {
+		memset(ssid, 0, 33);
+	}
 	return 0;
 }
 
@@ -284,7 +287,7 @@ void hw_net_smartconfig_initialize (void)
 void hw_net_disable (void)
 {
 	CC3000_START;
-	// wlan_stop();
+	wlan_stop();
 	SpiDeInit();
 	// clear out all wifi data
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
@@ -296,6 +299,10 @@ void hw_net_disable (void)
 
 int strcicmp(char const *a, char const *b)
 {
+	if (strlen(a) != strlen(b)) {
+		return 1;
+	}
+	
     for (;; a++, b++) {
         int d = (tolower((unsigned char) *a) - tolower((unsigned char) *b));
         if (d != 0 || !*a)
@@ -318,14 +325,14 @@ __attribute__((weak)) void _cc3000_cb_error (int err) {
 	(void) err;
 }
 
-int hw_net_connect (const char *security_type, const char *ssid, const char *keys
-	, size_t ssidlen, size_t keyslen)
+int hw_net_connect (const char *security_type, const char *ssid, size_t ssid_len
+	, const char *keys, size_t keys_len)
 {
   CC3000_START;
 
   int security = WLAN_SEC_WPA2;
   char * security_print = "wpa2";
-  if (keyslen == 0){ // keys[0] == 0 || 
+  if (keys_len == 0){
     security = WLAN_SEC_UNSEC;
     security_print = "unsecure";
   } else if (strcicmp(security_type, "wpa") == 0){
@@ -338,8 +345,8 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
 
   TM_DEBUG("Attempting to connect with security type %s... ", security_print);
   wlan_ioctl_set_connection_policy(0, 1, 0);
-  int connected = wlan_connect(security, (char *) ssid, ssidlen
-  	, 0, (unsigned char *) keys, keyslen);
+  int connected = wlan_connect(security, (char *) ssid, ssid_len
+  	, 0, (uint8_t *) keys, keys_len);
 
   if (connected != 0) {
     TM_DEBUG("Error #%d in connecting. Please try again.", connected);
@@ -361,8 +368,6 @@ int hw_net_disconnect (void)
 	int disconnect = wlan_disconnect();
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
-	hw_digital_write(CC3K_CONN_LED, 0);
-	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
 
 	return disconnect;
