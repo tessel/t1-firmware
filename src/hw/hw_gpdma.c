@@ -9,7 +9,6 @@
 
 #include "hw.h"
 #include "lpc18xx_gpdma.h"
-#include "tm.h"
 
 /**
  * @brief Lookup Table of GPDMA Channel Number matched with
@@ -144,8 +143,6 @@ uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *chan
     | GPDMA_DMACCxConfig_SrcPeripheral(SrcPeripheral) \
     | GPDMA_DMACCxConfig_DestPeripheral(DestPeripheral);
 
-  TM_DEBUG("Config reg %d", pDMAch->CConfig);
-
   return SUCCESS;
 }
 
@@ -170,7 +167,7 @@ void hw_gpdma_transfer_begin(uint32_t channelNum, hw_GPDMA_Linked_List_Type *fir
   GPDMA_ChannelCmd(channelNum, ENABLE);
 
   /* Enable GPDMA interrupt */
-  // NVIC_EnableIRQ(DMA_IRQn);
+  NVIC_EnableIRQ(DMA_IRQn);
 }
 
 
