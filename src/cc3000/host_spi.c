@@ -619,6 +619,8 @@ void SpiResumeSpi(void)
 	// 	TM_DEBUG("SpiResumeSpi");
 	// }
 
+	// renableIRQ();
+	
 	// if (get_cc3k_irq_flag()) {
 	// 	SPI_IRQ();
 	// }

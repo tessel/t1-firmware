@@ -28,7 +28,7 @@ int hw_net__inuse_stop ();
 
 uint32_t tm_hostname_lookup (const uint8_t *hostname)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
 	CC3000_START;
 
 	unsigned long out_ip_addr = 0;
@@ -45,7 +45,7 @@ uint32_t tm_hostname_lookup (const uint8_t *hostname)
 
 tm_socket_t tm_udp_open ()
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -55,7 +55,7 @@ tm_socket_t tm_udp_open ()
 
 int tm_udp_close (int ulSocket)
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	closesocket(ulSocket);
@@ -65,7 +65,7 @@ int tm_udp_close (int ulSocket)
 
 int tm_udp_listen (int ulSocket, int port)
 {
-	if (!hw_net_is_connected()) return 1;
+	if (!hw_net_online_status()) return 1;
 
 	sockaddr localSocketAddr;
 	localSocketAddr.sa_family = AF_INET;
@@ -88,7 +88,7 @@ int tm_udp_listen (int ulSocket, int port)
 
 int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t *ip)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
 	CC3000_START;
 
 	sockaddr from;
@@ -107,7 +107,7 @@ int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t 
 
 int tm_udp_readable (tm_socket_t sock)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
     CC3000_START;
 
     fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
@@ -128,7 +128,7 @@ int tm_udp_readable (tm_socket_t sock)
 
 int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, int port, const uint8_t *buf, unsigned long buf_len)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
 
 	sockaddr tSocketAddr;
 
@@ -149,7 +149,7 @@ int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip
 
 tm_socket_t tm_tcp_open ()
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	int ulSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -165,7 +165,7 @@ tm_socket_t tm_tcp_open ()
 
 int tm_tcp_close (tm_socket_t sock)
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	closesocket(sock);
@@ -175,7 +175,7 @@ int tm_tcp_close (tm_socket_t sock)
 
 int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
 {
-	if (!hw_net_is_connected()) return 1;
+	if (!hw_net_online_status()) return 1;
 	CC3000_START;
 
 	// the family is always AF_INET
@@ -200,7 +200,7 @@ int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uin
 
 int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
 	CC3000_START;
 
 	int sentLen = send(sock, buf, buflen, 0);
@@ -211,12 +211,13 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 
 int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
 
 	// Limit buffer limit to 512 bytes to be reliable.
 	if (buflen > 512) {
 		buflen = 512;
 	}
+	
 	CC3000_START;
 	int read = recv(sock, buf, buflen, 0);
 	CC3000_END;
@@ -225,7 +226,7 @@ int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 
 int tm_tcp_readable (tm_socket_t sock)
 {
-	if (!hw_net_is_connected()) return 0;
+	if (!hw_net_online_status()) return 0;
     CC3000_START;
 
     // Socket file descriptors we want to wake up for, using select()
@@ -250,7 +251,7 @@ int tm_tcp_readable (tm_socket_t sock)
 
 int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	sockaddr localSocketAddr;
@@ -295,7 +296,7 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 // Returns >= 0 for socket descriptor.
 tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *ip)
 {
-	if (!hw_net_is_connected()) return -1;
+	if (!hw_net_online_status()) return -1;
 
 	// the family is always AF_INET
 	sockaddr addrClient;
