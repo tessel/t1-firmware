@@ -70,6 +70,7 @@ extern void SpiConfigureHwMapping(	unsigned long ulPioPortAddress,
 extern void renableIRQ(void);
 extern void SpiCleanGPIOISR(void);
 extern void SpiInit(uint32_t clock_speed);
+extern void SpiDeInit();
 extern void SPI_IRQ(void);
 extern void SpiTriggerRxProcessing(void);
 extern void print_spi_state(void);

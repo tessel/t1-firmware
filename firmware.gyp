@@ -102,6 +102,22 @@
     },
 
     {
+      'target_name': 'wifi-cc3000-builtin',
+      'type': 'none',
+      'sources': [
+        'builtin/wifi-cc3000.js'
+      ],
+      'rules': [
+        {
+          'rule_name': 'build-wifi-cc3000',
+          'extension': 'js',
+          'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).c' ],
+          'action': [ './tools/compile_js.sh', '<(RULE_INPUT_PATH)', '<@(_outputs)' ]
+        }
+      ]
+    },
+
+    {
       'target_name': 'cmsis-lpc18xx',
       'type': 'static_library',
       'sources': [
@@ -197,6 +213,7 @@
         'src/sys/startup_lpc1800.s',
 
         '<(SHARED_INTERMEDIATE_DIR)/tessel.c',
+        '<(SHARED_INTERMEDIATE_DIR)/wifi-cc3000.c',
         'src/variants/lpc18xx/variant.c',
 
         'src/tm/tm_net.c',
@@ -259,6 +276,7 @@
         'deps/runtime/libcolony.gyp:libcolony',
         'cmsis-lpc18xx',
         'tessel-builtin',
+        'wifi-cc3000-builtin',
         'usb',
       ],
       'libraries': [

@@ -21,6 +21,7 @@
 #include "l_hw.h"
 #include "tessel.h"
 #include "tm.h"
+#include "tessel_wifi.h"
 
 #include "audio-vs1053b.h"
 
@@ -708,6 +709,93 @@ static int l_clocksync (lua_State* L) {
 }
 
 
+/**
+ * Wifi
+ */
+
+static int l_wifi_connect(lua_State* L)
+{
+
+	// if we're currently in the middle of something, don't continue
+	if (hw_net_inuse() || tessel_wifi_is_connecting()) {
+		// push error code onto the stack
+		lua_pushnumber(L, 1);
+		return 1;
+	}
+
+	size_t ssidlen = 0;
+	size_t passlen = 0;
+	size_t securitylen = 0;
+
+	const uint8_t* ssidbuf = NULL;
+	const uint8_t* passbuf = NULL;
+	const uint8_t* securitybuf = NULL;
+
+	ssidbuf = colony_toconstdata(L, ARG1, &ssidlen);
+
+	passbuf = colony_toconstdata(L, ARG1 + 1, &passlen);
+
+	securitybuf = colony_toconstdata(L, ARG1 + 2, &securitylen);
+
+	// begin the connection call
+	int ret = tessel_wifi_connect((char *) securitybuf, (char *) ssidbuf, ssidlen
+		, (char *) passbuf, passlen);
+
+	// push a success code
+	lua_pushnumber(L, ret);
+
+	return 1;
+}
+
+static int l_wifi_is_busy(lua_State* L) {
+	lua_pushnumber(L, hw_net_inuse() || tessel_wifi_is_connecting() ? 1 : 0);
+	
+	return 1;
+}
+
+static int l_wifi_is_connected(lua_State* L) {
+	lua_pushnumber(L, tessel_wifi_initialized() && hw_net_online_status());
+	return 1;
+}
+
+static int l_wifi_connection(lua_State* L) {
+	char * payload = tessel_wifi_json();
+	lua_pushstring(L, payload);
+	free(payload);
+	return 1;
+}
+
+static int l_wifi_disable(lua_State* L) {
+	tessel_wifi_disable();
+	lua_pushnumber(L, tessel_wifi_initialized());
+	return 1;
+}
+
+static int l_wifi_enable(lua_State* L) {
+	tessel_wifi_enable();
+	lua_pushnumber(L, tessel_wifi_initialized());
+	return 1;
+}
+
+static int l_wifi_is_enabled(lua_State* L) {
+	lua_pushnumber(L, tessel_wifi_initialized());
+	return 1;
+}
+
+static int l_wifi_disconnect(lua_State* L) {
+
+	// if we're not connected return an error
+	if (hw_net_inuse() || tessel_wifi_is_connecting() || !hw_net_is_connected()) {
+		lua_pushnumber(L, 1);
+		return 1;
+	}
+
+	int disconnect = tessel_wifi_disconnect();
+	lua_pushnumber(L, disconnect);
+
+	return 1;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -795,6 +883,16 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// clock sync
 		{ "clocksync", l_clocksync },
+
+		// wifi
+		{ "wifi_connect", l_wifi_connect },
+		{ "wifi_is_connected", l_wifi_is_connected},
+		{ "wifi_connection", l_wifi_connection },
+		{ "wifi_is_busy", l_wifi_is_busy },
+		{ "wifi_is_enabled", l_wifi_is_enabled},
+		{ "wifi_disconnect", l_wifi_disconnect },
+		{ "wifi_disable", l_wifi_disable },
+		{ "wifi_enable", l_wifi_enable },
 
 		// End of array (must be last)
 		{ NULL, NULL }

@@ -138,12 +138,20 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			memcpy(wifi_security, &buf[96], 32);
 			memcpy(wifi_ssid, &buf[0], 32);
 			memcpy(wifi_pass, &buf[32], 64);
-			tessel_wifi_connect(wifi_security, wifi_ssid, wifi_pass);
+			
+			tessel_wifi_connect(wifi_security, wifi_ssid, strlen(wifi_ssid), wifi_pass, strlen(wifi_pass));
 		}
 
+	} else if (cmd == 'w') {
+		TM_COMMAND('W', "{\"event\": \"busy\",\"busy\": %d}", hw_net_inuse() || tessel_wifi_is_connecting());
 	} else if (cmd == 'Y') {
+		tessel_wifi_disconnect();
+	} else if (cmd == 'E') {
+		tessel_wifi_enable();
+		TM_COMMAND('W', "{\"event\": \"enable\"}");
+	} else if (cmd == 'R') {
 		tessel_wifi_disable();
-
+		TM_COMMAND('W', "{\"event\": \"disable\"}");
 	} else if (cmd == 'C') {
 		// check wifi for connection
 		tessel_wifi_check(1);
@@ -309,6 +317,10 @@ int debugstack() {
 
 extern char builtin_tessel_js[];
 extern unsigned int builtin_tessel_js_len;
+
+extern char builtin_wifi_cc3000_js[];
+extern unsigned int builtin_wifi_cc3000_js_len;
+
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative);
 
 void main_body (void)
@@ -448,6 +460,15 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		return;
 	}
 	lua_setglobal(L, "_tessel_lib");
+
+	res = luaL_loadbuffer(L, builtin_wifi_cc3000_js, builtin_wifi_cc3000_js_len, "wifi-cc3000.js");
+	if (res != 0) {
+		TM_ERR("Error in %s: %d\n", "wifi-cc3000.js", res);
+		tm_fs_destroy(tm_fs_root);
+		tm_fs_root = 0;
+		return;
+	}
+	lua_setglobal(L, "_wifi_cc3000_lib");
 
 	lua_getglobal(L, "_colony");
 	lua_getfield(L, -1, "global");

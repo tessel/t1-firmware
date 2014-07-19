@@ -54,20 +54,21 @@ int hw_net_erase_profiles()
 	int deleted = wlan_ioctl_del_profile(255);
 	// power cycle
 	hw_net_disable();
-	hw_wait_ms(100);
+	hw_wait_ms(10);
 	hw_net_initialize();
-
+	ulCC3000Connected = 0;
+	ulCC3000DHCP = 0;
 	return deleted;
 }
 
 int hw_net_is_connected ()
 {
-  return ulCC3000Connected;
+	return ulCC3000Connected;
 }
 
 int hw_net_has_ip ()
 {
-  return ulCC3000DHCP;
+	return ulCC3000DHCP;
 }
 
 int hw_net_online_status(){
@@ -77,12 +78,16 @@ int hw_net_online_status(){
 
 int hw_net_ssid (char ssid[33])
 {
-	CC3000_START;
-	tNetappIpconfigRetArgs ipinfo;
-	netapp_ipconfig(&ipinfo);
-	memset(ssid, 0, 33);
-	memcpy(ssid, ipinfo.uaSSID, 32);
-	CC3000_END;
+	if (hw_net_online_status()) {
+		CC3000_START;
+		tNetappIpconfigRetArgs ipinfo;
+		netapp_ipconfig(&ipinfo);
+		memset(ssid, 0, 33);
+		memcpy(ssid, ipinfo.uaSSID, 32);
+		CC3000_END;
+	} else {
+		memset(ssid, 0, 33);
+	}
 	return 0;
 }
 
@@ -283,6 +288,10 @@ void hw_net_disable (void)
 {
 	CC3000_START;
 	wlan_stop();
+	SpiDeInit();
+	// clear out all wifi data
+	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
+	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
@@ -290,6 +299,10 @@ void hw_net_disable (void)
 
 int strcicmp(char const *a, char const *b)
 {
+	if (strlen(a) != strlen(b)) {
+		return 1;
+	}
+	
     for (;; a++, b++) {
         int d = (tolower((unsigned char) *a) - tolower((unsigned char) *b));
         if (d != 0 || !*a)
@@ -312,26 +325,28 @@ __attribute__((weak)) void _cc3000_cb_error (int err) {
 	(void) err;
 }
 
-int hw_net_connect (const char *security_type, const char *ssid, const char *keys)
+int hw_net_connect (const char *security_type, const char *ssid, size_t ssid_len
+	, const char *keys, size_t keys_len)
 {
   CC3000_START;
 
   int security = WLAN_SEC_WPA2;
   char * security_print = "wpa2";
-  if (strcicmp(security_type, "wpa") == 0){
+  if (keys_len == 0){
+    security = WLAN_SEC_UNSEC;
+    security_print = "unsecure";
+  } else if (strcicmp(security_type, "wpa") == 0){
     security = WLAN_SEC_WPA;
     security_print = "wpa";
   } else if (strcicmp(security_type, "wep") == 0){
     security = WLAN_SEC_WEP;
     security_print = "wep";
-  } else if (keys[0] == 0){
-    security = WLAN_SEC_UNSEC;
-    security_print = "unsecure";
   }
 
   TM_DEBUG("Attempting to connect with security type %s... ", security_print);
   wlan_ioctl_set_connection_policy(0, 1, 0);
-  int connected = wlan_connect(security, (char *) ssid, strlen(ssid), 0, (unsigned char *) keys, strlen(keys));
+  int connected = wlan_connect(security, (char *) ssid, ssid_len
+  	, 0, (uint8_t *) keys, keys_len);
 
   if (connected != 0) {
     TM_DEBUG("Error #%d in connecting. Please try again.", connected);
@@ -347,9 +362,13 @@ int hw_net_connect (const char *security_type, const char *ssid, const char *key
   return connected;
 }
 
-void hw_net_disconnect (void)
+int hw_net_disconnect (void)
 {
 	CC3000_START;
-	wlan_disconnect();
+	int disconnect = wlan_disconnect();
+	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
+	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
 	CC3000_END;
+
+	return disconnect;
 }
