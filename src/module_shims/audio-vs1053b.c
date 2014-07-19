@@ -514,14 +514,17 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   // Set the recording input to Line In (always)
   writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
 
-  /* Rec level: 1024 = 1. If 0, use AGC */
+  /* Set Maximum Signal Level */
   writeSciRegister16(VS1053_SCI_AICTRL0, 1024);
 
-  /* Maximum AGC level: 1024 = 1. Only used if SCI_AICTRL0 is set to 0. */
-  writeSciRegister16(VS1053_SCI_AICTRL1, 1024);
+  /* Enable the AGC */
+  writeSciRegister16(VS1053_SCI_AICTRL1, 0);
 
-  /* Miscellaneous bits that also must be set before recording. */
-  writeSciRegister16(VS1053_SCI_AICTRL2, 0);
+  /* Set the maximum gain amplification to midrange */
+  /* (1024 = 1×, 65535 = 64×) */
+  writeSciRegister16(VS1053_SCI_AICTRL2, 0x4000);
+
+  /* Turn off run-time controls */
   writeSciRegister16(VS1053_SCI_AICTRL3, 0);
 
   // Start the recording!
