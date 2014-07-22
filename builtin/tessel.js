@@ -894,7 +894,7 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
     throw new Error("Buffer length must be a multiple of chunk size");
   }
 
-  var ret = hw.spi_transfer(this.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
+  var ret = hw.spi_transfer(this.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect, transfer.csDelayUs);
 
   if (ret < 0) {
     process.removeListener('spi_async_complete', rawComplete);
@@ -1050,11 +1050,11 @@ _asyncSPIQueue._execute_async = function() {
     if (length % transfer.chunkSize > 0) {
       throw new Error("Buffer length must be a multiple of chunk size");
     }
-    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect);
+    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect, transfer.csDelayUs);
   }
 };
 
-function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, callback, raw) {
+function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, csDelayUs, callback, raw) {
   this.port = port;
   this.txbuf = txbuf;
   this.rxbuf = rxbuf;
@@ -1063,6 +1063,7 @@ function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, cal
   this.chunkSize = chunkSize;
   this.repeat = repeat;
   this.chipSelect = chipSelect;
+  this.csDelayUs = csDelayUs;
 }
 
 // SPI parameters may be changed by different invocations,
@@ -1102,6 +1103,7 @@ function SPI (params)
   this.chipSelect = params.chipSelect || null;
 
   this.chipSelectActive = params.chipSelectActive == 'high' || params.chipSelectActive == 1 ? 1 : 0;
+  this.csDelayUs = params.chipSelectDelayUs || 0;
 
   this._initialize();
 }
@@ -1142,7 +1144,7 @@ SPI.prototype.transfer = function (txbuf, callback)
   var chunkSize = txbuf.length;
   var repeat = 1;
   var pin = this.chipSelect ? this.chipSelect.pin : -1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, this.csDelayUs, callback, false));
 };
 
 SPI.prototype.send = function (txbuf, callback)
@@ -1152,7 +1154,7 @@ SPI.prototype.send = function (txbuf, callback)
   var chunkSize = txbuf.length;
   var repeat = 1;
   var pin = this.chipSelect ? this.chipSelect.pin : -1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, this.csDelayUs, callback, false));
 };
 
 SPI.prototype.receive = function (buf_len, callback)
@@ -1182,7 +1184,7 @@ SPI.prototype.transferBatch = function (txbuf, options, callback)
   var chunkSize = options.chunkSize || txbuf.length;
   var repeat = options.repeat || 1;
   var pin = this.chipSelect ? this.chipSelect.pin : -1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, callback, false));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, rxbuf, chunkSize, repeat, pin, this.csDelayUs, callback, false));
 };
 
 SPI.prototype.sendBatch = function (txbuf, options, callback)
@@ -1198,7 +1200,7 @@ SPI.prototype.sendBatch = function (txbuf, options, callback)
   var pin = this.chipSelect ? this.chipSelect.pin : -1;
   var chunkSize = options.chunkSize || txbuf.length;
   var repeat = options.repeat || 1;
-  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, callback, false));
+  return _asyncSPIQueue._pushTransfer(new AsyncSPITransfer(this, txbuf, null, chunkSize, repeat, pin, this.csDelayUs, callback, false));
 };
 
 SPI.prototype.setBitOrder = function (bitOrder)

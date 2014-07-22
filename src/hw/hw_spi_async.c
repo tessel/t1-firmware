@@ -27,6 +27,7 @@ struct spi_async_status_t spi_async_status = {
   .tx_Linked_List = 0,
   .rx_Linked_List = 0,
   .callback = &default_complete_cb,
+  .cs_delay_us = 0,
 };
 
 void hw_spi_async_status_reset () {
@@ -75,6 +76,10 @@ void default_complete_cb() {
       tm_event_trigger(&async_spi_event);
       return;
     }
+  }
+  
+  if (spi_async_status.chip_select != -1) {
+    hw_wait_us(spi_async_status.cs_delay_us);
   }
   
   hw_spi_transfer_step();
@@ -205,7 +210,7 @@ void async_spi_callback (void) {
 }
 
 int hw_spi_transfer_setup (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, 
-  uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, void (*callback)())
+  uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, uint8_t chip_select, uint32_t cs_delay_us, void (*callback)())
 {
   hw_spi_t *SPIx = find_spi(port);
 
@@ -239,6 +244,7 @@ int hw_spi_transfer_setup (size_t port, size_t buffer_length, const uint8_t *txb
   spi_async_status.repeat = repeat;
   spi_async_status.chunk_offset = 0;
   spi_async_status.chip_select = chip_select;
+  spi_async_status.cs_delay_us = cs_delay_us;
 
   if (rxbuf != NULL) {
     // Destination connection - unused
@@ -283,6 +289,7 @@ void hw_spi_transfer_step() {
   // Pull cs pin low if a cs pin is set
   if (spi_async_status.chip_select != -1) {
     hw_digital_write(spi_async_status.chip_select, 0);
+    hw_wait_us(spi_async_status.cs_delay_us);
   }
   spi_async_status.transferCount = 0;
   spi_async_status.transferError = 0;
@@ -302,14 +309,14 @@ void hw_spi_transfer_step() {
   }
 }
 
-int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, int8_t chip_select, void (*callback)())
+int hw_spi_transfer (size_t port, size_t buffer_length, const uint8_t *txbuf, uint8_t *rxbuf, uint32_t txref, uint32_t rxref, size_t chunk_size, uint32_t repeat, int8_t chip_select, uint32_t cs_delay_us, void (*callback)())
 {
   // Make sure that cs pin is high to start
   if (chip_select != -1) {
     hw_digital_output(chip_select);
     hw_digital_write(chip_select, 1);
   }
-  hw_spi_transfer_setup (port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, callback);
+  hw_spi_transfer_setup (port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, cs_delay_us, callback);
   if (repeat == 0 || chunk_size > buffer_length) {
     tm_event_trigger(&async_spi_event);
   }
