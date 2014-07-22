@@ -1,7 +1,9 @@
 var http = require('http');
 var wifi = require('wifi-cc3000');
-var network = "#####";
-var pass = "#####";
+var network = process.argv[2];
+var pass = process.argv[3];
+
+console.log('Loggin in with network:', network, 'password:', pass);
 
 function tryConnect(){
   if (!wifi.isBusy()) {
