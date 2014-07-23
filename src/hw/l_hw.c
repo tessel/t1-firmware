@@ -151,8 +151,9 @@ static int l_hw_spi_transfer(lua_State* L)
 	size_t chunk_size = (size_t) lua_tonumber(L, ARG1 + 4);
 	uint32_t repeat = (uint32_t) lua_tonumber(L, ARG1 + 5);
 	int8_t chip_select = (int8_t) lua_tonumber(L, ARG1 + 6);
+	uint32_t cs_delay_us = (uint32_t) lua_tonumber(L, ARG1 + 7);
 	// Begin the transfer
-	hw_spi_transfer(port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, NULL);
+	hw_spi_transfer(port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, cs_delay_us, NULL);
 	// Push a success code onto the stack
 	lua_pushnumber(L, 0);
 	return 1;
