@@ -889,14 +889,7 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
   process.once('spi_async_complete', rawComplete);
 
   // Begin the transfer
-  var length = computeBufferLength(rxbuf, txbuf);
-  if (length % transfer.chunkSize > 0) {
-    throw new Error("Buffer length must be a multiple of chunk size");
-  }
-
-  var ret = hw.spi_transfer(this.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect, transfer.csDelayUs);
-
-  if (ret < 0) {
+  if (transfer._performTransfer(this.port) < 0) {
     process.removeListener('spi_async_complete', rawComplete);
 
     if (callback) {
@@ -1046,11 +1039,7 @@ _asyncSPIQueue._execute_async = function() {
     process.once('spi_async_complete', processTransferCB);
 
     // Begin the transfer
-    var length = computeBufferLength(transfer.rxbuf, transfer.txbuf);
-    if (length % transfer.chunkSize > 0) {
-      throw new Error("Buffer length must be a multiple of chunk size");
-    }
-    return hw.spi_transfer(transfer.port, length, transfer.txbuf, transfer.rxbuf, transfer.chunkSize, transfer.repeat, transfer.chipSelect, transfer.csDelayUs);
+    return transfer._performTransfer(transfer.port);
   }
 };
 
@@ -1064,6 +1053,15 @@ function AsyncSPITransfer(port, txbuf, rxbuf, chunkSize, repeat, chipSelect, csD
   this.repeat = repeat;
   this.chipSelect = chipSelect;
   this.csDelayUs = csDelayUs;
+}
+
+AsyncSPITransfer.prototype._performTransfer = function (port) {
+  var length = computeBufferLength(this.rxbuf, this.txbuf);
+  if (length % this.chunkSize > 0) {
+    throw new Error("Buffer length must be a multiple of chunk size");
+  }
+
+  return hw.spi_transfer(port, length, this.txbuf, this.rxbuf, this.chunkSize, this.repeat, this.chipSelect, this.csDelayUs);
 }
 
 // SPI parameters may be changed by different invocations,
