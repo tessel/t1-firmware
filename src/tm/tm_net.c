@@ -28,7 +28,7 @@ int hw_net__inuse_stop ();
 
 uint32_t tm_hostname_lookup (const uint8_t *hostname)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	unsigned long out_ip_addr = 0;
@@ -88,7 +88,7 @@ int tm_udp_listen (int ulSocket, int port)
 
 int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t *ip)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	sockaddr from;
@@ -107,7 +107,7 @@ int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t 
 
 int tm_udp_readable (tm_socket_t sock)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
     CC3000_START;
 
     fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
@@ -128,7 +128,7 @@ int tm_udp_readable (tm_socket_t sock)
 
 int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, int port, const uint8_t *buf, unsigned long buf_len)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
 
 	sockaddr tSocketAddr;
 
@@ -168,9 +168,10 @@ int tm_tcp_close (tm_socket_t sock)
 	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
-	closesocket(sock);
+	int ret = closesocket(sock);
+	
 	CC3000_END;
-	return 0;
+	return ret;
 }
 
 int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
@@ -200,7 +201,7 @@ int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uin
 
 int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
 	int sentLen = send(sock, buf, buflen, 0);
@@ -211,7 +212,7 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 
 int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
 
 	// Limit buffer limit to 512 bytes to be reliable.
 	if (buflen > 512) {
@@ -226,7 +227,7 @@ int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 
 int tm_tcp_readable (tm_socket_t sock)
 {
-	if (!hw_net_online_status()) return 0;
+	if (!hw_net_online_status()) return -1;
     CC3000_START;
 
     // Socket file descriptors we want to wake up for, using select()
