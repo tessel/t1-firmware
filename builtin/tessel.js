@@ -888,8 +888,11 @@ SPILock.prototype._rawTransaction = function(txbuf, rxbuf, callback) {
   // When the transfer is complete, process it and call callback
   process.once('spi_async_complete', rawComplete);
 
+  var length = computeBufferLength(rxbuf, txbuf);
+
   // Begin the transfer
-  if (transfer._performTransfer(this.port) < 0) {
+  if (hw.spi_transfer(this.port, length, txbuf, rxbuf, length, 1, -1, 0) < 0) {
+    
     process.removeListener('spi_async_complete', rawComplete);
 
     if (callback) {
