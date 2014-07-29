@@ -83,7 +83,6 @@ uint8_t *script_buf = 0;
 size_t script_buf_size = 0;
 uint8_t script_buf_flash = false;
 
-
 /**
  * command interface
  */
@@ -349,6 +348,12 @@ void main_body (void)
 		free(script_buf);
 		script_buf_lock = SCRIPT_EMPTY;
 
+		if (update_from_flash) {
+    	spiflash_write_buf(FLASH_FS_START,  update_from_flash, update_from_flash_len);
+    	free(update_from_flash);
+    	update_from_flash = NULL;
+    	load_script(FLASH_FS_MEM_ADDR, FLASH_FS_SIZE, false);
+		}
 		// Retry processing the command now that the script buf is unused
 		//tessel_cmd_process(&cmd_usb, hw_usb_cdc_read);
 	}

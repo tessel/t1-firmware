@@ -16,6 +16,8 @@
 #include "hw.h"
 #include "variant.h"
 
+uint8_t* update_from_flash = NULL;
+size_t update_from_flash_len = 0;
 
 /**
  * initialize GPIOs for new script
