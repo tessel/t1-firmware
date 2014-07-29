@@ -20,6 +20,8 @@
 int tessel_board_version();
 char* tessel_board_uuid ();
 extern const char* version_info;
+extern uint8_t* update_from_flash;
+extern size_t update_from_flash_len;
 
 void tessel_gpio_init (int cc3k_leds);
 void tessel_network_reset ();
