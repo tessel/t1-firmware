@@ -62,8 +62,17 @@ function Wifi(){
       });
     }
     
-    process.on('wifi_connect_complete', function(err, data){
+    self._emitConnection(function(){
       clearTimeout(connectionTimeout);
+    });
+
+    return self;
+  }
+
+  self._emitConnection = function(next){
+    process.on('wifi_connect_complete', function(err, data){
+      next && next();
+
       if (!err) {
         try {
           self.emit('connect', err, JSON.parse(data));
@@ -73,9 +82,7 @@ function Wifi(){
       } else {
         self.emit('disconnect', err, data)
       }
-    })
-
-    return self;
+    });
   }
 
   self.isConnected = function() {
@@ -122,6 +129,8 @@ function Wifi(){
     } else {
       self._failProcedure("Cannot disconnect. Wifi is not currently connnected.", callback);
     }
+
+    return self;
   }
 
   self._failProcedure = function (err, callback){
@@ -144,6 +153,8 @@ function Wifi(){
     callback && callback();
     return self;
   }
+
+  self._emitConnection();
 }
 
 util.inherits(Wifi, EventEmitter);
