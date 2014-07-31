@@ -37,9 +37,8 @@ function Wifi(){
     var connectionTimeout;
 
     if (ret != 0) {
-      process.removeListener('wifi_connect_complete', callback);
-
       self._failProcedure("Previous wifi connect is in the middle of a call", callback);
+      return self;
     } else {
       connectionTimeout = setTimeout(function(){
         self.emit('timeout', null);
@@ -111,20 +110,20 @@ function Wifi(){
 
   self.disconnect = function(callback){
     if (self.isConnected()){
+      
+      // disconnect
+      var ret = hw.wifi_disconnect();
+
+      if (ret != 0) {
+        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
+        return self;
+      }
 
       process.once('wifi_disconnect_complete', function(err, data){
         self.emit('disconnect', err, data);
 
         callback && callback();
       });
-
-      // disconnect
-      var ret = hw.wifi_disconnect();
-
-      if (ret != 0) {
-        process.removeListener('wifi_disconnect_complete', callback);
-        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
-      }
 
     } else {
       self._failProcedure("Cannot disconnect. Wifi is not currently connnected.", callback);
