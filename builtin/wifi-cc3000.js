@@ -126,7 +126,7 @@ function Wifi(){
       });
 
     } else {
-      self._failProcedure("Cannot disconnect. Wifi is not currently connnected.", callback);
+      self._failProcedure("Cannot disconnect. Wifi is not currently connected.", callback);
     }
 
     return self;
