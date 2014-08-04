@@ -10,3 +10,5 @@
 node_modules
 out
 Xplorer*.launch
+.idea/
+
