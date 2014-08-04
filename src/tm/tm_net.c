@@ -174,22 +174,18 @@ int tm_tcp_close (tm_socket_t sock)
 	return ret;
 }
 
-int tm_tcp_connect (tm_socket_t sock, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, uint16_t port)
+int tm_tcp_connect (tm_socket_t sock, uint32_t addr, uint16_t port)
 {
 	if (!hw_net_online_status()) return 1;
 	CC3000_START;
 
 	// the family is always AF_INET
-	sockaddr remoteSocketAddr;
-	remoteSocketAddr.sa_family = AF_INET;
-	remoteSocketAddr.sa_data[0] = (port & 0xFF00) >> 8;
-	remoteSocketAddr.sa_data[1] = (port & 0x00FF);
-	remoteSocketAddr.sa_data[2] = ip0;
-	remoteSocketAddr.sa_data[3] = ip1;
-	remoteSocketAddr.sa_data[4] = ip2;
-	remoteSocketAddr.sa_data[5] = ip3;
+	sockaddr_in remoteSocketAddr;
+	remoteSocketAddr.sin_family = AF_INET;
+	remoteSocketAddr.sin_port = htons(port);
+	remoteSocketAddr.sin_addr.s_addr = htonl(addr);
 
-	int lerr = connect(sock, &remoteSocketAddr, sizeof(sockaddr));
+	int lerr = connect(sock, (sockaddr *) &remoteSocketAddr, sizeof(sockaddr));
 	if (lerr != ESUCCESS) {
 		TM_DEBUG("Error connecting to TCP socket.");
 	}
@@ -255,19 +251,15 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 	if (!hw_net_online_status()) return -1;
 	CC3000_START;
 
-	sockaddr localSocketAddr;
-	localSocketAddr.sa_family = AF_INET;
-	localSocketAddr.sa_data[0] = (port & 0xFF00) >> 8; //ascii_to_char(0x01, 0x01);
-	localSocketAddr.sa_data[1] = (port & 0x00FF); //ascii_to_char(0x05, 0x0c);
-	localSocketAddr.sa_data[2] = 0;
-	localSocketAddr.sa_data[3] = 0;
-	localSocketAddr.sa_data[4] = 0;
-	localSocketAddr.sa_data[5] = 0;
+	sockaddr_in localSocketAddr;
+	localSocketAddr.sin_family = AF_INET;
+	localSocketAddr.sin_port = htons(port);
+	localSocketAddr.sin_addr.s_addr = 0;
 
 	// Bind socket
 	TM_DEBUG("Binding local socket...");
 	int sockStatus;
-	if ((sockStatus = bind(sock, &localSocketAddr, sizeof(sockaddr))) != 0) {
+	if ((sockStatus = bind(sock, (sockaddr *) &localSocketAddr, sizeof(localSocketAddr))) != 0) {
 		TM_DEBUG("binding failed: %d", sockStatus);
 		CC3000_END;
 		return -1;
@@ -295,18 +287,17 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 // Returns -1 on error or no socket.
 // Returns -2 on pending connection.
 // Returns >= 0 for socket descriptor.
-tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *ip)
+tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *addr, uint16_t *port)
 {
 	if (!hw_net_online_status()) return -1;
 
 	// the family is always AF_INET
-	sockaddr addrClient;
-	socklen_t addrlen;
+	sockaddr_in addrClient;
+	socklen_t addrlen = sizeof(addrClient);
 	CC3000_START;
-	int res = accept(sock, &addrClient, &addrlen);
+	int res = accept(sock, (sockaddr *) &addrClient, &addrlen);
 	CC3000_END;
-
-	char *aliasable_socket = (char*) &(addrClient.sa_data[2]);
-	*ip = *((uint32_t *) aliasable_socket);
+	*addr = ntohl(addrClient.sin_addr.s_addr);
+	*port = ntohs(addrClient.sin_addr.s_addr);
 	return res;
 }
