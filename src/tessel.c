@@ -16,10 +16,13 @@
 #include "hw.h"
 #include "variant.h"
 
-/* adding adding functionality */
+/**
+ * adding adding functionality
+ */
+
 uint32_t tessel_add(uint32_t x, uint32_t y)
 {
-  return x + y;
+	return x + y;
 }
 
 /**
@@ -28,79 +31,79 @@ uint32_t tessel_add(uint32_t x, uint32_t y)
 
 int tessel_board_version ()
 {
-  return (*((uint32_t *) 0x4004503C) >> 28);
+	return (*((uint32_t *) 0x4004503C) >> 28);
 }
 
 
 char* tessel_board_uuid ()
 {
-  static char idbuf[36];
-  if (idbuf[0] == 0) {
-    unsigned ver = tessel_board_version();
-    unsigned id1 = *((uint32_t *) 0x40045000);
-    unsigned id2 = *((uint32_t *) 0x40045004);
-    unsigned id3 = *((uint32_t *) 0x40045008);
-    sprintf(idbuf, "TM-00-%02d-%08x-%08x-%08x", ver, id1, id2, id3);
-  }
-  return idbuf;
+	static char idbuf[36];
+	if (idbuf[0] == 0) {
+		unsigned ver = tessel_board_version();
+		unsigned id1 = *((uint32_t *) 0x40045000);
+		unsigned id2 = *((uint32_t *) 0x40045004);
+		unsigned id3 = *((uint32_t *) 0x40045008);
+		sprintf(idbuf, "TM-00-%02d-%08x-%08x-%08x", ver, id1, id2, id3);
+	}
+	return idbuf;
 }
 
 #define xstr(s) str(s)
 #define str(s) #s
 
 const char* version_info = "{" \
-  "\"firmware_git\":" xstr(__TESSEL_FIRMWARE_VERSION__) "," \
-  "\"runtime_git\":" xstr(__TESSEL_RUNTIME_VERSION__) "," \
-  "\"date\":" xstr(__DATE__) "," \
-  "\"time\":" xstr(__TIME__) \
-  "}";
+	"\"firmware_git\":" xstr(__TESSEL_FIRMWARE_VERSION__) "," \
+	"\"runtime_git\":" xstr(__TESSEL_RUNTIME_VERSION__) "," \
+	"\"date\":" xstr(__DATE__) "," \
+	"\"time\":" xstr(__TIME__) \
+	"}";
 
 void tessel_gpio_init (int cc3k_leds)
 {
-  // LEDs
-  hw_digital_output(LED1);
-  hw_digital_output(LED2);
-  hw_digital_write(LED1, 0);
-  hw_digital_write(LED2, 0);
-  if (cc3k_leds) {
-    hw_digital_output(CC3K_CONN_LED);
-    hw_digital_output(CC3K_ERR_LED);
-    hw_digital_write(CC3K_CONN_LED, 0);
-    hw_digital_write(CC3K_ERR_LED, 0);
-  }
+	// LEDs
+	hw_digital_output(LED1);
+	hw_digital_output(LED2);
+	hw_digital_write(LED1, 0);
+	hw_digital_write(LED2, 0);
+	if (cc3k_leds) {
+		hw_digital_output(CC3K_CONN_LED);
+		hw_digital_output(CC3K_ERR_LED);
+		hw_digital_write(CC3K_CONN_LED, 0);
+		hw_digital_write(CC3K_ERR_LED, 0);
+	}
 
-  hw_digital_startup(A_G1);
-  hw_digital_startup(A_G2);
-  hw_digital_startup(A_G3);
-  
-  hw_digital_startup(B_G1);
-  hw_digital_startup(B_G2);
-  hw_digital_startup(B_G3);
-  
-  hw_digital_startup(C_G1);
-  hw_digital_startup(C_G2);
-  hw_digital_startup(C_G3);
+	hw_digital_startup(A_G1);
+	hw_digital_startup(A_G2);
+	hw_digital_startup(A_G3);
+	
+	hw_digital_startup(B_G1);
+	hw_digital_startup(B_G2);
+	hw_digital_startup(B_G3);
+	
+	hw_digital_startup(C_G1);
+	hw_digital_startup(C_G2);
+	hw_digital_startup(C_G3);
 
-  hw_digital_startup(D_G1);
-  hw_digital_startup(D_G2);
-  hw_digital_startup(D_G3);
+	hw_digital_startup(D_G1);
+	hw_digital_startup(D_G2);
+	hw_digital_startup(D_G3);
 
-  hw_digital_startup(E_G1);
-  hw_digital_startup(E_G2);
-  hw_digital_startup(E_G3);
-  hw_digital_startup(E_G4);
-  hw_digital_startup(E_G5);
-  hw_digital_startup(E_G6);
+	hw_digital_startup(E_G1);
+	hw_digital_startup(E_G2);
+	hw_digital_startup(E_G3);
+	hw_digital_startup(E_G4);
+	hw_digital_startup(E_G5);
+	hw_digital_startup(E_G6);
 }
 
 void tessel_network_reset ()
 {
-  // This is how TI recommends to close all sockets.
-  // http://e2e.ti.com/support/low_power_rf/f/851/t/190380.aspx
-  // if (hw_net_is_connected()) {
-  //   closesocket(0);
-  //   closesocket(1);
-  //   closesocket(2);
-  //   closesocket(3);
-  // }
+	// This is how TI recommends to close all sockets.
+	// http://e2e.ti.com/support/low_power_rf/f/851/t/190380.aspx
+	// if (hw_net_is_connected()) {
+	// 	closesocket(0);
+	// 	closesocket(1);
+	// 	closesocket(2);
+	// 	closesocket(3);
+	// }
 }
