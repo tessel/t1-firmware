@@ -17,6 +17,7 @@
 // dedicated pin names
 #include "variant.h" 
 
+int64_t tessel_add(int64_t x, int64_t y);
 int tessel_board_version();
 char* tessel_board_uuid ();
 extern const char* version_info;

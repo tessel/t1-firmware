@@ -16,6 +16,14 @@
 #include "hw.h"
 #include "variant.h"
 
+/**
+ * adding adding functionality
+ */
+
+int64_t tessel_add(int64_t x, int64_t y)
+{
+	return x + y;
+}
 
 /**
  * initialize GPIOs for new script
@@ -23,7 +31,7 @@
 
 int tessel_board_version ()
 {
-  return (*((uint32_t *) 0x4004503C) >> 28);
+	return (*((uint32_t *) 0x4004503C) >> 28);
 }
 
 
