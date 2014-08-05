@@ -58,6 +58,17 @@ inline void stackDump(lua_State* L)
 }
 
 
+// add
+
+static int l_hw_add(lua_State* L)
+{
+    uint32_t x = (uint32_t)lua_tonumber(L, ARG1);
+    uint32_t y = (uint32_t)lua_tonumber(L, ARG1+1);
+    lua_pushnumber(L, tessel_add(x, y));
+    return 1;
+}
+
+
 // sleep
 
 static int l_hw_sleep_us(lua_State* L)
@@ -808,6 +819,9 @@ extern "C" {
 LUALIB_API int luaopen_hw(lua_State* L)
 {
 	luaL_reg regs[] = {
+
+		//add
+		{"add", l_hw_add},
 
 		// spi
 		{ "spi_initialize", l_hw_spi_initialize },

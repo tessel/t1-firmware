@@ -1445,7 +1445,11 @@ function Tessel() {
 
   this.deviceId = function(){
     return hw.device_id();
-  }; 
+  };
+
+  this.add = function(x, y){
+    return hw.add(x, y);
+  };
 
 }
 
