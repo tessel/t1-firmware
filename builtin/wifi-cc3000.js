@@ -37,9 +37,8 @@ function Wifi(){
     var connectionTimeout;
 
     if (ret != 0) {
-      process.removeListener('wifi_connect_complete', callback);
-
       self._failProcedure("Previous wifi connect is in the middle of a call", callback);
+      return self;
     } else {
       connectionTimeout = setTimeout(function(){
         self.emit('timeout', null);
@@ -62,8 +61,17 @@ function Wifi(){
       });
     }
     
-    process.on('wifi_connect_complete', function(err, data){
+    self._emitConnection(function(){
       clearTimeout(connectionTimeout);
+    });
+
+    return self;
+  }
+
+  self._emitConnection = function(next){
+    process.on('wifi_connect_complete', function(err, data){
+      next && next();
+
       if (!err) {
         try {
           self.emit('connect', err, JSON.parse(data));
@@ -73,9 +81,7 @@ function Wifi(){
       } else {
         self.emit('disconnect', err, data)
       }
-    })
-
-    return self;
+    });
   }
 
   self.isConnected = function() {
@@ -104,6 +110,14 @@ function Wifi(){
 
   self.disconnect = function(callback){
     if (self.isConnected()){
+      
+      // disconnect
+      var ret = hw.wifi_disconnect();
+
+      if (ret != 0) {
+        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
+        return self;
+      }
 
       process.once('wifi_disconnect_complete', function(err, data){
         self.emit('disconnect', err, data);
@@ -111,17 +125,11 @@ function Wifi(){
         callback && callback();
       });
 
-      // disconnect
-      var ret = hw.wifi_disconnect();
-
-      if (ret != 0) {
-        process.removeListener('wifi_disconnect_complete', callback);
-        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
-      }
-
     } else {
-      self._failProcedure("Cannot disconnect. Wifi is not currently connnected.", callback);
+      self._failProcedure("Cannot disconnect. Wifi is not currently connected.", callback);
     }
+
+    return self;
   }
 
   self._failProcedure = function (err, callback){
@@ -144,6 +152,8 @@ function Wifi(){
     callback && callback();
     return self;
   }
+
+  self._emitConnection();
 }
 
 util.inherits(Wifi, EventEmitter);
