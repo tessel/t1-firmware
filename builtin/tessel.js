@@ -757,6 +757,11 @@ UART.prototype.setBaudRate = function(baudRate){
   }
 };
 
+UART.prototype.setBaudrate = function(baudRate){
+   console.warn('setBaudrate is deprecated, switch to setBaudRate');
+   return this.setBaudRate(baudRate);
+};
+
 UART.prototype._write = function(chunk, encoding, callback) {
    // make it async
    setImmediate(function(){
