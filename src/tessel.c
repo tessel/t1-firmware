@@ -20,7 +20,7 @@
  * adding adding functionality
  */
 
-uint32_t tessel_add(uint32_t x, uint32_t y)
+int64_t tessel_add(int64_t x, int64_t y)
 {
 	return x + y;
 }

@@ -62,8 +62,8 @@ inline void stackDump(lua_State* L)
 
 static int l_hw_add(lua_State* L)
 {
-    uint32_t x = (uint32_t)lua_tonumber(L, ARG1);
-    uint32_t y = (uint32_t)lua_tonumber(L, ARG1+1);
+    int64_t x = (int64_t)lua_tonumber(L, ARG1);
+    int64_t y = (int64_t)lua_tonumber(L, ARG1+1);
     lua_pushnumber(L, tessel_add(x, y));
     return 1;
 }
