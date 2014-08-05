@@ -717,6 +717,10 @@ function UART(params, port) {
   // Default stopbits is one
   this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, UARTStopBits[1]);
 
+  this.bufferedData = [];
+
+  this.doBuffer = true;
+
   // Delay initialization to let user subscribe on data events
   setImmediate(function(){
 
@@ -728,7 +732,11 @@ function UART(params, port) {
         // If it's on this port
         if (port === this.uartPort) {
            // Emit the data
-           this.push(data);
+           if (this.doBuffer) {
+              this.bufferedData.push(data);
+           } else {
+              this.doBuffer = !this.push(data);
+           }
         }
      }.bind(this));
 
@@ -770,9 +778,11 @@ UART.prototype._write = function(chunk, encoding, callback) {
    }.bind(this));
 };
 
-UART.prototype._read = function(size) {
-   // empty implementation
-   // all data is consumed by interrupt ???
+UART.prototype._read = function() {
+   this.doBuffer = false;
+   while (this.bufferedData.length && !this.doBuffer) {
+      this.doBuffer = !this.push(this.bufferedData.shift());
+   }
 };
 
 UART.prototype.setDataBits = function(dataBits) {
