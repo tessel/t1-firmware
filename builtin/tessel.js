@@ -9,6 +9,7 @@
 
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
+var Duplex = require('stream').Duplex;
 var clone = require('_structured_clone');
 
 var tm = process.binding('tm');
@@ -185,7 +186,7 @@ function _interruptRemovalCheck (event) {
   var type = _triggerTypeForMode(event);
 
   // If it is, and the listener count is now zero
-  if (mode != -1 && !EventEmitter.listenerCount(this, event)) {
+  if (type && !EventEmitter.listenerCount(this, event)) {
 
     // Remove this interrupt
     _removeInterruptMode(this, type, event);
@@ -661,11 +662,12 @@ I2C.prototype.receive = function (rxbuf_len, unused_rxbuf, callback)
 
   var self = this;
   setImmediate(function() {
+    var ret;
     self._initialize();
     if (self.mode == hw.I2C_SLAVE) {
-      var ret = hw.i2c_slave_receive(self.i2c_port, '', rxbuf_len);
+      ret = hw.i2c_slave_receive(self.i2c_port, '', rxbuf_len);
     } else {
-      var ret = hw.i2c_master_receive(self.i2c_port, self.addr, rxbuf_len);
+      ret = hw.i2c_master_receive(self.i2c_port, self.addr, rxbuf_len);
     }
     var err = ret[0], rxbuf = ret[1];
     callback && callback(err, rxbuf);
@@ -680,26 +682,24 @@ var UARTParity = {
   odd : hw.UART_PARITY_ODD,
   even : hw.UART_PARITY_EVEN,
   oneStick : hw.UART_PARITY_ONE_STICK,
-  zeroStick : hw.UART_PARITY_ZERO_STICK,
+  zeroStick : hw.UART_PARITY_ZERO_STICK
 };
 
 var UARTDataBits = {
   5 : hw.UART_DATABIT_5,
   6 : hw.UART_DATABIT_6,
   7 : hw.UART_DATABIT_7,
-  8 : hw.UART_DATABIT_8,
+  8 : hw.UART_DATABIT_8
 };
 
 var UARTStopBits = {
   1 : hw.UART_STOPBIT_1,
-  2 : hw.UART_STOPBIT_2,
+  2 : hw.UART_STOPBIT_2
 };
 
 function UART(params, port) {
 
-  // Call Stream constructor
-  this.readable = true;
-  this.writable = true;
+  Duplex.call(this, {});
 
   if (!params) params = {};
 
@@ -717,20 +717,33 @@ function UART(params, port) {
   // Default stopbits is one
   this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, UARTStopBits[1]);
 
-  // Initialize the port
-  this.initialize();
+  this.bufferedData = [];
 
-  // When we get UART data
-  process.on('uart-receive', function (port, data) {
-    // If it's on this port
-    if (port === this.uartPort) {
-      // Emit the data
-      this.emit('data', data);
-    }
+  this.doBuffer = true;
+
+  // Delay initialization to let user subscribe on data events
+  setImmediate(function(){
+
+     // Initialize the port
+     this.initialize();
+
+     // When we get UART data
+     process.on('uart-receive', function (port, data) {
+        // If it's on this port
+        if (port === this.uartPort) {
+           // Emit the data
+           if (this.doBuffer) {
+              this.bufferedData.push(data);
+           } else {
+              this.doBuffer = !this.push(data);
+           }
+        }
+     }.bind(this));
+
   }.bind(this));
 }
 
-util.inherits(UART, EventEmitter);
+util.inherits(UART, Duplex);
                                                   
 
 UART.prototype.initialize = function(){
@@ -745,32 +758,31 @@ UART.prototype.disable = function(){
   hw.uart_disable(this.uartPort);
 };
 
-UART.prototype.setBaudrate = function(baudrate){
-  if (baudrate) {
-    this.baudrate = baudrate;
+UART.prototype.setBaudRate = function(baudRate){
+  if (baudRate) {
+    this.baudrate = baudRate;
     this.initialize();
-    // hw.uart_initialize(this.uartPort, baudrate, this.dataBits, this.parity, this.stopBits); 
-  } else {
-    return this.baudrate;
   }
 };
 
-UART.prototype.write = function (txbuf) {
-  // Send it off
-  return hw.uart_send(this.uartPort, txbuf);
+UART.prototype.setBaudrate = function(baudRate){
+   console.warn('setBaudrate is deprecated, switch to setBaudRate');
+   return this.setBaudRate(baudRate);
 };
 
-UART.prototype.checkReceiveFlag = function() {
+UART.prototype._write = function(chunk, encoding, callback) {
+   // make it async
+   setImmediate(function(){
+     hw.uart_send(this.uartPort, chunk);
+     callback();
+   }.bind(this));
+};
 
-  // Check if we've received anything on an interrupt
-  while (hw.uart_check_receive_flag(this.uartPort)) {
-    // Grab the latest from the UART ring buffer
-    var data = hw.uart_receive(this.uartPort, 2048);
-
-    if (data && data.length) {
-      this.emit("data", data);
-    }
-  } 
+UART.prototype._read = function() {
+   this.doBuffer = false;
+   while (this.bufferedData.length && !this.doBuffer) {
+      this.doBuffer = !this.push(this.bufferedData.shift());
+   }
 };
 
 UART.prototype.setDataBits = function(dataBits) {
@@ -1246,7 +1258,7 @@ SPI.prototype.lock = function(callback)
 
 var SPIBitOrder = {
   MSB : 0,
-  LSB : 1,
+  LSB : 1
 };
 
 /* 
@@ -1260,23 +1272,23 @@ var SPIDataMode = {
   Mode0 : hw.SPI_MODE_0, // should be mode 2
   Mode1 : hw.SPI_MODE_1, 
   Mode2 : hw.SPI_MODE_2, // should be mode 0
-  Mode3 : hw.SPI_MODE_3,
+  Mode3 : hw.SPI_MODE_3
 };
 
 var SPIMode = {
   Slave : hw.SPI_SLAVE_MODE,
-  Master : hw.SPI_MASTER_MODE,
+  Master : hw.SPI_MASTER_MODE
 };
 
 var SPIFrameMode = {
   Normal : hw.SPI_NORMAL_FRAME,
   TI : hw.SPI_TI_FRAME,
-  MicroWire : hw.SPI_MICROWIRE_FRAME,
+  MicroWire : hw.SPI_MICROWIRE_FRAME
 };
 
 var SPIChipSelectMode = {
   ActiveHigh : 0,
-  ActiveLow : 1,
+  ActiveLow : 1
 };
 
 
@@ -1420,7 +1432,7 @@ function Tessel() {
     ], [g4, g5, g6],
       hw.I2C_1,
       tessel_version > 1 ? null : hw.UART_2
-    ),
+    )
   };
 
   this.button = new Pin(hw.BUTTON);
