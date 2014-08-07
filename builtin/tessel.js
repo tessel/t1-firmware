@@ -781,7 +781,7 @@ UART.prototype.setDataBits = function(dataBits) {
     return 1;
   }
 
-  throw new Error("Invalid databits value");
+  throw new Error("Invalid databits value. Allowed values: " + Object.keys(UARTDataBits));
 };
 
 UART.prototype.setParity = function(parity) {
@@ -792,7 +792,7 @@ UART.prototype.setParity = function(parity) {
     return 1;
   }
 
-  throw new Error("Invalid parity value");
+  throw new Error("Invalid parity value. Allowed values: " + Object.keys(UARTParity));
 };
 
 UART.prototype.setStopBits = function(stopBits){
@@ -803,7 +803,7 @@ UART.prototype.setStopBits = function(stopBits){
     return 1;
   }
 
-  throw new Error("Invalid stopbit value");
+  throw new Error("Invalid stopbit value. Allowed values: " + Object.keys(UARTStopBits));
 };
 
 

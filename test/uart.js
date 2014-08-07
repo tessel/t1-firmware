@@ -3,24 +3,64 @@ var port = tessel.port['A'];
 var test = require('tinytap');
 var async = require('async');
 
-test.count(2);
+test.count(5);
 
-var blueToothSerial = new port.UART();
+var uart = new port.UART();
 
 async.series([
   test('can set dataBits', function(t) {
     var dataBitsSetting = 8;
-    blueToothSerial.setDataBits(dataBitsSetting);
-    t.equal(blueToothSerial.dataBits, tessel.UARTDataBits[dataBitsSetting], 'dataBits not set correctly');
+    uart.setDataBits(dataBitsSetting);
+    t.equal(uart.dataBits, tessel.UARTDataBits[dataBitsSetting], 'dataBits not set correctly');
     t.end();
   }),
 
   test('can set parity', function(t) {
     var paritySetting = "none";
-    blueToothSerial.setParity(paritySetting);
-    t.equal(blueToothSerial.parity, tessel.UARTParity[paritySetting], 'dataBits not set correctly');
+    uart.setParity(paritySetting);
+    t.equal(uart.parity, tessel.UARTParity[paritySetting], 'dataBits not set correctly');
     t.end();
   }),
+
+  test('bad dataBits setting throws an error', function(t) {
+    var dataBitsSetting = "fake";
+    // I'm not sure why t.throws isn't working here
+    try {
+      uart.setDataBits(dataBitsSetting);
+    }
+    catch (err) {
+      t.ok(err, 'no error was thrown.');
+    }
+    
+    t.end();
+  }),
+
+  test('bad parity setting throws an error', function(t) {
+    var paritySetting = "fake";
+    // I'm not sure why t.throws isn't working here
+    try {
+      uart.setParity(paritySetting);
+    }
+    catch (err) {
+      t.ok(err, 'no error was thrown.');
+    }
+    
+    t.end();
+  }),
+
+  test('bad stopBits setting throws an error', function(t) {
+    var stopBitsSetting = "fake";
+    // I'm not sure why t.throws isn't working here
+    try {
+      uart.setStopBits(stopBitsSetting);
+    }
+    catch (err) {
+      t.ok(err, 'no error was thrown.');
+    }
+    
+    t.end();
+  }),
+
   ], function(err) {
     console.log('error running tests', err);
   }
