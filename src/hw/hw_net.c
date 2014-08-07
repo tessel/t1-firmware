@@ -258,7 +258,7 @@ void hw_net_initialize (void)
  	unsigned long aucDHCP = 14400;
 	unsigned long aucARP = 3600;
 	unsigned long aucKeepalive = 10;
-	unsigned long aucInactivity = 8;
+	unsigned long aucInactivity = 0;
 	if (netapp_timeout_values(&aucDHCP, &aucARP, &aucKeepalive, &aucInactivity) != 0) {
 		TM_DEBUG("Error setting inactivity timeout!");
 	}
