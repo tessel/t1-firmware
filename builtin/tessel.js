@@ -36,21 +36,12 @@ function propertySetWithDefault (provided, possibility, defaultProp) {
     return defaultProp;
   } 
   else {
-    if (verifyParams(possibility, provided)) {
+    if (possibility[provided] != undefined) {
       return provided;
     } else {
       throw new Error('Invalid property value');
     }
   }
-}
-
-function verifyParams (possible, provided) {
-  for (var obj in possible) {
-    if (possible[obj] == provided) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**
@@ -684,25 +675,24 @@ I2C.prototype.receive = function (rxbuf_len, unused_rxbuf, callback)
 /**
  * UART
  */
-
 var UARTParity = {
-  None : hw.UART_PARITY_NONE,
-  Odd : hw.UART_PARITY_ODD,
-  Even : hw.UART_PARITY_EVEN,
-  OneStick : hw.UART_PARITY_ONE_STICK,
-  ZeroStick : hw.UART_PARITY_ZERO_STICK,
+  none : hw.UART_PARITY_NONE,
+  odd : hw.UART_PARITY_ODD,
+  even : hw.UART_PARITY_EVEN,
+  oneStick : hw.UART_PARITY_ONE_STICK,
+  zeroStick : hw.UART_PARITY_ZERO_STICK,
 };
 
 var UARTDataBits = {
-  Five : hw.UART_DATABIT_5,
-  Six : hw.UART_DATABIT_6,
-  Seven : hw.UART_DATABIT_7,
-  Eight : hw.UART_DATABIT_8,
+  5 : hw.UART_DATABIT_5,
+  6 : hw.UART_DATABIT_6,
+  7 : hw.UART_DATABIT_7,
+  8 : hw.UART_DATABIT_8,
 };
 
 var UARTStopBits = {
-  One : hw.UART_STOPBIT_1,
-  Two : hw.UART_STOPBIT_2,
+  1 : hw.UART_STOPBIT_1,
+  2 : hw.UART_STOPBIT_2,
 };
 
 function UART(params, port) {
@@ -719,13 +709,13 @@ function UART(params, port) {
   this.baudrate = (params.baudrate ? params.baudrate : 9600);
 
   // Default databits is eight
-  this.dataBits = propertySetWithDefault(params.dataBits, UARTDataBits, UARTDataBits.Eight);
+  this.dataBits = propertySetWithDefault(params.dataBits, UARTDataBits, UARTDataBits[8]);
 
   // Default parity is none
-  this.parity = propertySetWithDefault(params.parity, UARTParity, UARTParity.None);
+  this.parity = propertySetWithDefault(params.parity, UARTParity, UARTParity["none"]);
 
   // Default stopbits is one
-  this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, UARTStopBits.One);
+  this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, UARTStopBits[1]);
 
   // Initialize the port
   this.initialize();
@@ -784,8 +774,9 @@ UART.prototype.checkReceiveFlag = function() {
 };
 
 UART.prototype.setDataBits = function(dataBits) {
-  if (verifyParams(UARTDataBits, dataBits)) {
-    this.dataBits = dataBits;
+  var dataBitsSetting = UARTDataBits[dataBits.toString()];
+  if (dataBitsSetting != undefined) {
+    this.dataBits = dataBitsSetting;
     this.initialize();
     return 1;
   }
@@ -794,8 +785,9 @@ UART.prototype.setDataBits = function(dataBits) {
 };
 
 UART.prototype.setParity = function(parity) {
-  if (verifyParams(UARTParity, parity)) {
-    this.parity = parity;
+  var paritySetting = UARTParity[parity.toString()];
+  if (paritySetting != undefined) {
+    this.parity = paritySetting;
     this.initialize();
     return 1;
   }
@@ -804,8 +796,9 @@ UART.prototype.setParity = function(parity) {
 };
 
 UART.prototype.setStopBits = function(stopBits){
-  if (verifyParams(UARTStopBits, stopBits)) {
-    this.stopBits = stopBits;
+  var stopBitsSetting = UARTStopBits[stopBits.toString()];
+  if (stopBitsSetting != undefined) {
+    this.stopBits = stopBitsSetting;
     this.initialize();
     return 1;
   }
