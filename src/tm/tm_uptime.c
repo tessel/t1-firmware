@@ -65,14 +65,14 @@ void hw_timer_update_interrupt()
     TIMER->MCR &= ~TIMER_MCR(TIMER_CHAN_EVT); // Disable timer match interrupt
 }
 
-void __attribute__ ((interrupt)) TIMER1_IRQHandler() {
-    if (TIMER->IR & TIMER_IR(TIMER_CHAN_EVT)) {
-        TIMER->IR = TIMER_IR(TIMER_CHAN_EVT);
-        tm_event_trigger(&tm_timer_event);
-    }
+// void __attribute__ ((interrupt)) TIMER1_IRQHandler() {
+//     if (TIMER->IR & TIMER_IR(TIMER_CHAN_EVT)) {
+//         TIMER->IR = TIMER_IR(TIMER_CHAN_EVT);
+//         tm_event_trigger(&tm_timer_event);
+//     }
 
-    if (TIMER->IR & TIMER_IR(TIMER_CHAN_OVF)) {
-        TIMER->IR = TIMER_IR(TIMER_CHAN_OVF);
-        tm_timestamp_wrapped();
-    }
-}
+//     if (TIMER->IR & TIMER_IR(TIMER_CHAN_OVF)) {
+//         TIMER->IR = TIMER_IR(TIMER_CHAN_OVF);
+//         tm_timestamp_wrapped();
+//     }
+// }

@@ -235,6 +235,7 @@
         'src/hw/hw_spi.c',
         'src/hw/hw_spi_async.c',
         'src/hw/hw_uart.c',
+        'src/hw/hw_sw_uart.c',
         'src/hw/hw_gpdma.c',
         'src/hw/l_hw.c',
 

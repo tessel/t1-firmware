@@ -245,7 +245,8 @@ void test_uart (char port)
   uint8_t buff[5] = {10, 11, 12, 13, 14};
   if (port == 'c' || port == 'g'){
     // do the software uart test
-    sw_uart_test_c();
+    // sw_uart_test_c();
+    sw_uart_test();
 
     // only have port c right now, will add gpio port later
     return;

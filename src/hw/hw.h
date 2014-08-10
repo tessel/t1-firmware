@@ -265,7 +265,27 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 #include "lpc18xx_scu.h"
 #include "lpc18xx_timer.h"
 
-void sw_uart_test_c(void);
+#define TEST_TIMER_NUM  0   /* 0 or 1 for 32-bit timers only */
+#define TXBUFF_LEN      16
+#define RXBUFF_LEN      16
+//12000000/9600 = 1250 PCLKs
+//PCLK=12MHz:
+//#define BIT_LENGTH  1250
+
+//24000000/9600 = 2500 PCLKs
+//PCLK=12MHz:
+//#define BIT_LENGTH  2500
+
+//48000000/9600 = 5000 PCLKs
+//PCLK=12MHz:
+#define BIT_LENGTH  11250 // assuming system clock of 108mHz//5000
+//1250115
+// baud rates: 9600, 19200, 38400, 57600, 115200
+// bit length: 11250, 5625, 2812.5, 1875, 937.5
+#define STOP_BIT_SAMPLE (9*BIT_LENGTH)
+
+// void sw_uart_test_c(void);
+void sw_uart_test(void);
 
 
 // usb
