@@ -46,9 +46,10 @@ void swu_tx_chr(const unsigned char out_char);
 ** Local Functions                                      **
 *********************************************************/
 static void swu_setup_tx(void); //tx param processing
- void swu_rx_callback(void); //__weak
+void swu_rx_callback(void); //__weak
+// void swu_tx_callback(void); //__weak
 
- static volatile unsigned short rxData;
+static volatile unsigned short rxData;
 
 
 /******************************************************************************
@@ -67,9 +68,6 @@ static void swu_setup_tx(void); //tx param processing
 static void swu_setup_tx(void) {
   unsigned char bit, i;
   unsigned long int ext_data, delta_edges, mask, reference;
-//  hw_digital_write(A_G1, LOW);
-//  LPC_GPIO_PORT->CLR[4] = (1<<9);
-//  GPIOSetValue(PORT_TX_PRO, PIN_TX_PRO, 0); //indicate routine begin
   if (tx_fifo_wr_ind != tx_fifo_rd_ind) //data to send, proceed
   {
     swu_status |= TX_ACTIVE; //sw uart tx is active
@@ -112,17 +110,7 @@ static void swu_setup_tx(void) {
     LPC_TIMER1->MR[2] = edge[0]; //load MR2
     LPC_TIMER1->MCR = LPC_TIMER1->MCR | (1 << 6); //enable interrupt on MR2 match
     LPC_TIMER1->EMR = LPC_TIMER1->EMR | (3 << 8); //enable toggle on MR2 match
-//    TM_DEBUG("reference %ul", reference);
-//    for (i = 0; i < cnt_edges; i++){
-//    	TM_DEBUG("edge, %ul", edge[i]);
-//    }
-
-//  } else {
-//	  TM_DEBUG("no edge");
   }
-//  GPIOSetValue(PORT_TX_PRO, PIN_TX_PRO, 1); //indicate routine exit
-//  hw_digital_write(A_G1, HIGH);
-//  LPC_GPIO_PORT->SET[4] = (1<<9);
   return; //return from the routine
 }
 
@@ -141,14 +129,9 @@ static void swu_setup_tx(void) {
 void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size) {
   while(data_size > 0){
     swu_tx_chr(*ptr_out); //...put the char in tx FIFO...
-	ptr_out++; //...move to the next char...
-	data_size--;
+    ptr_out++; //...move to the next char...
+    data_size--;
   }
-//  while (*ptr_out != 0x00) //read all chars...
-//  {
-//    swu_tx_chr(*ptr_out); //...put the char in tx FIFO...
-//    ptr_out++; //...move to the next char...
-//  } //...
   return; //return from the routine
 }
 
@@ -164,11 +147,7 @@ void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size) {
 **
 ******************************************************************************/
 void swu_tx_chr(const unsigned char out_char) {
-//	hw_digital_write(A_G2, LOW);
-//	LPC_GPIO_PORT->CLR[5] = (1<<20);
-//  GPIOSetValue(PORT_CALL, PIN_CALL, 0); //IOCLR0  = pin_call;
   //write access to tx FIFO begin
-
   while (swu_tx_cnt == TXBUFF_LEN)
     ; //wait if the tx FIFO is full
   tx_fifo_wr_ind++; //update the write pointer...
@@ -179,10 +158,6 @@ void swu_tx_chr(const unsigned char out_char) {
   if ((swu_status & TX_ACTIVE) == 0)
     swu_setup_tx(); //start tx if tx is not active
 
-//  GPIOSetValue(PORT_CALL, PIN_CALL, 1); //IOSET0  = pin_call;
-//  hw_digital_write(A_G2, HIGH);
-//  LPC_GPIO_PORT->SET[5] = (1<<20);
-  //write access to tx FIFO end
   return; //return from the routine
 }
 
@@ -208,24 +183,14 @@ unsigned char swu_rx_chr(void) {
   }
   if ((swu_rx_fifo[rx_fifo_rd_ind] & 0x0100) == 0) //update...
     swu_rx_chr_fe = 0; //... the framing error...
-  else
+  else {
     //... indicator...
     swu_rx_chr_fe = 1; //...
+    hw_digital_write(CC3K_ERR_LED, 1);
+  }
   swu_status &= ~RX_OVERFLOW; //clear the overfloe flag
   return ((unsigned char) (swu_rx_fifo[rx_fifo_rd_ind] & 0x00FF)); //return data
 }
-
-//void swu_rx_str(unsigned char const* buffer) {
-//  while() {
-//    buffer[i] = swu_rx_chr();
-//  }
-//  while (*ptr_out != 0x00) //read all chars...
-//  {
-//    swu_tx_chr(*ptr_out); //...put the char in tx FIFO...
-//    ptr_out++; //...move to the next char...
-//  } //...
-//  return; //return from the routine
-//}
 
 /******************************************************************************
 ** Function name: swu_isr_tx
@@ -243,13 +208,6 @@ unsigned char swu_rx_chr(void) {
 **
 ******************************************************************************/
 void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER) {
-//	if (edge_index >= 3) {
-//		uint32_t test_index_val = edge[edge_index];
-//	  }
-//  if (0 != (TX_ISR_TIMER->IR & (1<<2))) { //tx routine interrupt begin
-//    GPIOSetValue(PORT_INT_TX, PIN_INT_TX, 0); //tx interrupt activity begin
-//	  hw_digital_write(A_G3, LOW);
-//	  LPC_GPIO_PORT->CLR[3] = (1<<8);
     TX_ISR_TIMER->IR = 1 << 2; //0x08; //clear the MAT2 flag
     if (edge_index == char_end_index) //the end of the char:
     {
@@ -257,21 +215,17 @@ void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER) {
       swu_tx_cnt--; //update no.of chars in tx FIFO
       if (tx_fifo_wr_ind != tx_fifo_rd_ind) //if more data pending...
         swu_setup_tx(); //... spin another transmission
-      else
+      else {
         swu_status &= ~TX_ACTIVE; //no data left=>turn off the tx
+        // swu_tx_callback();
+      }
     } else {
       if (edge_index == last_edge_index) //is this the last toggle?
         TX_ISR_TIMER->EMR &= ~(7 << 7); //0x000003FF; //no more toggle on MAT2
       edge_index++; //update the edge index
       TX_ISR_TIMER->MR[2] = edge[edge_index]; //prepare the next toggle event
-//      if (edge_index >= 3) {
-//    	  uint32_t index_val= edge[edge_index];
-//      }
     }
-//    LPC_GPIO_PORT->SET[3] = (1<<8);
-//    GPIOSetValue(PORT_INT_TX, PIN_INT_TX, 1); //tx interrupt activity end
-//    hw_digital_write(A_G3, HIGH);
-//  }
+
 }
 
 /******************************************************************************
@@ -294,8 +248,6 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
   //sw uart receive isr code begin
   if (0 != (RX_ISR_TIMER->IR & (IR_CLEAR_CAP_2))) //capture interrupt occured on CAP2
   {
-//    GPIOSetDir(PORT_INT_RX, PIN_INT_RX, 0); //rx interrupt activity begin
-    LPC_GPIO_PORT->SET[1] = (1 << 8); // C_G2 high
     LPC_GPIO_PORT->DIR[3] |= (1 << 10);
     RX_ISR_TIMER->IR = IR_CLEAR_CAP_2;//0x10; //edge detcted=>clear CAP2 flag
     //change the targeted edge
@@ -345,17 +297,12 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
       }
       swu_bit = 1 - swu_bit; //change the received bit
     }
-    LPC_GPIO_PORT->CLR[1] = (1 << 8); // C_G2 low
-//    GPIOSetDir(PORT_INT_RX, PIN_INT_RX, 1); //rx interrupt activity end
     LPC_GPIO_PORT->DIR[3] &= ~(1 << 10);
   }
 
   if (0 != (RX_ISR_TIMER->IR & 0x02)) //stop bit timing matched:
   {
-//    GPIOSetDir(PORT_INT_RX, PIN_INT_RX, 0); //rx interrupt activity begin
     LPC_GPIO_PORT->DIR[3] |= (1 << 10);
-//	  hw_digital_write(C_G1, LOW);
-    LPC_GPIO_PORT->SET[0] = (1 << 11); // C_G1 high
     RX_ISR_TIMER->IR = 0x02; //clear MR1 flag
     if (cnt != 0) { //not all data bits received...
       swu_rbr = swu_rbr << cnt; //... make space for the rest...
@@ -380,9 +327,6 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
       swu_status |= RX_OVERFLOW; //rx FIFO full => overflow
     }
     RX_ISR_TIMER->MCR &= ~(7 << 3);//MR1 impacts timer1 no more
-//    hw_digital_write(C_G1, HIGH);
-    LPC_GPIO_PORT->CLR[0] = (1 << 11); // clear C_G1
-//    GPIOSetDir(PORT_INT_RX, PIN_INT_RX, 1); //IOSET0 = pin_intrx;     //rx interrupt activity end
     LPC_GPIO_PORT->DIR[3] &= ~(1 << 10);
   }
   //sw uart receive isr code end
@@ -397,56 +341,39 @@ uint32_t MatchCount;
 TIM_TIMERCFG_Type TIM_ConfigStruct;
 TIM_MATCHCFG_Type TIM_MatchConfigStruct ;
 TIM_CAPTURECFG_Type TIM_CaptureConfigStruct;
-uint8_t volatile timer0_flag = FALSE, timer1_flag = FALSE;
+uint8_t volatile timer1_flag = FALSE;
+
+
+int numInBuff = 0;
+unsigned char buff[5];
 
 void TIMER1_IRQHandler(void)
 {
-	//	hw_digital_write(C_G2, LOW);
-//	LPC_GPIO_PORT->SET[1] = (1<<8);
-//	uint32_t timerTC = LPC_TIMER1->TC;
-
-//	TM_DEBUG("LPC_TIMER1->TC %ul" , );
-//	TIM_ClearIntPending(LPC_TIMER1, TIM_MR0_INT);
-//	if (TIM_GetIntStatus(LPC_TIMER1, TIM_MR2_INT)== SET)
-
-//  if (TIM_GetIntCaptureStatus(LPC_TIMER1,(TIM_INT_TYPE)2))
-//  {
-//    TIM_ClearIntCapturePending(LPC_TIMER1,(TIM_INT_TYPE)2);
-//    hw_digital_write(C_G3, HIGH);
-//    hw_digital_write(C_G3, LOW);
-//  }
 
   // flag for cap2 and mat1
-  if ((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)) ) {
-    LPC_GPIO_PORT->CLR[4] = (1<<15); // C_G3 low
-    LPC_GPIO_PORT->SET[4] = (1<<15); // C_G3 high
+  if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
+    // LPC_GPIO_PORT->CLR[5] = (1<<25); // C_G3 low
 
     swu_isr_rx(LPC_TIMER1);
-  }
-  /*
-  //tx stuff
-	if (0 != (LPC_TIMER1->IR & (1<<2)))  //tx routine interrupt begin
-	{
-//		LPC_GPIO_PORT->CLR[1] = (1<<8);
-		swu_isr_tx(LPC_TIMER1);
-//		LPC_GPIO_PORT->SET[1] = (1<<8);
 
-//	  if (edge_index >=2) {
-//		  uint32_t LPCTCR = LPC_TIMER1->TCR;
-//		  uint32_t LPCMCR = LPC_TIMER1->MCR;
-//		  uint32_t LPCMR0 = LPC_TIMER1->MR[0];
-//		  uint32_t LPCMR1 = LPC_TIMER1->MR[1];
-//		  uint32_t LPCMR2 = LPC_TIMER1->MR[2];
-//		  uint32_t LPCMR3 = LPC_TIMER1->MR[3];
-//		  uint32_t LPCEMR = LPC_TIMER1->EMR;
-//		  uint32_t LPCIR = LPC_TIMER1->IR;
-//		  uint32_t LPCPR = LPC_TIMER1->PR;
-//		  uint32_t index_val= edge[edge_index];
-//	  }
+
+    // LPC_GPIO_PORT->SET[5] = (1<<25); // C_G3 high
+  }
+  
+  //tx stuff
+	if (LPC_TIMER1->IR & (1<<2))  // check match reg of match reg 2
+	{
+		swu_isr_tx(LPC_TIMER1);
 	}
-	*/
-	//		hw_digital_write(C_G2, HIGH);
+	
 }
+
+// void swu_tx_callback(void)
+// {
+//   // clear the buffer
+//   memset(buff, 0, 5);
+//   numInBuff = 0;
+// }
 
 void swu_rx_callback(void)
 {
@@ -473,36 +400,7 @@ void swu_init() {
   swu_rx_trigger = 1; //>=1 char gnrts a rx interrupt
   swu_status = 0; //neither tx nor rx active
 
-  /* Some of the I/O pins need to be clearfully planned if
-  you use below module because JTAG and TIMER CAP/MAT pins are muxed. */
-//  LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 9);
-
-  /*
-  LPC_IOCON->PIO1_5 &= ~0x07; //  Timer0_32 I/O config
-  LPC_IOCON->PIO1_5 |= 0x02; // Timer0_32 CAP0
-  LPC_IOCON->JTAG_TDI_PIO0_11 &= ~0x07;
-  LPC_IOCON->JTAG_TDI_PIO0_11 |= 0x03; // Timer0_32 MAT3
-
-  //Timer0_32 setup
-  UART_TIMER->TCR = 0x00; //stop TIMER0_32
-  UART_TIMER->TCR = 0x02; //reset counter
-  UART_TIMER->TCR = 0x00; //release the reset
-
-  UART_TIMER->IR = 0x01F; //clear all TIMER0 flags
-  UART_TIMER->PR = 0x00000000; //no prescaler
-  UART_TIMER->MR0 = 0x3FFFFFFF; //TIMER0_32 counts 0 - 0x3FFFFFFF
-  UART_TIMER->MCR = 2; //reset TIMER0_32 on MR0
-  UART_TIMER->EMR = 0x0008; //drive MAT0.3 high
-  UART_TIMER->TCR = 0x01; //let TIMER0_32 run
-  NVIC_EnableIRQ(TIMER_32_0_IRQn); //Enable the TIMER0_32 Interrupt
-
-  while (0 == (LPC_GPIO1->DATA & (1 << PIN_SW_RX)))
-    ;//wait for 1 on sw UART rx line
-  UART_TIMER->IR = 0x10; //clear CAP0.0 flag
-  UART_TIMER->CCR = 0x0006; //int on CAP0.0 falling edge
-
-  cnt_bits = 0; //reset the rx bit count
-  */
+  hw_digital_output(C_G3);
   hw_digital_write(A_G1, 1);
   hw_digital_write(A_G2, 1);
   hw_digital_write(A_G3, 1);
@@ -513,8 +411,7 @@ void swu_init() {
   scu_pinmux(7 ,2 , MD_PLN_FAST, FUNC1); // CTIN_4 Ñ SCT input 4. Capture input 2 of timer 1.
 
   // Initialize timer 1, prescale count time of 100uS
-//  CGU_ConfigPWR(CGU_PERIPHERAL_TIMER1, ENABLE);
-//  uint32_t timer0_freq = CGU_GetPCLKFrequency(CGU_PERIPHERAL_TIMER1);
+  CGU_ConfigPWR(CGU_PERIPHERAL_TIMER1, ENABLE);
 
   LPC_TIMER1->TCR = 0x00;
   LPC_TIMER1->TCR = 0x02; //reset counter
@@ -524,172 +421,36 @@ void swu_init() {
   LPC_TIMER1->PR = 0x00000000; //no prescaler
   LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
   LPC_TIMER1->MCR = 2;//MCR_RESET_MAT_2; //1<<7; //reset TIMER1 on MR2
-  // MCR =  3 << 6; do the BIT_LENGTH baud with match reg 2
   LPC_TIMER1->EMR = EMR_EN_MAT_2; //1<<2; //enable timer 0 match 2
-
-  while (0 == (LPC_GPIO_PORT->PIN[0x07] & (1 << 2)))
-	  ;//wait for 1 on sw UART rx line
-  hw_digital_write(C_G2, 1);
-  hw_digital_write(C_G2, 0);
 
   LPC_TIMER1->IR = IR_CLEAR_CAP_2;//1 << 6; // //clear CAP1.2 flag
   LPC_TIMER1->CCR = CCR_INT_CAP_2; //3 << 7; //int on CAP1.2 falling edge
 
-
   LPC_TIMER1->TCR = 0x01; //let TIMER0_32 run
   NVIC_EnableIRQ(TIMER1_IRQn); //Enable the TIMER0_32 Interrupt
-  /*
-	TIM_ConfigStruct.PrescaleOption = TIM_PRESCALE_TICKVAL;//TIM_PRESCALE_USVAL;
-  TIM_ConfigStruct.PrescaleValue	= 1;//100;
-  // use channel 2, MR0
-  TIM_MatchConfigStruct.MatchChannel = 0;
-  // Enable interrupt when MR0 matches the value in TC register
-  TIM_MatchConfigStruct.IntOnMatch   = TRUE;
-  //Enable reset on MR0: TIMER will reset if MR0 matches it
-  TIM_MatchConfigStruct.ResetOnMatch = TRUE;
-  //Stop on MR0 if MR0 matches it
-  TIM_MatchConfigStruct.StopOnMatch  = FALSE;
-  //Toggle MR0.0 pin if MR0 matches it
-  TIM_MatchConfigStruct.ExtMatchOutputType =TIM_EXTMATCH_TOGGLE;
-  // Set Match value, count value of 10000 (10000 * 100uS = 1000000us = 1s --> 1 Hz)
-  TIM_MatchConfigStruct.MatchValue   = BIT_LENGTH;//0x3FFFFFFF;//10000;
-  // Set configuration for Tim_config and Tim_MatchConfig
-  TIM_Init(LPC_TIMER1, TIM_TIMER_MODE,&TIM_ConfigStruct);
-  TIM_ConfigMatch(LPC_TIMER1,&TIM_MatchConfigStruct);
-
-
-  // do capture settings
-  TIM_CaptureConfigStruct.CaptureChannel = 2;
-  // Enable capture on CAPn.CAPTURE_CHANNEL rising edge
-  TIM_CaptureConfigStruct.RisingEdge = ENABLE;
-  // Enable capture on CAPn.CAPTURE_CHANNEL falling edge
-  TIM_CaptureConfigStruct.FallingEdge = ENABLE;
-  // Generate capture interrupt
-  TIM_CaptureConfigStruct.IntOnCaption = ENABLE;
-
-
-  // Set configuration for Tim_config and Tim_MatchConfig
-//  TIM_Init(LPC_TIMER1, TIM_TIMER_MODE,&TIM_ConfigStruct);
-//  TIM_ConfigCapture(LPC_TIMER1, &TIM_CaptureConfigStruct);
-//  TIM_ConfigMatch(LPC_TIMER1,&TIM_MatchConfigStruct);
-  TIM_ResetCounter(LPC_TIMER1);
-
-  // preemption = 1, sub-priority = 1
-  NVIC_SetPriority(TIMER1_IRQn, ((0x01<<3)|0x01));
-  // Enable interrupt for timer 0
-  NVIC_EnableIRQ(TIMER1_IRQn);
-  // To start timer 0
-  TIM_Cmd(LPC_TIMER1,ENABLE);
-	*/
   cnt_bits = 0; //reset the rx bit count
 }
 
-void TIMER0_IRQHandler(void)
-{
-//	if (TIM_GetIntStatus(LPC_TIMER0, TIM_MR0_INT)== SET)
-//	{
-//		LPC_GPIO_PORT->CLR[1] = (1<<8);
-
-//		LPC_GPIO_PORT->SET[1] = (1<<8);
-    hw_digital_write(B_G1, 1);
-    hw_digital_write(B_G1, 0);
-//	}
-//	TIM_ClearIntPending(LPC_TIMER0, TIM_MR0_INT);
-}
-
-void timer_test(void) {
-	// Initialize timer 0, prescale count time of 100uS
-		TIM_ConfigStruct.PrescaleOption = TIM_PRESCALE_TICKVAL;//TIM_PRESCALE_USVAL;
-		TIM_ConfigStruct.PrescaleValue	= 1;//100;
-
-		// use channel 0, MR0
-		TIM_MatchConfigStruct.MatchChannel = 0;
-		// Enable interrupt when MR0 matches the value in TC register
-		TIM_MatchConfigStruct.IntOnMatch   = TRUE;
-		//Enable reset on MR0: TIMER will reset if MR0 matches it
-		TIM_MatchConfigStruct.ResetOnMatch = TRUE;
-		//Stop on MR0 if MR0 matches it
-		TIM_MatchConfigStruct.StopOnMatch  = FALSE;
-		//Toggle MR0.0 pin if MR0 matches it
-		TIM_MatchConfigStruct.ExtMatchOutputType =TIM_EXTMATCH_TOGGLE;
-		// Set Match value, count value of 10000 (10000 * 100uS = 1000000us = 1s --> 1 Hz)
-		TIM_MatchConfigStruct.MatchValue   = BIT_LENGTH;
-
-		// Set configuration for Tim_config and Tim_MatchConfig
-		TIM_Init(LPC_TIMER0, TIM_TIMER_MODE,&TIM_ConfigStruct);
-		TIM_ConfigMatch(LPC_TIMER0,&TIM_MatchConfigStruct);
-
-		// preemption = 1, sub-priority = 1
-		NVIC_SetPriority(TIMER0_IRQn, ((0x01<<3)|0x01));
-		// Enable interrupt for timer 0
-		NVIC_EnableIRQ(TIMER0_IRQn);
-		// To start timer 0
-		TIM_Cmd(LPC_TIMER0,ENABLE);
-}
-
-void capture_test(void){
-  hw_digital_write(C_G3, 1);
-  scu_pinmux(0x7,2,MD_PLN_FAST, FUNC1);
-
-  // Initialize timer 0, prescale count time of 1000000uS = 1S
-  TIM_ConfigStruct.PrescaleOption = TIM_PRESCALE_TICKVAL;//TIM_PRESCALE_USVAL;
-  TIM_ConfigStruct.PrescaleValue  = 1;//100;
-
-  // use channel 0, CAPn.CAPTURE_CHANNEL
-  TIM_CaptureConfigStruct.CaptureChannel = 2;
-  // Enable capture on CAPn.CAPTURE_CHANNEL rising edge
-//  TIM_CaptureConfigStruct.RisingEdge = ENABLE;
-  // Enable capture on CAPn.CAPTURE_CHANNEL falling edge
-  TIM_CaptureConfigStruct.FallingEdge = ENABLE;
-  // Generate capture interrupt
-  TIM_CaptureConfigStruct.IntOnCaption = ENABLE;
-
-
-  // Set configuration for Tim_config and Tim_MatchConfig
-  TIM_Init(LPC_TIMER0, TIM_TIMER_MODE,&TIM_ConfigStruct);
-  TIM_ConfigCapture(LPC_TIMER1, &TIM_CaptureConfigStruct);
-  TIM_ResetCounter(LPC_TIMER1);
-
-
-  /* preemption = 1, sub-priority = 1 */
-  NVIC_SetPriority(TIMER1_IRQn, ((0x01<<3)|0x01));
-  /* Enable interrupt for timer 0 */
-  NVIC_EnableIRQ(TIMER1_IRQn);
-  // To start timer 0
-  TIM_Cmd(LPC_TIMER1,ENABLE);
-}
-
 void sw_uart_test(void) {
-//	timer_test();
-  capture_test();
-//  swu_init();
+  swu_init();
 
-  // tx test
-//  uint8_t data[] = {0x56, 0x00, 0x11, 0x00};
-//  swu_tx_str(data, sizeof(data));
+  while (1) {
 
-  // rx test
-  int numInBuff = 0;
-  char buff[10];
-  while (1){
-    if (rxData & 0x100 && numInBuff < 10)//valid flag indicating new character
-      {
-        LPC_GPIO_PORT->SET[5] = (1<<25); // b_g3
-        LPC_GPIO_PORT->CLR[5] = (1<<25); // b_g3
-        unsigned char buffChar = (unsigned char) rxData & 0xFF;
-        buff[numInBuff] = buffChar;
-//        hw_digital_write(B_G3, HIGH);
-//        hw_digital_write(B_G3, LOW);
-        rxData=0;
-        numInBuff++;
-      }
-    else if (numInBuff >= 10){
-      for (int i = 0; i< numInBuff; i ++){
-        TM_DEBUG("buffer has %c", buff[i]);
-      }
+    if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
+      unsigned char buffChar = (unsigned char) rxData & 0xFF;
+      buff[numInBuff] = buffChar;
+      rxData=0; // reset flag
+      numInBuff++;
+      hw_digital_write(LED2, 1);
+    } else if (numInBuff >= 5) {
+
+      // write out the buffer we got to tx again
+      swu_tx_str(buff, sizeof(buff));
+      numInBuff = 0;
+      hw_digital_write(LED1, 1);
+
     }
-  };
-//  uint8_t buffer[4];
-//  swu_rx_str(buffer);
-//  NVIC_DisableIRQ(TIMER1_IRQn); //Disable the timer Interrupt
+
+
+  }
 }

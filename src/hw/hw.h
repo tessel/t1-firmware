@@ -278,10 +278,20 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 
 //48000000/9600 = 5000 PCLKs
 //PCLK=12MHz:
-#define BIT_LENGTH  11250 // assuming system clock of 108mHz//5000
+// #define BIT_LENGTH  11250 // assuming system clock of 108mHz//5000
 //1250115
 // baud rates: 9600, 19200, 38400, 57600, 115200
 // bit length: 11250, 5625, 2812.5, 1875, 937.5
+
+/*
+* assuming clock of 180MHz
+*/
+#define BIT_LENGTH 18750 // for 9600 baud
+// #define BIT_LENGTH 9375 // for 19200 baud
+// #define BIT_LENGTH 4687 // for 38400 baud, really should be 4687.5
+// #define BIT_LENGTH 3125 // for 57600 baud
+// #define BIT_LENGTH 1562 // for 115200 baud, really should be 1562.5
+
 #define STOP_BIT_SAMPLE (9*BIT_LENGTH)
 
 // void sw_uart_test_c(void);
