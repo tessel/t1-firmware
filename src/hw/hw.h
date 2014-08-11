@@ -249,6 +249,11 @@ void hw_i2c_set_slave_addr (uint32_t port, uint8_t slave_addr);
 #define UART3 2
 #define UART_SW_0 0
 #define UART_SW_1 1
+#define SW_UART_BUFF_LEN 10
+
+extern int SW_UART_RDY;
+extern int SW_UART_RECV_POS;
+unsigned char SW_UART_BUFF[SW_UART_BUFF_LEN];
 
 void hw_uart_enable(uint32_t port);
 void hw_uart_disable(uint32_t port);

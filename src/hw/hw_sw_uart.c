@@ -18,6 +18,8 @@
 #define EMR_EN_MAT_2		1 << 2
 #define INITIAL_TIME		0x3FFFFFFF
 
+int SW_UART_RDY = 0;
+int SW_UART_RECV_POS = 0;
 /*********************************************************
 ** Global Variables                                     **
 *********************************************************/
@@ -344,20 +346,15 @@ TIM_CAPTURECFG_Type TIM_CaptureConfigStruct;
 uint8_t volatile timer1_flag = FALSE;
 
 
-int numInBuff = 0;
-unsigned char buff[5];
+// int numInBuff = 0;
+// unsigned char buff[5];
 
 void TIMER1_IRQHandler(void)
 {
 
   // flag for cap2 and mat1
   if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
-    // LPC_GPIO_PORT->CLR[5] = (1<<25); // C_G3 low
-
     swu_isr_rx(LPC_TIMER1);
-
-
-    // LPC_GPIO_PORT->SET[5] = (1<<25); // C_G3 high
   }
   
   //tx stuff
@@ -379,6 +376,22 @@ void swu_rx_callback(void)
 {
   //append flag bit to character
   rxData =0x100 + swu_rx_chr();
+
+  if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
+    unsigned char buffChar = (unsigned char) rxData & 0xFF;
+    SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
+    rxData=0; // reset flag
+    SW_UART_RECV_POS++;
+    hw_digital_write(LED2, 1);
+  } else {
+    // set the ready flag
+    SW_UART_RDY = 1;
+  }
+  // start timer for UART receive timeout on match register 3
+  // LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
+  // LPC_TIMER1->MCR = 2;//MCR_RESET_MAT_2; //1<<7; //reset TIMER1 on MR2
+  // LPC_TIMER1->EMR = EMR_EN_MAT_2; //1<<2; //enable timer 1 match 2
+
   return;
 }
 /******************************************************************************
@@ -421,7 +434,7 @@ void swu_init() {
   LPC_TIMER1->PR = 0x00000000; //no prescaler
   LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
   LPC_TIMER1->MCR = 2;//MCR_RESET_MAT_2; //1<<7; //reset TIMER1 on MR2
-  LPC_TIMER1->EMR = EMR_EN_MAT_2; //1<<2; //enable timer 0 match 2
+  LPC_TIMER1->EMR = EMR_EN_MAT_2; //1<<2; //enable timer 1 match 2
 
   LPC_TIMER1->IR = IR_CLEAR_CAP_2;//1 << 6; // //clear CAP1.2 flag
   LPC_TIMER1->CCR = CCR_INT_CAP_2; //3 << 7; //int on CAP1.2 falling edge
@@ -436,19 +449,18 @@ void sw_uart_test(void) {
 
   while (1) {
 
-    if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
-      unsigned char buffChar = (unsigned char) rxData & 0xFF;
-      buff[numInBuff] = buffChar;
-      rxData=0; // reset flag
-      numInBuff++;
-      hw_digital_write(LED2, 1);
-    } else if (numInBuff >= 5) {
-
+    // if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
+    //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
+    //   buff[numInBuff] = buffChar;
+    //   rxData=0; // reset flag
+    //   numInBuff++;
+    //   hw_digital_write(LED2, 1);
+    // } else 
+    if (SW_UART_RECV_POS >= SW_UART_BUFF_LEN) {
       // write out the buffer we got to tx again
-      swu_tx_str(buff, sizeof(buff));
-      numInBuff = 0;
+      swu_tx_str(SW_UART_BUFF, sizeof(SW_UART_BUFF_LEN));
+      SW_UART_RECV_POS = 0;
       hw_digital_write(LED1, 1);
-
     }
 
 

@@ -345,6 +345,28 @@ static int l_hw_uart_send(lua_State* L)
 	return 1;
 }
 
+static int l_hw_sw_uart_recv(lua_State* L)
+{
+	(void) L;
+	if (SW_UART_RDY) {
+		TM_DEBUG("SW UART GOT THIS: %s", SW_UART_BUFF);
+		memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
+		SW_UART_RDY = 0;
+		SW_UART_RECV_POS = 0;
+	} else {
+		TM_DEBUG("NOPE NOT READY");
+	}
+	// uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+
+	// size_t buf_len = 0;
+	// const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &buf_len);
+
+	// uint8_t bytes = hw_uart_send(port, txbuf, buf_len);
+
+	// // Return number of bytes sent
+	// lua_pushnumber(L, bytes);
+	return 0;
+}
 
 static int l_hw_digital_output(lua_State* L)
 {
@@ -832,6 +854,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "uart_disable", l_hw_uart_disable },
 		{ "uart_initialize", l_hw_uart_initialize },
 		{ "uart_send", l_hw_uart_send },
+		{ "sw_uart_recv", l_hw_sw_uart_recv },
 
 		// sleep
 		{ "sleep_us", l_hw_sleep_us },
