@@ -353,7 +353,9 @@ uint8_t volatile timer1_flag = FALSE;
 
 void TIMER1_IRQHandler(void)
 {
-  
+  // use this to check for when IRQs are hit
+  hw_digital_write(A_G1, 1);
+  hw_digital_write(A_G1, 0);
   //tx stuff
 	if (LPC_TIMER1->IR & (1<<2))  // check match reg of match reg 2
 	{
@@ -364,6 +366,8 @@ void TIMER1_IRQHandler(void)
     swu_isr_rx(LPC_TIMER1, TM_SW_UART_9600, TM_SW_UART_9600_STOP);
   }
 	
+  hw_digital_write(A_G1, 1);
+
 }
 
 // void swu_tx_callback(void)
