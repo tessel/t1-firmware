@@ -18,8 +18,8 @@
 #define EMR_EN_MAT_2		1 << 2
 #define INITIAL_TIME		0x3FFFFFFF
 
-int SW_UART_RDY = 0;
-int SW_UART_RECV_POS = 0;
+volatile int SW_UART_RDY = 0;
+volatile int SW_UART_RECV_POS = 0;
 /*********************************************************
 ** Global Variables                                     **
 *********************************************************/
@@ -42,12 +42,12 @@ static volatile unsigned short int swu_rx_fifo[RXBUFF_LEN];
 //definitions common for transmitting and receiving data
 static volatile unsigned long int swu_status;
 
-void swu_tx_chr(const unsigned char out_char);
+void swu_tx_chr(const unsigned char out_char, SWUartBitLength Bit_Length);
 
 /*********************************************************
 ** Local Functions                                      **
 *********************************************************/
-static void swu_setup_tx(void); //tx param processing
+static void swu_setup_tx(SWUartBitLength Bit_Length); //tx param processing
 void swu_rx_callback(void); //__weak
 // void swu_tx_callback(void); //__weak
 
@@ -67,7 +67,7 @@ static volatile unsigned short rxData;
 ** Returned value:  None
 **
 ******************************************************************************/
-static void swu_setup_tx(void) {
+static void swu_setup_tx(SWUartBitLength Bit_Length) {
   unsigned char bit, i;
   unsigned long int ext_data, delta_edges, mask, reference;
   if (tx_fifo_wr_ind != tx_fifo_rd_ind) //data to send, proceed
@@ -78,21 +78,21 @@ static void swu_setup_tx(void) {
       tx_fifo_rd_ind = 0; //...
     ext_data = (unsigned long int) swu_tx_fifo[tx_fifo_rd_ind]; //read the data
     ext_data = 0xFFFFFE00 | (ext_data << 1); //prepare the pattern
-    edge[0] = BIT_LENGTH; //at least 1 falling edge...
+    edge[0] = Bit_Length; //at least 1 falling edge...
     cnt_edges = 1; //... because of the START bit
     bit = 1; //set the bit counter
     reference = 0x00000000; //init ref is 0 (start bit)
     mask = 1 << 1; //prepare the mask
-    delta_edges = BIT_LENGTH; //next edge at least 1 bit away
+    delta_edges = Bit_Length; //next edge at least 1 bit away
     while (bit != 10) { //until all bits are examined
       if ((ext_data & mask) == (reference & mask)) { //bit equal to the reference?
-        delta_edges += BIT_LENGTH; //bits identical=>update length
+        delta_edges += Bit_Length; //bits identical=>update length
       } //...
       else { //bits are not the same:
         edge[cnt_edges] = //store new...
           edge[cnt_edges - 1] + delta_edges; //... edge data
         reference = ~reference; //update the reference
-        delta_edges = BIT_LENGTH; //reset delta_ to 1 bit only
+        delta_edges = Bit_Length; //reset delta_ to 1 bit only
         cnt_edges++; //update the edges counter
       }
       mask = mask << 1; //update the mask
@@ -105,7 +105,7 @@ static void swu_setup_tx(void) {
     char_end_index = cnt_edges - 1; //calc. the character end index
 
     edge_index = 0; //reset the edge index
-    reference = LPC_TIMER1->TC + BIT_LENGTH; //get the reference from TIMER0
+    reference = LPC_TIMER1->TC + Bit_Length; //get the reference from TIMER0
     for (i = 0; i != cnt_edges; i++) //recalculate toggle points...
       edge[i] = (edge[i] + reference) //... an adjust for the...
         & INITIAL_TIME; //... timer range
@@ -128,9 +128,9 @@ static void swu_setup_tx(void) {
 ** Returned value:		None
 **
 ******************************************************************************/
-void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size) {
+void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size, SWUartBitLength Bit_Length) {
   while(data_size > 0){
-    swu_tx_chr(*ptr_out); //...put the char in tx FIFO...
+    swu_tx_chr(*ptr_out, Bit_Length); //...put the char in tx FIFO...
     ptr_out++; //...move to the next char...
     data_size--;
   }
@@ -148,7 +148,7 @@ void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size) {
 ** Returned value:		None
 **
 ******************************************************************************/
-void swu_tx_chr(const unsigned char out_char) {
+void swu_tx_chr(const unsigned char out_char, SWUartBitLength Bit_Length) {
   //write access to tx FIFO begin
   while (swu_tx_cnt == TXBUFF_LEN)
     ; //wait if the tx FIFO is full
@@ -158,7 +158,7 @@ void swu_tx_chr(const unsigned char out_char) {
   swu_tx_fifo[tx_fifo_wr_ind] = out_char; //put the char into the FIFO
   swu_tx_cnt++; //update no.of chrs in the FIFO
   if ((swu_status & TX_ACTIVE) == 0)
-    swu_setup_tx(); //start tx if tx is not active
+    swu_setup_tx(Bit_Length); //start tx if tx is not active
 
   return; //return from the routine
 }
@@ -188,7 +188,8 @@ unsigned char swu_rx_chr(void) {
   else {
     //... indicator...
     swu_rx_chr_fe = 1; //...
-    hw_digital_write(CC3K_ERR_LED, 1);
+    // hw_digital_write(CC3K_ERR_LED, 1);
+    hw_digital_write(LED2, 1);
   }
   swu_status &= ~RX_OVERFLOW; //clear the overfloe flag
   return ((unsigned char) (swu_rx_fifo[rx_fifo_rd_ind] & 0x00FF)); //return data
@@ -209,14 +210,14 @@ unsigned char swu_rx_chr(void) {
 ** Returned value:  None
 **
 ******************************************************************************/
-void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER) {
+void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER, SWUartBitLength Bit_Length) {
     TX_ISR_TIMER->IR = 1 << 2; //0x08; //clear the MAT2 flag
     if (edge_index == char_end_index) //the end of the char:
     {
       TX_ISR_TIMER->MCR &= ~(7 << 6); //MR2 impacts T0 ints no more
       swu_tx_cnt--; //update no.of chars in tx FIFO
       if (tx_fifo_wr_ind != tx_fifo_rd_ind) //if more data pending...
-        swu_setup_tx(); //... spin another transmission
+        swu_setup_tx(Bit_Length); //... spin another transmission
       else {
         swu_status &= ~TX_ACTIVE; //no data left=>turn off the tx
         // swu_tx_callback();
@@ -243,7 +244,8 @@ void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER) {
 ** Returned value:  None
 **
 ******************************************************************************/
-void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
+void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER, 
+  SWUartBitLength Bit_Length, SWUartStopBitSample Stop_Bit_Sample) {
 
 
   signed long int edge_temp;
@@ -256,13 +258,13 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
     RX_ISR_TIMER->CCR = (1<< 8) | ((3 << 6) - (RX_ISR_TIMER->CCR & (3 << 6)));//0x0004 | (0x0003 - (RX_ISR_TIMER->CCR & 0x0003));
     if ((swu_status & RX_ACTIVE) == 0) { //sw UART not active (start):
       edge_last = (signed long int) RX_ISR_TIMER->CR[2]; //initialize the last edge
-      edge_sample = edge_last + (BIT_LENGTH >> 1); //initialize the sample edge
+      edge_sample = edge_last + (Bit_Length >> 1); //initialize the sample edge
       if (edge_sample < edge_last) //adjust the sample edge...
         edge_sample |= ADJUST; //... if needed
       swu_bit = 0; //rx bit is 0 (a start bit)
       // use mat1 to match stop bit timing
       RX_ISR_TIMER->IR = 0x01; //clear MAT1 int flag
-      edge_stop = edge_sample + STOP_BIT_SAMPLE; //estimate the end of the byte
+      edge_stop = edge_sample + Stop_Bit_Sample; //estimate the end of the byte
       if (edge_stop < edge_last) //adjust the end of byte...
         edge_stop |= ADJUST; //... if needed
       RX_ISR_TIMER->MR[1] = edge_stop; //set MR1 (stop bit center)
@@ -283,13 +285,13 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER) {
           swu_rbr_mask = swu_rbr_mask << 1; //update mask
         }
         cnt_bits++; //update the bit count
-        edge_temp = edge_last + BIT_LENGTH; //estimate the last edge
+        edge_temp = edge_last + Bit_Length; //estimate the last edge
         if (edge_temp < edge_last) //adjust...
           edge_last = edge_temp | ADJUST; //... the last edge...
         else
           //... if...
           edge_last = edge_temp; //... needed
-        edge_temp = edge_sample + BIT_LENGTH; //estimate the sample edge
+        edge_temp = edge_sample + Bit_Length; //estimate the sample edge
         if (edge_temp < edge_sample) //adjust...
           edge_sample = edge_temp | ADJUST; //... the sample edge...
         else
@@ -351,17 +353,16 @@ uint8_t volatile timer1_flag = FALSE;
 
 void TIMER1_IRQHandler(void)
 {
-
-  // flag for cap2 and mat1
-  if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
-    swu_isr_rx(LPC_TIMER1);
-  }
   
   //tx stuff
 	if (LPC_TIMER1->IR & (1<<2))  // check match reg of match reg 2
 	{
-		swu_isr_tx(LPC_TIMER1);
-	}
+		swu_isr_tx(LPC_TIMER1, TM_SW_UART_115200);
+	} 
+  // rx flag for cap2 and mat1
+  if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
+    swu_isr_rx(LPC_TIMER1, TM_SW_UART_9600, TM_SW_UART_9600_STOP);
+  }
 	
 }
 
@@ -382,10 +383,11 @@ void swu_rx_callback(void)
     SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
     rxData=0; // reset flag
     SW_UART_RECV_POS++;
-    hw_digital_write(LED2, 1);
   } else {
     // set the ready flag
     SW_UART_RDY = 1;
+    hw_digital_write(LED1, 1);
+
   }
   // start timer for UART receive timeout on match register 3
   // LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
@@ -413,13 +415,6 @@ void swu_init() {
   swu_rx_trigger = 1; //>=1 char gnrts a rx interrupt
   swu_status = 0; //neither tx nor rx active
 
-  hw_digital_output(C_G3);
-  hw_digital_write(A_G1, 1);
-  hw_digital_write(A_G2, 1);
-  hw_digital_write(A_G3, 1);
-  hw_digital_write(C_G1, 1);
-  hw_digital_write(C_G2, 1);
-  hw_digital_write(C_G3, 1);
   scu_pinmux(0x0B ,1 , MD_PDN, FUNC5); 	// CTOUT_6 Ñ SCT output 6. Match output 2 of timer 1.
   scu_pinmux(7 ,2 , MD_PLN_FAST, FUNC1); // CTIN_4 Ñ SCT input 4. Capture input 2 of timer 1.
 
@@ -444,25 +439,35 @@ void swu_init() {
   cnt_bits = 0; //reset the rx bit count
 }
 
+void sw_uart_gps_init(void) {
+  // inits gps with sw uart
+  unsigned char gps_init_buff[32] = {0xA0, 0xA2, 0x00, 0x18, 0x81, 0x02, 0x01, 0x01,
+    0x00, 0x01, 0x01, 0x01, 0x05, 0x01, 0x01, 0x01, 0x00, 0x01, 0x00, 0x01,
+    0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x25, 0x80, 0x01, 0x3A, 0xB0, 0xB3};
+
+  swu_tx_str(gps_init_buff, sizeof(gps_init_buff), TM_SW_UART_115200);
+}
+
 void sw_uart_test(void) {
   swu_init();
+  // unsigned char data[4] = {0x56, 0x00, 0x01, 0x11};
+  // while (1) {
 
-  while (1) {
+  //   // if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
+  //   //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
+  //   //   buff[numInBuff] = buffChar;
+  //   //   rxData=0; // reset flag
+  //   //   numInBuff++;
+  //   //   hw_digital_write(LED2, 1);
+  //   // } else 
+  //   if (SW_UART_RDY) {
+  //     // write out the buffer we got to tx again
+  //     swu_tx_str(SW_UART_BUFF, sizeof(SW_UART_BUFF));
+  //     // hw_digital_write(LED2, 1);
+  //     SW_UART_RECV_POS = 0;
+  //     SW_UART_RDY = 0;
+  //   }
 
-    // if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
-    //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
-    //   buff[numInBuff] = buffChar;
-    //   rxData=0; // reset flag
-    //   numInBuff++;
-    //   hw_digital_write(LED2, 1);
-    // } else 
-    if (SW_UART_RECV_POS >= SW_UART_BUFF_LEN) {
-      // write out the buffer we got to tx again
-      swu_tx_str(SW_UART_BUFF, sizeof(SW_UART_BUFF_LEN));
-      SW_UART_RECV_POS = 0;
-      hw_digital_write(LED1, 1);
-    }
 
-
-  }
+  // }
 }

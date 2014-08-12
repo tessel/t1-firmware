@@ -1452,6 +1452,17 @@ function Tessel() {
     return hw.device_id();
   }; 
 
+  this.sw_uart_init = function(){
+    hw.sw_uart_init();
+  }
+
+  this.sw_uart_recv = function(){
+    hw.sw_uart_recv();
+  }
+
+  this.sw_uart_gps_init = function(){
+    hw.sw_uart_gps_init();
+  }
 }
 
 util.inherits(Tessel, EventEmitter);

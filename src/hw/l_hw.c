@@ -353,18 +353,21 @@ static int l_hw_sw_uart_recv(lua_State* L)
 		memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
 		SW_UART_RDY = 0;
 		SW_UART_RECV_POS = 0;
-	} else {
-		TM_DEBUG("NOPE NOT READY");
 	}
-	// uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	return 0;
+}
 
-	// size_t buf_len = 0;
-	// const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &buf_len);
+static int l_hw_sw_uart_init(lua_State* L)
+{
+	(void) L;
+	sw_uart_test();
+	return 0;
+}
 
-	// uint8_t bytes = hw_uart_send(port, txbuf, buf_len);
-
-	// // Return number of bytes sent
-	// lua_pushnumber(L, bytes);
+static int l_hw_sw_uart_gps_init(lua_State* L)
+{
+	(void) L;
+	sw_uart_gps_init();
 	return 0;
 }
 
@@ -855,6 +858,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "uart_initialize", l_hw_uart_initialize },
 		{ "uart_send", l_hw_uart_send },
 		{ "sw_uart_recv", l_hw_sw_uart_recv },
+		{ "sw_uart_init", l_hw_sw_uart_init },
+		{ "sw_uart_gps_init", l_hw_sw_uart_gps_init },
 
 		// sleep
 		{ "sleep_us", l_hw_sleep_us },

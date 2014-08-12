@@ -251,8 +251,8 @@ void hw_i2c_set_slave_addr (uint32_t port, uint8_t slave_addr);
 #define UART_SW_1 1
 #define SW_UART_BUFF_LEN 10
 
-extern int SW_UART_RDY;
-extern int SW_UART_RECV_POS;
+extern volatile int SW_UART_RDY;
+extern volatile int SW_UART_RECV_POS;
 unsigned char SW_UART_BUFF[SW_UART_BUFF_LEN];
 
 void hw_uart_enable(uint32_t port);
@@ -270,9 +270,9 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 #include "lpc18xx_scu.h"
 #include "lpc18xx_timer.h"
 
-#define TEST_TIMER_NUM  0   /* 0 or 1 for 32-bit timers only */
-#define TXBUFF_LEN      16
-#define RXBUFF_LEN      16
+// #define TEST_TIMER_NUM  0   /* 0 or 1 for 32-bit timers only */
+#define TXBUFF_LEN      128
+#define RXBUFF_LEN      128
 //12000000/9600 = 1250 PCLKs
 //PCLK=12MHz:
 //#define BIT_LENGTH  1250
@@ -291,15 +291,32 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 /*
 * assuming clock of 180MHz
 */
-#define BIT_LENGTH 18750 // for 9600 baud
+// #define BIT_LENGTH 18750 // for 9600 baud
 // #define BIT_LENGTH 9375 // for 19200 baud
 // #define BIT_LENGTH 4687 // for 38400 baud, really should be 4687.5
 // #define BIT_LENGTH 3125 // for 57600 baud
 // #define BIT_LENGTH 1562 // for 115200 baud, really should be 1562.5
 
-#define STOP_BIT_SAMPLE (9*BIT_LENGTH)
+typedef enum {
+  TM_SW_UART_9600 = 18750,
+  TM_SW_UART_19200 = 9375,
+  TM_SW_UART_38400 = 4687,
+  TM_SW_UART_57600 = 3125,
+  TM_SW_UART_115200 = 1562
+} SWUartBitLength;
+
+// #define STOP_BIT_SAMPLE (9*BIT_LENGTH)
+
+typedef enum {
+  TM_SW_UART_9600_STOP = 9*18750,
+  TM_SW_UART_19200_STOP = 9*9375,
+  TM_SW_UART_38400_STOP = 9*4687,
+  TM_SW_UART_57600_STOP = 9*3125,
+  TM_SW_UART_115200_STOP = 9*1562
+} SWUartStopBitSample;
 
 // void sw_uart_test_c(void);
+void sw_uart_gps_init(void);
 void sw_uart_test(void);
 
 
