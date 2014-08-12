@@ -1,4 +1,4 @@
-#include "gps-nema.h"
+#include "gps-nmea.h"
 
 const char *gps_stream = 
 	"$GPGSA,A,3,22,18,21,27,14,19,,,,,,,3.5,1.4,3.2*32\r\n"

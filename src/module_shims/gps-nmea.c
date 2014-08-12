@@ -35,11 +35,11 @@
  * 15   = Checksum
  */ 
 
-#include "gps-nema.h"
+#include "gps-nmea.h"
 
 #define GPRMC "GPRMC"
 #define GPGGA "GPGGA"
-#define GPS_BUFF_LEN 100
+#define GPS_BUFF_LEN 30
 
 char gps_buff[GPS_BUFF_LEN] = {'\0'};
 
@@ -65,25 +65,33 @@ typedef struct GPSData {
 	bool checksum_passed;
 	// bool latitude_negative; // true = South
 	// bool longitude_negative; // true = West
-	long latitude;
-	long longitude;
-	long speed;
-	long date;
-	long timeUTC;
+	float latitude;
+	float longitude;
+	float speed;
+	float date;
+	float timeUTC;
 	int satellites;
-	long altitude;
+	float altitude;
 } GPSData;
 
 GPSData gps_data = { .has_fix = false, .checksum_passed = false,
 	.latitude = 0, .longitude = 0, .speed = 0, .date = 0, .timeUTC = 0,
 	.satellites = 0, .altitude = 0};
 
+GPSData gps_data_hold = { .has_fix = false, .checksum_passed = false,
+	.latitude = 0, .longitude = 0, .speed = 0, .date = 0, .timeUTC = 0,
+	.satellites = 0, .altitude = 0};
+
+bool gps_checksum_ret = false;
 // consume a gps character
 // returns true if we are ready to parse
 // returns false otherwise
 bool gps_consume(unsigned char c) {
-	if (gps_ignoring && c != '$') return false;
-
+	if (gps_ignoring && c != '$') {
+		// printf("ignoring %c ", c);
+		return false;
+	} 
+	// printf("%c check %d \n", c, gps_checksum);
 	switch (c) {
 		case ',':
 			// nothin is there
@@ -93,16 +101,22 @@ bool gps_consume(unsigned char c) {
 			// end of string
 		case '*':
 			// checksum
-			gps_is_on_checksum = true;
-			return gps_parse();
+			gps_checksum_ret = gps_parse();
+			if (c != ',') {
+				gps_is_on_checksum = true;
+			}
+			return gps_checksum_ret;
 
 		case '$':
 			// beginning of string
 			// clear out the old buffer
+			gps_parse();
 			gps_cleanup();
 			gps_checksum = 0;
 			gps_is_on_checksum = false;
 			gps_ignoring = false;
+			gps_msg_types = IGNORE_MSG;
+			gps_msg_pos = 0;
 			return false;
 		default:
 			// all other characters
@@ -111,6 +125,7 @@ bool gps_consume(unsigned char c) {
 				gps_checksum ^= c;
 			}
 			return false;
+
 	}
 
 	return false;
@@ -118,21 +133,28 @@ bool gps_consume(unsigned char c) {
 
 #define GPS_UNIQUE_CASE(type, pos) (((unsigned)(type) << 5) | pos)
 static bool gps_parse(void){
+	// printf("buf %s pos %d %d strtol %d\n", gps_buff, gps_buff_pos, gps_is_on_checksum, (int)strtol(gps_buff, NULL, 16));
+
 	// if the checksum worked out, set all the values
 	if (gps_is_on_checksum) {
+		// printf("trying checksum ...");
 		// we're trying to do a checksum
-		if (gps_checksum == atol(gps_buff)) {
+		if (gps_checksum == (int)strtol(gps_buff, NULL, 16)) {
 			// checksum passed
+			// printf("checksum passed %s\n", gps_buff);
 			gps_data.checksum_passed = true;
+			// migrate all data to gps_data_hold
+			memcpy(&gps_data_hold, &gps_data, sizeof(GPSData));
 			return true;
 		} else {
+			// printf("checksum failed got: %d, expected: %d", gps_checksum, (int)strtol(gps_buff, NULL, 16));
 			// clean up gps
 			gps_cleanup();
 		}
 	}
 	// parses the string stored in the buffer
-	if (gps_buff_pos == 4) {
-		// if its the first 4 characters, check for nema string types
+	if (gps_buff_pos == 5 && gps_msg_pos == 0) {
+		// if its the first 4 characters, check for nmea string types
 		if (!strcmp(GPRMC, gps_buff)) {
 			// GPRMC
 			gps_msg_types = GPRMC_MSG;
@@ -151,7 +173,7 @@ static bool gps_parse(void){
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 1):
 				case GPS_UNIQUE_CASE(GPGGA_MSG, 1):
 					// UTC of position fix
-					gps_data.timeUTC = atol(gps_buff);
+					gps_data.timeUTC = atof(gps_buff);
 					break;
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 2):
 					// Data status (V=navigation receiver warning)
@@ -160,7 +182,7 @@ static bool gps_parse(void){
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 3):
 				case GPS_UNIQUE_CASE(GPGGA_MSG, 2):
 					// Latitude
-					gps_data.latitude = atol(gps_buff);
+					gps_data.latitude = atof(gps_buff);
 					break;
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 4):
 				case GPS_UNIQUE_CASE(GPGGA_MSG, 3):
@@ -170,7 +192,7 @@ static bool gps_parse(void){
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 5):
 				case GPS_UNIQUE_CASE(GPGGA_MSG, 4):
 					// Longitude
-					gps_data.longitude = atol(gps_buff);
+					gps_data.longitude = atof(gps_buff);
 					break;
 
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 6):
@@ -181,12 +203,12 @@ static bool gps_parse(void){
 
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 7):
 					// Speed over ground in knots
-					gps_data.speed = atol(gps_buff);
+					gps_data.speed = atof(gps_buff);
 					break;
 
 				case GPS_UNIQUE_CASE(GPRMC_MSG, 9):
 					// UT date
-					gps_data.date = atol(gps_buff);
+					gps_data.date = atof(gps_buff);
 					break;
 
 				case GPS_UNIQUE_CASE(GPGGA_MSG, 6):
@@ -199,9 +221,9 @@ static bool gps_parse(void){
 					gps_data.satellites = atoi(gps_buff);
 					break;
 
-				case GPS_UNIQUE_CASE(GPGGA_MSG, 10):
+				case GPS_UNIQUE_CASE(GPGGA_MSG, 9):
 					// Meters  (Antenna height unit)
-					gps_data.altitude = atol(gps_buff);
+					gps_data.altitude = atof(gps_buff);
 					break;
 
 			}
@@ -210,13 +232,16 @@ static bool gps_parse(void){
 	}
 
 	// after this has been parsed, reset buffer
-	memset(gps_buff, '\0', GPS_BUFF_LEN);
+	memset(gps_buff, '\0', gps_buff_pos);
 	gps_buff_pos = 0;
 
 	return false;
 }
 
 static void gps_cleanup(){
+	gps_is_on_checksum = false;
+	memset(gps_buff, '\0', gps_buff_pos);
+	gps_buff_pos = 0;
 	// scrub gps data
 	gps_data.has_fix = false;
 	gps_data.checksum_passed = false;
@@ -229,63 +254,79 @@ static void gps_cleanup(){
 	gps_data.altitude = 0;
 }
 
-long gps_get_time(){
-	if (gps_data.checksum_passed) {
-		return gps_data.timeUTC;
+float gps_nmea_to_deg(float nmea){
+	bool negative = false;
+	// flip negativity
+	if (nmea < 0) {
+		negative = true;
+		nmea = -nmea;
+	}
+	// weird nmea gps format
+	// find 2 least significant digits after decimal
+	float minutes = fmod(nmea, 100);
+
+	// cut it
+	// all prev digits + cut portion/60
+	return ((floor(nmea/100) ) + minutes/60) * (negative ? -1 : 1);
+}
+
+float gps_get_time(){
+	if (gps_data_hold.checksum_passed) {
+		return gps_data_hold.timeUTC;
 	}
 	return 0;
 }
 
-long gps_get_date(){
-	if (gps_data.checksum_passed) {
-		return gps_data.date;
+float gps_get_date(){
+	if (gps_data_hold.checksum_passed) {
+		return gps_data_hold.date;
 	}
 	return 0;
 }
 
 bool gps_get_fix() {
-	if (gps_data.checksum_passed) {
-		return gps_data.has_fix;
+	if (gps_data_hold.checksum_passed) {
+		return gps_data_hold.has_fix;
 	}
 	return false;
 }
 
-long gps_get_altitude() {
+float gps_get_altitude() {
 	// returns altitude
-	if (gps_data.checksum_passed && gps_data.has_fix) {
-		return gps_data.altitude;
+	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
+		return gps_data_hold.altitude;
 	}
 	return false;
 }
 
-long gps_get_latitude() {
+float gps_get_latitude() {
 	// returns latitude
-	if (gps_data.checksum_passed && gps_data.has_fix) {
-		return gps_data.latitude;
+	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
+		return gps_nmea_to_deg(gps_data_hold.latitude);
 	}
-	return false;
+	return 0;
 }
 
-long gps_get_longitude(){
+float gps_get_longitude(){
 	// returns longitude
-	if (gps_data.checksum_passed && gps_data.has_fix) {
-		return gps_data.longitude;
+	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
+		return gps_nmea_to_deg(gps_data_hold.longitude);
 	}
-	return false;
+	return 0;
 }
 
 int gps_get_satellites(){
 	// returns num of satellites
-	if (gps_data.checksum_passed && gps_data.has_fix) {
-		return gps_data.satellites;
+	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
+		return gps_data_hold.satellites;
 	}
 	return false;
 }
 
-long gps_get_speed(){
+float gps_get_speed(){
 	// returns speed
-	if (gps_data.checksum_passed && gps_data.has_fix) {
-		return gps_data.speed;
+	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
+		return gps_data_hold.speed;
 	}
 	return false;
 }

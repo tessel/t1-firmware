@@ -24,6 +24,7 @@
 #include "tessel_wifi.h"
 
 #include "audio-vs1053b.h"
+#include "gps-nmea.h"
 
 
 #define ARG1 1
@@ -675,6 +676,59 @@ static int l_audio_stop_recording(lua_State* L) {
 	return 1;
 }
 
+
+/**
+ * GPS
+ */
+
+ static int l_gps_get_time(lua_State* L) {
+	float r = gps_get_time();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_date(lua_State* L) {
+	float r = gps_get_time();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_fix(lua_State* L) {
+	int r = gps_get_fix();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_altitude(lua_State* L) {
+	float r = gps_get_altitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_latitude(lua_State* L) {
+	float r = gps_get_latitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_longitude(lua_State* L) {
+	float r = gps_get_longitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_satellites(lua_State* L) {
+	int r = gps_get_satellites();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+ static int l_gps_get_speed(lua_State* L) {
+	float r = gps_get_speed();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
 /**
  * NTP
  */
@@ -909,6 +963,17 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "audio_get_state", l_audio_get_state },
 		{ "audio_start_recording", l_audio_start_recording },
 		{ "audio_stop_recording", l_audio_stop_recording },
+
+
+		// gps
+		{ "gps_get_time", l_gps_get_time },
+		{ "gps_get_date", l_gps_get_date },
+		{ "gps_get_fix", l_gps_get_fix },
+		{ "gps_get_altitude", l_gps_get_altitude },
+		{ "gps_get_latitude", l_gps_get_latitude },
+		{ "gps_get_longitude", l_gps_get_longitude },
+		{ "gps_get_satellites", l_gps_get_satellites },
+		{ "gps_get_speed", l_gps_get_speed },
 
 		// clock sync
 		{ "clocksync", l_clocksync },

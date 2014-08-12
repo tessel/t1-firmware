@@ -247,7 +247,7 @@
         'src/sys/bootloader.c',
 
         'src/test/test.c',
-        'src/test/nema-test.c',
+        'src/test/nmea-test.c',
         'src/test/test_hw.c',
         'src/test/testalator.c',
 
@@ -271,7 +271,7 @@
         'src/usb/msg_interface.c',
 
         'src/module_shims/audio-vs1053b.c',
-        'src/module_shims/gps-nema.c',
+        'src/module_shims/gps-nmea.c',
       ],
       'dependencies': [
         'deps/runtime/libtm.gyp:libtm',

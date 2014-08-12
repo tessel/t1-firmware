@@ -1,6 +1,7 @@
 #include "hw.h"
 #include "tm.h"
 #include "tessel.h"
+#include "gps-nmea.h"
 
 /*********************************************************
 ** Macro Definitions                                 	**
@@ -382,17 +383,23 @@ void swu_rx_callback(void)
   //append flag bit to character
   rxData =0x100 + swu_rx_chr();
 
-  if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
-    unsigned char buffChar = (unsigned char) rxData & 0xFF;
-    SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
-    rxData=0; // reset flag
-    SW_UART_RECV_POS++;
-  } else {
-    // set the ready flag
-    SW_UART_RDY = 1;
-    hw_digital_write(LED1, 1);
+  gps_consume((unsigned char) rxData & 0xFF);
 
-  }
+  // if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
+  //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
+  //   SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
+  //   rxData=0; // reset flag
+  //   SW_UART_RECV_POS++;
+  //   hw_digital_write(LED1, 0);
+  //   // consume the character
+  //   gps_consume(buffChar);
+  // } else {
+  //   // set the ready flag
+  //   // SW_UART_RDY = 1;
+  //   hw_digital_write(LED1, 1);
+  //   SW_UART_RECV_POS = 0;
+  // }
+
   // start timer for UART receive timeout on match register 3
   // LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
   // LPC_TIMER1->MCR = 2;//MCR_RESET_MAT_2; //1<<7; //reset TIMER1 on MR2

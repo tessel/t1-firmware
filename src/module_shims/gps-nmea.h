@@ -15,15 +15,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 // pushes 1 char at a time to be parsed
 bool gps_consume(unsigned char c);
 
-long gps_get_time();
-long gps_get_date();
+float gps_get_time();
+float gps_get_date();
 bool gps_get_fix();
-long gps_get_altitude();
-long gps_get_latitude();
-long gps_get_longitude();
+float gps_get_altitude();
+float gps_get_latitude();
+float gps_get_longitude();
 int gps_get_satellites();
-long gps_get_speed();
+float gps_get_speed();
