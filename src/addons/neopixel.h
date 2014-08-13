@@ -25,6 +25,7 @@ current completion status
 typedef struct {
   neopixel_animation_t animation; 
   uint32_t bytesSent;
+  uint32_t bytesPending;
   uint32_t framesSent;
 } neopixel_animation_status_t;
 
