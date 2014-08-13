@@ -1451,50 +1451,6 @@ function Tessel() {
   this.deviceId = function(){
     return hw.device_id();
   }; 
-
-  this.sw_uart_init = function(){
-    hw.sw_uart_init();
-  }
-
-  this.sw_uart_recv = function(){
-    hw.sw_uart_recv();
-  }
-
-  this.sw_uart_gps_init = function(){
-    hw.sw_uart_gps_init();
-  }
-
-  this.gps_get_time = function(){
-    return hw.gps_get_time();
-  }
-
-  this.gps_get_date = function(){
-    return hw.gps_get_date();
-  }
-
-  this.gps_get_fix = function(){
-    return hw.gps_get_fix();
-  }
-
-  this.gps_get_altitude = function(){
-    return hw.gps_get_altitude();
-  }
-
-  this.gps_get_longitude = function(){
-    return hw.gps_get_longitude();
-  }
-
-  this.gps_get_latitude = function(){
-    return hw.gps_get_latitude();
-  }
-
-  this.gps_get_satellites = function(){
-    return hw.gps_get_latitude();
-  }
-
-  this.gps_get_speed = function(){
-    return hw.gps_get_speed();
-  }
 }
 
 util.inherits(Tessel, EventEmitter);
