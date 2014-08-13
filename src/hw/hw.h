@@ -249,7 +249,7 @@ void hw_i2c_set_slave_addr (uint32_t port, uint8_t slave_addr);
 #define UART3 2
 #define UART_SW_0 0
 #define UART_SW_1 1
-#define SW_UART_BUFF_LEN 10
+#define SW_UART_BUFF_LEN 256
 
 extern volatile int SW_UART_RDY;
 extern volatile int SW_UART_RECV_POS;
@@ -271,32 +271,9 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 #include "lpc18xx_timer.h"
 
 // #define TEST_TIMER_NUM  0   /* 0 or 1 for 32-bit timers only */
-#define TXBUFF_LEN      128
-#define RXBUFF_LEN      128
-//12000000/9600 = 1250 PCLKs
-//PCLK=12MHz:
-//#define BIT_LENGTH  1250
-
-//24000000/9600 = 2500 PCLKs
-//PCLK=12MHz:
-//#define BIT_LENGTH  2500
-
-//48000000/9600 = 5000 PCLKs
-//PCLK=12MHz:
-// #define BIT_LENGTH  11250 // assuming system clock of 108mHz//5000
-//1250115
-// baud rates: 9600, 19200, 38400, 57600, 115200
-// bit length: 11250, 5625, 2812.5, 1875, 937.5
-
-/*
-* assuming clock of 180MHz
-*/
-// #define BIT_LENGTH 18750 // for 9600 baud
-// #define BIT_LENGTH 9375 // for 19200 baud
-// #define BIT_LENGTH 4687 // for 38400 baud, really should be 4687.5
-// #define BIT_LENGTH 3125 // for 57600 baud
-// #define BIT_LENGTH 1562 // for 115200 baud, really should be 1562.5
-
+#define TXBUFF_LEN      256
+#define RXBUFF_LEN      256
+// assuming system clock of 180 MHz
 typedef enum {
   TM_SW_UART_9600 = 18750,
   TM_SW_UART_19200 = 9375,
@@ -304,8 +281,6 @@ typedef enum {
   TM_SW_UART_57600 = 3125,
   TM_SW_UART_115200 = 1562
 } SWUartBitLength;
-
-// #define STOP_BIT_SAMPLE (9*BIT_LENGTH)
 
 typedef enum {
   TM_SW_UART_9600_STOP = 9*18750,
@@ -317,11 +292,10 @@ typedef enum {
 
 // void sw_uart_test_c(void);
 void sw_uart_gps_init(void);
-void sw_uart_test(void);
+void swu_init(void);
 
 
 // usb
-
 #include <stdint.h>
 #include "lpc_types.h"
 #include <string.h>

@@ -348,20 +348,23 @@ static int l_hw_uart_send(lua_State* L)
 
 static int l_hw_sw_uart_recv(lua_State* L)
 {
-	(void) L;
-	if (SW_UART_RDY) {
-		TM_DEBUG("SW UART GOT THIS: %s", SW_UART_BUFF);
-		memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
-		SW_UART_RDY = 0;
-		SW_UART_RECV_POS = 0;
-	}
-	return 0;
+	// (void) L;
+
+	// if (SW_UART_RDY) {
+	// 	memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
+	// 	SW_UART_RDY = 0;
+	// 	SW_UART_RECV_POS = 0;
+	// }
+	// return num of bytes in sw uart rx
+	lua_pushnumber(L, SW_UART_RECV_POS);
+
+	return 1;
 }
 
 static int l_hw_sw_uart_init(lua_State* L)
 {
 	(void) L;
-	sw_uart_test();
+	swu_init();
 	return 0;
 }
 

@@ -355,8 +355,6 @@ uint8_t volatile timer1_flag = FALSE;
 void TIMER1_IRQHandler(void)
 {
   // use this to check for when IRQs are hit
-  hw_digital_write(A_G1, 1);
-  hw_digital_write(A_G1, 0);
   //tx stuff
 	if (LPC_TIMER1->IR & (1<<2))  // check match reg of match reg 2
 	{
@@ -366,9 +364,6 @@ void TIMER1_IRQHandler(void)
   if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
     swu_isr_rx(LPC_TIMER1, TM_SW_UART_9600, TM_SW_UART_9600_STOP);
   }
-	
-  hw_digital_write(A_G1, 1);
-
 }
 
 // void swu_tx_callback(void)
@@ -383,27 +378,18 @@ void swu_rx_callback(void)
   //append flag bit to character
   rxData =0x100 + swu_rx_chr();
 
-  gps_consume((unsigned char) rxData & 0xFF);
+  unsigned char buffChar = (unsigned char) rxData & 0xFF;
+  gps_consume(buffChar);
 
-  // if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
-  //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
-  //   SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
-  //   rxData=0; // reset flag
-  //   SW_UART_RECV_POS++;
-  //   hw_digital_write(LED1, 0);
-  //   // consume the character
-  //   gps_consume(buffChar);
-  // } else {
-  //   // set the ready flag
-  //   // SW_UART_RDY = 1;
-  //   hw_digital_write(LED1, 1);
-  //   SW_UART_RECV_POS = 0;
-  // }
-
-  // start timer for UART receive timeout on match register 3
-  // LPC_TIMER1->MR[0] = INITIAL_TIME; //TIMER0_32 counts 0 - 0x3FFFFFFF
-  // LPC_TIMER1->MCR = 2;//MCR_RESET_MAT_2; //1<<7; //reset TIMER1 on MR2
-  // LPC_TIMER1->EMR = EMR_EN_MAT_2; //1<<2; //enable timer 1 match 2
+  if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
+    SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
+    rxData=0; // reset flag
+    SW_UART_RECV_POS++;
+  } else {
+    // set the ready flag
+    SW_UART_RDY = 1;
+    SW_UART_RECV_POS = 0;
+  }
 
   return;
 }
@@ -457,28 +443,4 @@ void sw_uart_gps_init(void) {
     0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x25, 0x80, 0x01, 0x3A, 0xB0, 0xB3};
 
   swu_tx_str(gps_init_buff, sizeof(gps_init_buff), TM_SW_UART_115200);
-}
-
-void sw_uart_test(void) {
-  swu_init();
-  // unsigned char data[4] = {0x56, 0x00, 0x01, 0x11};
-  // while (1) {
-
-  //   // if (rxData & 0x100 && numInBuff < 5) { // if the ending rx flag is set save this char
-  //   //   unsigned char buffChar = (unsigned char) rxData & 0xFF;
-  //   //   buff[numInBuff] = buffChar;
-  //   //   rxData=0; // reset flag
-  //   //   numInBuff++;
-  //   //   hw_digital_write(LED2, 1);
-  //   // } else 
-  //   if (SW_UART_RDY) {
-  //     // write out the buffer we got to tx again
-  //     swu_tx_str(SW_UART_BUFF, sizeof(SW_UART_BUFF));
-  //     // hw_digital_write(LED2, 1);
-  //     SW_UART_RECV_POS = 0;
-  //     SW_UART_RDY = 0;
-  //   }
-
-
-  // }
 }

@@ -246,7 +246,7 @@ void test_uart (char port)
   if (port == 'c' || port == 'g'){
     // do the software uart test
     // sw_uart_test_c();
-    sw_uart_test();
+    // sw_uart_test();
 
     // only have port c right now, will add gpio port later
     return;
