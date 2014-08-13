@@ -164,19 +164,19 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
   // Make sure this channel actually has animations
   if (sct_channel.animationStatus != NULL) {
     // Get the current rgb value
-    uint32_t rgb = (sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent] << 16
-                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent + 1] << 8
-                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesSent + 2]);
+    uint32_t rgb = (sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesPending] << 16
+                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesPending + 1] << 8
+                 | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesPending + 2]);
     // Set the rgb value to the appropriate state
     if (LPC_SCT->OUTPUT & (1u << sct_channel.sctAuxChannel)) {
-      // TM_DEBUG("writing to Output");
       LPC_SCT->EVENT[sct_channel.sctOutputBuffer].STATE = (rgb & 0xFFFFFF);
     }
     else {
-      // TM_DEBUG("writing to Aux");
       LPC_SCT->EVENT[sct_channel.sctAuxBuffer].STATE = (rgb & 0xFFFFFF);
     }
   }
+
+  sct_channel.animationStatus->bytesPending += 3;
 }
 
 /* Activate or deactivate HALT after next frame. */
@@ -243,8 +243,6 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
 
   channel.animationStatus->bytesSent+=3;
 
-  // TM_DEBUG("Sent %d bytes", channel.animationStatus->bytesSent);
-
   // If we have not yet sent all of our frames
   if (channel.animationStatus->framesSent < channel.animationStatus->animation.numFrames) {
 
@@ -261,7 +259,7 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
       // If we only have one byte left (but it's double buffered, so the 2nd last byte is current being sent)
       if (bytesRemaining == 3) {
 
-        // We're going to halt 
+        // We're going to halt
         LEDDRIVER_haltAfterFrame(1);
 
       }
@@ -272,10 +270,9 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
         // Move onto the next
         channel.animationStatus->framesSent++;
         channel.animationStatus->bytesSent = 0;
-
+        channel.animationStatus->bytesPending = 0;
         // If we have now sent all of them
         if (channel.animationStatus->framesSent == channel.animationStatus->animation.numFrames) {
-          
           // Trigger the end
           byteSent = false;
         }
@@ -366,10 +363,11 @@ void beginAnimation() {
 
   // Fill the double buffer with the first two bytes
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+    // Reset struct status vars
+    sct_animation_channels[i]->animationStatus->bytesPending = 0;
+    sct_animation_channels[i]->animationStatus->bytesSent = 0;
     // Write the first bytes to the output
     LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
-    // Increment the number of bytes we've sent
-    sct_animation_channels[i]->animationStatus->bytesSent+=3;
     // Toggle the AUX Output so the next write will go to Aux
     LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i]->sctAuxChannel);
     // Write the next bytes to Aux
