@@ -268,7 +268,8 @@
         'src/usb/log_interface.c',
         'src/usb/msg_interface.c',
 
-        'src/module_shims/audio-vs1053b.c',
+        
+        'src/addons/neopixel.c'
       ],
       'dependencies': [
         'deps/runtime/libtm.gyp:libtm',
@@ -306,7 +307,7 @@
         'src/test',
         'src/tm',
         'src/variants/lpc18xx',
-        'src/module_shims',
+        'src/addons'
       ]
     },
 

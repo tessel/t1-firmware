@@ -23,7 +23,7 @@
 #include "tm.h"
 #include "tessel_wifi.h"
 
-#include "audio-vs1053b.h"
+#include "neopixel.h"
 
 
 #define ARG1 1
@@ -573,82 +573,52 @@ static int l_usb_send(lua_State* L)
 	return 1;
 }
 
-// Module Shims
 
-static int l_audio_play_buffer(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
-	size_t buf_len = 0;
-	const uint8_t* buf = colony_toconstdata(L, ARG1 + 3, &buf_len);
+// Neopixel
+static int l_neopixel_animation_buffer(lua_State* L) {
 
-	int r;
-	if (buf_len) {
-		r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
+	size_t frameLength =  lua_tonumber(L, ARG1);
+
+	size_t animationLength = 0;
+	size_t numFrames = 0;
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &animationLength);
+	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
+
+	// Allocate memory for an animation
+	neopixel_animation_status_t *channel_animation;
+
+	// If there are frames for this channel
+	if (frameLength != 0 && animationLength != 0) {
+
+		numFrames = animationLength/frameLength;
+
+		// Allocate memory for an animation
+		channel_animation = malloc(sizeof(neopixel_animation_status_t));
+
+		// Allocate memory for the frame pointers
+		const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
+		// Allocate memory for the length of each frame (TODO Remove this. Don't need an array)
+
+		// Iterate through frames
+		for (uint32_t i = 0; i < numFrames; i++) {
+			// Put the frame element onto the stack
+			frames[i] = (uint8_t *)&(txbuf[i * frameLength]);
+		}
+
+		channel_animation->animation.frames = frames;
+		channel_animation->animation.frameLength = frameLength;
+		channel_animation->animation.frameRef = frameRef;
+		channel_animation->animation.numFrames = numFrames;
+		channel_animation->bytesSent = 0;
+		channel_animation->framesSent = 0;
 	}
-	else {
-		r = audio_resume_buffer();
-	}
 
-	lua_pushnumber(L, r);
+	// Begin the animation
+	writeAnimationBuffers(&channel_animation);
 
-	return 1;
+	return 0;
 }
 
-static int l_audio_queue_buffer(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
-	size_t buf_len = 0;
-	const uint8_t* buf = colony_toconstdata(L, ARG1+3, &buf_len);
-
-	int r = audio_queue_buffer(xcs, dcs, dreq, buf, buf_len);
-
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_stop_buffer(lua_State* L) {
-	int r = audio_stop_buffer();
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_pause_buffer(lua_State* L) {
-	int r = audio_pause_buffer();
-	lua_pushnumber(L, r);
-
-	return 1;
-}
-
-static int l_audio_get_state(lua_State* L) {
-	lua_pushnumber(L, audio_get_state());
-	return 1;
-}
-
-static int l_audio_start_recording(lua_State* L) {
-	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
-	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	const uint8_t* dir_name = colony_toconstdata(L, ARG1 + 2, NULL);
-	size_t buf_len;
-	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
-	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	
-	int8_t r = audio_start_recording(xcs, dreq, (char *)dir_name, buf, buf_len, buf_ref);
-
-	lua_pushnumber(L, r);
-	return 1;
-}
-
-static int l_audio_stop_recording(lua_State* L) {
-	int16_t r = audio_stop_recording(true);
-
-	lua_pushnumber(L, r);
-	return 1;
-}
 
 /**
  * NTP
@@ -872,15 +842,8 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		// usb
 		{ "usb_send", l_usb_send },
 
-		// module shims
-		// audio
-		{ "audio_play_buffer", l_audio_play_buffer },
-		{ "audio_queue_buffer", l_audio_queue_buffer },
-		{ "audio_stop_buffer", l_audio_stop_buffer },
-		{ "audio_pause_buffer", l_audio_pause_buffer },
-		{ "audio_get_state", l_audio_get_state },
-		{ "audio_start_recording", l_audio_start_recording },
-		{ "audio_stop_recording", l_audio_stop_recording },
+		// Neopixel
+		{ "neopixel_animation_buffer", l_neopixel_animation_buffer },
 
 		// clock sync
 		{ "clocksync", l_clocksync },
