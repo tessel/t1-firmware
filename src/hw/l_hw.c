@@ -24,6 +24,7 @@
 #include "tessel_wifi.h"
 
 #include "audio-vs1053b.h"
+#include "gps-a2235h.h"
 #include "gps-nmea.h"
 
 
@@ -346,36 +347,33 @@ static int l_hw_uart_send(lua_State* L)
 	return 1;
 }
 
-static int l_hw_sw_uart_recv(lua_State* L)
+static int l_hw_swuart_receive(lua_State* L)
 {
-	// (void) L;
+	// initialize it here because sw_uart could get an IRQ request later
+	int buff_len = SW_UART_RECV_POS; 
+	// create buffer on lua heap
+	uint8_t* uart_rxbuff = colony_createbuffer(L, buff_len);
+	// copy over sw uart recieve values 
+	memset(uart_rxbuff, 0, buff_len);
+	memcpy(uart_rxbuff, SW_UART_BUFF, buff_len);
 
-	if (SW_UART_RDY) {
-		TM_DEBUG("have this in the buffer %s", SW_UART_BUFF);
-		// memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
-		SW_UART_RDY = 0;
-		SW_UART_RECV_POS = 0;
-	} else {
-		TM_DEBUG("uart not ready");
-	}
-	// return num of bytes in sw uart rx
-	lua_pushnumber(L, SW_UART_RECV_POS);
+	// reset position
+	SW_UART_RDY = 0;
+	SW_UART_RECV_POS = 0;
 
 	return 1;
 }
 
-static int l_hw_sw_uart_init(lua_State* L)
+static int l_hw_swuart_enable(lua_State* L)
 {
-	(void) L;
-	swu_init();
-	return 0;
+	lua_pushnumber(L, hw_swuart_enable());
+	return 1;
 }
 
-static int l_hw_sw_uart_gps_init(lua_State* L)
+static int l_hw_swuart_disable(lua_State* L)
 {
-	(void) L;
-	sw_uart_gps_init();
-	return 0;
+	lua_pushnumber(L, hw_swuart_disable());
+	return 1;
 }
 
 static int l_hw_digital_output(lua_State* L)
@@ -685,52 +683,59 @@ static int l_audio_stop_recording(lua_State* L) {
 
 /**
  * GPS
+ * These are functions for interacting with the GPS NMEA parser
  */
 
- static int l_gps_get_time(lua_State* L) {
-	float r = gps_get_time();
+static int l_gps_init(lua_State* L)
+{
+	lua_pushnumber(L, gps_init());
+	return 1;
+}
+
+static int l_gps_get_time(lua_State* L) {
+	double r = gps_get_time();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_date(lua_State* L) {
-	float r = gps_get_time();
+static int l_gps_get_date(lua_State* L) {
+	double r = gps_get_time();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_fix(lua_State* L) {
+static int l_gps_get_fix(lua_State* L) {
 	int r = gps_get_fix();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_altitude(lua_State* L) {
-	float r = gps_get_altitude();
+static int l_gps_get_altitude(lua_State* L) {
+	double r = gps_get_altitude();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_latitude(lua_State* L) {
-	float r = gps_get_latitude();
+static int l_gps_get_latitude(lua_State* L) {
+	double r = gps_get_latitude();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_longitude(lua_State* L) {
-	float r = gps_get_longitude();
+static int l_gps_get_longitude(lua_State* L) {
+	double r = gps_get_longitude();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_satellites(lua_State* L) {
+static int l_gps_get_satellites(lua_State* L) {
 	int r = gps_get_satellites();
 	lua_pushnumber(L, r);
 	return 1;
 }
 
- static int l_gps_get_speed(lua_State* L) {
-	float r = gps_get_speed();
+static int l_gps_get_speed(lua_State* L) {
+	double r = gps_get_speed();
 	lua_pushnumber(L, r);
 	return 1;
 }
@@ -917,9 +922,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "uart_disable", l_hw_uart_disable },
 		{ "uart_initialize", l_hw_uart_initialize },
 		{ "uart_send", l_hw_uart_send },
-		{ "sw_uart_recv", l_hw_sw_uart_recv },
-		{ "sw_uart_init", l_hw_sw_uart_init },
-		{ "sw_uart_gps_init", l_hw_sw_uart_gps_init },
+		{ "swuart_receive", l_hw_swuart_receive },
+		{ "swuart_enable", l_hw_swuart_enable },
+		{ "swuart_disable", l_hw_swuart_disable },
 
 		// sleep
 		{ "sleep_us", l_hw_sleep_us },
@@ -972,6 +977,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 
 		// gps
+		{ "gps_init", l_gps_init },
 		{ "gps_get_time", l_gps_get_time },
 		{ "gps_get_date", l_gps_get_date },
 		{ "gps_get_fix", l_gps_get_fix },

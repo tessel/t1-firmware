@@ -1,3 +1,14 @@
+// Modified from the AN10955 app note
+// Copyright 2014 Technical Machine, Inc. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+
 #include "hw.h"
 #include "tm.h"
 #include "tessel.h"
@@ -9,9 +20,7 @@
 #define RX_OVERFLOW 4
 #define RX_ACTIVE   2
 #define TX_ACTIVE   1
-#define ADJUST      (1<<30) // set the 31th bit...?
 #define ALL1        0x000000FF
-
 
 #define IR_CLEAR_CAP_2		1 << 6
 #define CCR_INT_CAP_2		3 << 7
@@ -43,12 +52,12 @@ static volatile unsigned short int swu_rx_fifo[RXBUFF_LEN];
 //definitions common for transmitting and receiving data
 static volatile unsigned long int swu_status;
 
-void swu_tx_chr(const unsigned char out_char, SWUartBitLength bit_length);
+void swu_tx_chr(const unsigned char out_char, hw_swuart_bitlength_t bit_length);
 
 /*********************************************************
 ** Local Functions                                      **
 *********************************************************/
-static void swu_setup_tx(SWUartBitLength bit_length); //tx param processing
+static void swu_setup_tx(hw_swuart_bitlength_t bit_length); //tx param processing
 void swu_rx_callback(void); //__weak
 void swu_tx_callback(void); //__weak
 
@@ -68,7 +77,7 @@ static volatile unsigned short rxData;
 ** Returned value:  None
 **
 ******************************************************************************/
-static void swu_setup_tx(SWUartBitLength bit_length) {
+static void swu_setup_tx(hw_swuart_bitlength_t bit_length) {
   unsigned char bit, i;
   unsigned long int ext_data, delta_edges, mask, reference;
   if (tx_fifo_wr_ind != tx_fifo_rd_ind) //data to send, proceed
@@ -129,7 +138,7 @@ static void swu_setup_tx(SWUartBitLength bit_length) {
 ** Returned value:		None
 **
 ******************************************************************************/
-void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size, SWUartBitLength bit_length) {
+int hw_swuart_transmit(unsigned char const* ptr_out, uint32_t data_size, hw_swuart_bitlength_t bit_length) {
   // This is only needed for TX, RX will mess up if this bit is set
   LPC_TIMER1->MCR = 2;// TC will be reset if MR0 matches it.
 
@@ -138,7 +147,7 @@ void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size, SWUartBitLengt
     ptr_out++; //...move to the next char...
     data_size--;
   }
-  return; //return from the routine
+  return 0; //return from the routine
 }
 
 /******************************************************************************
@@ -152,7 +161,7 @@ void swu_tx_str(unsigned char const* ptr_out, uint32_t data_size, SWUartBitLengt
 ** Returned value:		None
 **
 ******************************************************************************/
-void swu_tx_chr(const unsigned char out_char, SWUartBitLength bit_length) {
+void swu_tx_chr(const unsigned char out_char, hw_swuart_bitlength_t bit_length) {
   //write access to tx FIFO begin
   while (swu_tx_cnt == TXBUFF_LEN)
     ; //wait if the tx FIFO is full
@@ -181,20 +190,14 @@ void swu_tx_chr(const unsigned char out_char, SWUartBitLength bit_length) {
 **
 ******************************************************************************/
 unsigned char swu_rx_chr(void) {
-  // if (swu_rx_cnt != 0) { //update the rx indicator...
-    rx_fifo_rd_ind++; //... if data are present...
-    if (rx_fifo_rd_ind == RXBUFF_LEN)
-      rx_fifo_rd_ind = 0; //...
-    // swu_rx_cnt--; //...
-    // swu_rx_cnt = 0;
-  // }
+  rx_fifo_rd_ind++; //... if data are present...
+  if (rx_fifo_rd_ind == RXBUFF_LEN)
+    rx_fifo_rd_ind = 0; //...
   if ((swu_rx_fifo[rx_fifo_rd_ind] & 0x0100) == 0) //update...
     swu_rx_chr_fe = 0; //... the framing error...
   else {
     //... indicator...
     swu_rx_chr_fe = 1; //...
-    // hw_digital_write(CC3K_ERR_LED, 1);
-    hw_digital_write(LED2, 1);
   }
   swu_status &= ~RX_OVERFLOW; //clear the overfloe flag
   return ((unsigned char) (swu_rx_fifo[rx_fifo_rd_ind] & 0x00FF)); //return data
@@ -215,7 +218,7 @@ unsigned char swu_rx_chr(void) {
 ** Returned value:  None
 **
 ******************************************************************************/
-void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER, SWUartBitLength bit_length) {
+void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER, hw_swuart_bitlength_t bit_length) {
     TX_ISR_TIMER->IR = 1 << 2; //0x08; //clear the MAT2 flag
     if (edge_index == char_end_index) //the end of the char:
     {
@@ -250,10 +253,9 @@ void swu_isr_tx(LPC_TIMERn_Type* const TX_ISR_TIMER, SWUartBitLength bit_length)
 **
 ******************************************************************************/
 void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER, 
-  SWUartBitLength bit_length, SWUartStopBitSample Stop_Bit_Sample) {
+  hw_swuart_bitlength_t bit_length, hw_swuart_stopbit_t Stop_Bit_Sample) {
 
 
-  signed long int edge_temp;
   //sw uart receive isr code begin
   if (0 != (RX_ISR_TIMER->IR & (IR_CLEAR_CAP_2))) //capture interrupt occured on CAP2
   {
@@ -262,21 +264,14 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER,
     //change the targeted edge & clear lower bits
     RX_ISR_TIMER->CCR &= ~63;
     RX_ISR_TIMER->CCR ^= (1 << 6) ^ (1 << 7);
-    // RX_ISR_TIMER->CCR = (1<< 8) | ((3 << 6) - (RX_ISR_TIMER->CCR & (3 << 6)));//0x0004 | (0x0003 - (RX_ISR_TIMER->CCR & 0x0003));
     if ((swu_status & RX_ACTIVE) == 0) { //sw UART not active (start):
-      hw_digital_write(B_G1, 1);
-
       edge_last = (unsigned long int) RX_ISR_TIMER->CR[2]; //initialize the last edge
       // add bit_length/2 to the current location because we're halfway in between the sample right now
       edge_sample = edge_last + (bit_length >> 1); //initialize the sample edge
-      // if (edge_sample < edge_last) //adjust the sample edge...
-        // edge_sample |= ADJUST; //... if needed
       swu_bit = 0; //rx bit is 0 (a start bit)
       // use mat1 to match stop bit timing
       RX_ISR_TIMER->IR = 0x01; //clear MAT1 int flag
       edge_stop = edge_sample + Stop_Bit_Sample; //estimate the end of the byte
-      // if (edge_stop < edge_last) //adjust the end of byte...
-        // edge_stop |= ADJUST; //... if needed
       RX_ISR_TIMER->MR[1] = edge_stop; //set MR1 (stop bit center)
       RX_ISR_TIMER->MCR = RX_ISR_TIMER->MCR | (1 << 3); //int on MR1
       cnt = 9; //initialize the bit counter
@@ -285,12 +280,9 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER,
       swu_rbr_mask = 0x0001; //initialize the mask
 
     } else {
-      hw_digital_write(B_G2, 1);
       //reception in progress:
       edge_current = (unsigned long int) RX_ISR_TIMER->CR[2]; //initialize the current edge
       
-      // if (edge_current < edge_last) //adjust the current edge...
-        // edge_current |= ADJUST; //... if needed
       while (edge_current > edge_sample) { //while sampling edge is within
         if (cnt_bits != 0) {
           if (swu_bit != 0) //update data...
@@ -298,18 +290,9 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER,
           swu_rbr_mask = swu_rbr_mask << 1; //update mask
         }
         cnt_bits++; //update the bit count
-        edge_temp = edge_last + bit_length; //estimate the last edge
-        // if (edge_temp < edge_last) //adjust...
-          // edge_last = edge_temp | ADJUST; //... the last edge...
-        // else
-          //... if...
-          edge_last = edge_temp; //... needed
-        edge_temp = edge_sample + bit_length; //estimate the sample edge
-        // if (edge_temp < edge_sample) //adjust...
-          // edge_sample = edge_temp | ADJUST; //... the sample edge...
-        // else
-          //... if...
-          edge_sample = edge_temp; //... needed
+        edge_last = edge_last + bit_length; //estimate the last edge
+        edge_sample = edge_sample + bit_length; //estimate the sample edge
+
         cnt--; //update the no of rcved bits
       }
       swu_bit = 1 - swu_bit; //change the received bit
@@ -326,30 +309,20 @@ void swu_isr_rx(LPC_TIMERn_Type* const RX_ISR_TIMER,
       swu_rbr = swu_rbr << cnt; //... make space for the rest...
       if (swu_bit != 0)
         swu_rbr += ALL1 << (8 - cnt); //... add needed 1(s)...
-    } //...
+    }
     swu_rbr &= 0x00FF; //extract data bits only
     if (swu_bit == 0) //if the stop bit was 0 =>
       swu_rbr |= 0x00000100; //... framing error!
     swu_status &= ~RX_ACTIVE; //sw UART not active any more
     cnt_bits = 0; //reset the rx bit count
-    // if (swu_rx_cnt != RXBUFF_LEN) //store the rcved character...
-    // {
-      // swu_rx_cnt++; //... into the sw UART...
-      rx_fifo_wr_ind++; //... rx FIFO
-      if (rx_fifo_wr_ind == RXBUFF_LEN)
-        rx_fifo_wr_ind = 0; //...
-      swu_rx_fifo[rx_fifo_wr_ind] = swu_rbr; //...
-      // if (swu_rx_cnt >= swu_rx_trigger)
-      swu_rx_callback(); //rx 'isr' trig excded
-    // } else {
-      // hw_digital_write(LED1, 1);
-      // swu_status |= RX_OVERFLOW; //rx FIFO full => overflow
-    // }
+    rx_fifo_wr_ind++; //... rx FIFO
+    if (rx_fifo_wr_ind == RXBUFF_LEN)
+      rx_fifo_wr_ind = 0; //...
+    swu_rx_fifo[rx_fifo_wr_ind] = swu_rbr; //...
+    swu_rx_callback(); //rx 'isr' trig excded
+
     RX_ISR_TIMER->MCR &= ~(7 << 3);//MR1 impacts timer1 no more
     LPC_GPIO_PORT->DIR[3] &= ~(1 << 10);
-    hw_digital_write(A_G2, 1);
-  } else {
-    hw_digital_write(A_G3, 1);
   }
   //sw uart receive isr code end
 }
@@ -365,10 +338,6 @@ TIM_MATCHCFG_Type TIM_MatchConfigStruct ;
 TIM_CAPTURECFG_Type TIM_CaptureConfigStruct;
 uint8_t volatile timer1_flag = FALSE;
 
-
-// int numInBuff = 0;
-// unsigned char buff[5];
-
 void TIMER1_IRQHandler(void)
 {
   // use this to check for when IRQs are hit
@@ -379,12 +348,10 @@ void TIMER1_IRQHandler(void)
 	} 
 
   // rx flag for cap2 and mat1
-  if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ // check irq of cap reg 2 or match timer 1
+  // cap2 = UART bit changed
+  // mat1 = we hit the stop bit
+  if (((LPC_TIMER1->IR & (1<<6)) || (LPC_TIMER1->IR & (1<<1)))){ 
     swu_isr_rx(LPC_TIMER1, TM_SW_UART_9600, TM_SW_UART_9600_STOP);
-    hw_digital_write(A_G2, 0);
-    hw_digital_write(A_G3, 0);
-    hw_digital_write(B_G1, 0);
-    hw_digital_write(B_G2, 0);
   }
 
 }
@@ -395,7 +362,6 @@ void swu_tx_callback(void)
   LPC_TIMER1->MCR ^= 2;
 }
 
-int state = 0;
 void swu_rx_callback(void)
 {
   //append flag bit to character
@@ -403,14 +369,6 @@ void swu_rx_callback(void)
 
   unsigned char buffChar = (unsigned char) rxData & 0xFF;
   gps_consume(buffChar);
-
-  if (state) {
-    hw_digital_write(A_G1, 1);
-    state = 0;
-  } else {
-    hw_digital_write(A_G1, 0);
-    state = 1;
-  }
 
   if (SW_UART_RECV_POS < SW_UART_BUFF_LEN) { // if the ending rx flag is set save this char
     SW_UART_BUFF[SW_UART_RECV_POS] = buffChar;
@@ -435,16 +393,7 @@ void swu_rx_callback(void)
 ** Returned value:  None
 **
 ******************************************************************************/
-void swu_init() {
-  hw_digital_output(A_G1);
-  hw_digital_output(A_G2);
-  hw_digital_output(A_G3);
-  hw_digital_output(B_G1);
-  hw_digital_output(B_G2);
-
-  hw_digital_write(A_G3, 0);
-
-
+int hw_swuart_enable() {
   //setup the software uart
   swu_tx_cnt = 0; //no data in the swu tx FIFO
   tx_fifo_wr_ind = 0; //last char written was on 0
@@ -473,13 +422,11 @@ void swu_init() {
   LPC_TIMER1->TCR = 0x01; //let TIMER0_32 run
   NVIC_EnableIRQ(TIMER1_IRQn); //Enable the TIMER0_32 Interrupt
   cnt_bits = 0; //reset the rx bit count
+
+  return 0;
 }
 
-void sw_uart_gps_init(void) {
-  // inits gps with sw uart
-  unsigned char gps_init_buff[32] = {0xA0, 0xA2, 0x00, 0x18, 0x81, 0x02, 0x01, 0x01,
-    0x00, 0x01, 0x01, 0x01, 0x05, 0x01, 0x01, 0x01, 0x00, 0x01, 0x00, 0x01,
-    0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x25, 0x80, 0x01, 0x3A, 0xB0, 0xB3};
-
-  swu_tx_str(gps_init_buff, sizeof(gps_init_buff), TM_SW_UART_115200);
+int hw_swuart_disable(){
+  NVIC_DisableIRQ(TIMER1_IRQn);
+  return 0;
 }

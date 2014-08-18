@@ -1,3 +1,12 @@
+// Copyright 2014 Technical Machine, Inc. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 /* $GPRMC
  * eg1. $GPRMC,081836,A,3751.65,S,14507.36,E,000.0,360.0,130998,011.3,E*62
  * 1    = UTC of position fix
@@ -63,15 +72,13 @@ enum gps_msg_types {
 typedef struct GPSData {
 	bool has_fix;
 	bool checksum_passed;
-	// bool latitude_negative; // true = South
-	// bool longitude_negative; // true = West
-	float latitude;
-	float longitude;
-	float speed;
-	float date;
-	float timeUTC;
+	double latitude;
+	double longitude;
+	double speed;
+	double date;
+	double timeUTC;
 	int satellites;
-	float altitude;
+	double altitude;
 } GPSData;
 
 GPSData gps_data = { .has_fix = false, .checksum_passed = false,
@@ -88,10 +95,8 @@ bool gps_checksum_ret = false;
 // returns false otherwise
 bool gps_consume(unsigned char c) {
 	if (gps_ignoring && c != '$') {
-		// printf("ignoring %c ", c);
 		return false;
 	} 
-	// printf("%c check %d \n", c, gps_checksum);
 	switch (c) {
 		case ',':
 			// nothin is there
@@ -133,28 +138,22 @@ bool gps_consume(unsigned char c) {
 
 #define GPS_UNIQUE_CASE(type, pos) (((unsigned)(type) << 5) | pos)
 static bool gps_parse(void){
-	// printf("buf %s pos %d %d strtol %d\n", gps_buff, gps_buff_pos, gps_is_on_checksum, (int)strtol(gps_buff, NULL, 16));
-
 	// if the checksum worked out, set all the values
 	if (gps_is_on_checksum) {
-		// printf("trying checksum ...");
-		// we're trying to do a checksum
 		if (gps_checksum == (int)strtol(gps_buff, NULL, 16)) {
 			// checksum passed
-			// printf("checksum passed %s\n", gps_buff);
 			gps_data.checksum_passed = true;
 			// migrate all data to gps_data_hold
 			memcpy(&gps_data_hold, &gps_data, sizeof(GPSData));
 			return true;
 		} else {
-			// printf("checksum failed got: %d, expected: %d", gps_checksum, (int)strtol(gps_buff, NULL, 16));
-			// clean up gps
+			// checksum failed, discard message and clean up gps
 			gps_cleanup();
 		}
 	}
 	// parses the string stored in the buffer
 	if (gps_buff_pos == 5 && gps_msg_pos == 0) {
-		// if its the first 4 characters, check for nmea string types
+		// if its the first 4 characters (+1 for "$" char), check for nmea string types
 		if (!strcmp(GPRMC, gps_buff)) {
 			// GPRMC
 			gps_msg_types = GPRMC_MSG;
@@ -254,7 +253,7 @@ static void gps_cleanup(){
 	gps_data.altitude = 0;
 }
 
-float gps_nmea_to_deg(float nmea){
+double gps_nmea_to_deg(double nmea){
 	bool negative = false;
 	// flip negativity
 	if (nmea < 0) {
@@ -263,21 +262,21 @@ float gps_nmea_to_deg(float nmea){
 	}
 	// weird nmea gps format
 	// find 2 least significant digits after decimal
-	float minutes = fmod(nmea, 100);
+	double minutes = fmod(nmea, 100);
 
 	// cut it
 	// all prev digits + cut portion/60
 	return ((floor(nmea/100) ) + minutes/60) * (negative ? -1 : 1);
 }
 
-float gps_get_time(){
+double gps_get_time(){
 	if (gps_data_hold.checksum_passed) {
 		return gps_data_hold.timeUTC;
 	}
 	return 0;
 }
 
-float gps_get_date(){
+double gps_get_date(){
 	if (gps_data_hold.checksum_passed) {
 		return gps_data_hold.date;
 	}
@@ -291,7 +290,7 @@ bool gps_get_fix() {
 	return false;
 }
 
-float gps_get_altitude() {
+double gps_get_altitude() {
 	// returns altitude
 	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
 		return gps_data_hold.altitude;
@@ -299,7 +298,7 @@ float gps_get_altitude() {
 	return false;
 }
 
-float gps_get_latitude() {
+double gps_get_latitude() {
 	// returns latitude
 	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
 		return gps_nmea_to_deg(gps_data_hold.latitude);
@@ -307,7 +306,7 @@ float gps_get_latitude() {
 	return 0;
 }
 
-float gps_get_longitude(){
+double gps_get_longitude(){
 	// returns longitude
 	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
 		return gps_nmea_to_deg(gps_data_hold.longitude);
@@ -323,7 +322,7 @@ int gps_get_satellites(){
 	return false;
 }
 
-float gps_get_speed(){
+double gps_get_speed(){
 	// returns speed
 	if (gps_data_hold.checksum_passed && gps_data_hold.has_fix) {
 		return gps_data_hold.speed;

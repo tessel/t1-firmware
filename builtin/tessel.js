@@ -1451,6 +1451,7 @@ function Tessel() {
   this.deviceId = function(){
     return hw.device_id();
   }; 
+
 }
 
 util.inherits(Tessel, EventEmitter);
