@@ -249,6 +249,11 @@ void hw_i2c_set_slave_addr (uint32_t port, uint8_t slave_addr);
 #define UART3 2
 #define UART_SW_0 0
 #define UART_SW_1 1
+#define SW_UART_BUFF_LEN 256
+
+extern volatile int SW_UART_RDY;
+extern volatile int SW_UART_RECV_POS;
+unsigned char SW_UART_BUFF[SW_UART_BUFF_LEN];
 
 void hw_uart_enable(uint32_t port);
 void hw_uart_disable(uint32_t port);
@@ -265,11 +270,30 @@ uint32_t hw_uart_send(uint32_t UARTPort, const uint8_t *txbuf, size_t buflen);
 #include "lpc18xx_scu.h"
 #include "lpc18xx_timer.h"
 
-void sw_uart_test_c(void);
+#define TXBUFF_LEN      256
+#define RXBUFF_LEN      256
+// assuming system clock of 180 MHz
+typedef enum {
+  TM_SW_UART_9600 = 18750, // 180MHz/9600 = 18750
+  TM_SW_UART_19200 = 9375,
+  TM_SW_UART_38400 = 4687,
+  TM_SW_UART_57600 = 3125,
+  TM_SW_UART_115200 = 1562
+} hw_swuart_bitlength_t;
 
+typedef enum {
+  TM_SW_UART_9600_STOP = 9*18750,
+  TM_SW_UART_19200_STOP = 9*9375,
+  TM_SW_UART_38400_STOP = 9*4687,
+  TM_SW_UART_57600_STOP = 9*3125,
+  TM_SW_UART_115200_STOP = 9*1562
+} hw_swuart_stopbit_t;
+
+int hw_swuart_enable(void);
+int hw_swuart_disable(void);
+int hw_swuart_transmit(unsigned char const* ptr_out, uint32_t data_size, hw_swuart_bitlength_t bit_length);
 
 // usb
-
 #include <stdint.h>
 #include "lpc_types.h"
 #include <string.h>

@@ -235,6 +235,7 @@
         'src/hw/hw_spi.c',
         'src/hw/hw_spi_async.c',
         'src/hw/hw_uart.c',
+        'src/hw/hw_swuart.c',
         'src/hw/hw_gpdma.c',
         'src/hw/l_hw.c',
 
@@ -246,6 +247,7 @@
         'src/sys/bootloader.c',
 
         'src/test/test.c',
+        'src/test/test_nmea.c',
         'src/test/test_hw.c',
         'src/test/testalator.c',
 
@@ -269,6 +271,8 @@
         'src/usb/msg_interface.c',
 
         'src/module_shims/audio-vs1053b.c',
+        'src/module_shims/gps-a2235h.c',
+        'src/module_shims/gps-nmea.c',
       ],
       'dependencies': [
         'deps/runtime/libtm.gyp:libtm',

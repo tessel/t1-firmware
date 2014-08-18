@@ -13,7 +13,7 @@
 
 void tm_timestamp_wrapped();
 
-#define TIMER LPC_TIMER1
+#define TIMER LPC_TIMER3
 #define TIMER_CHAN_OVF 0
 #define TIMER_CHAN_EVT 1
 #define TIMER_MCR(x) (1 << (x * 3))
@@ -21,7 +21,7 @@ void tm_timestamp_wrapped();
 
 void tm_uptime_init()
 {
-    CGU_ConfigPWR(CGU_PERIPHERAL_TIMER1, ENABLE);
+    CGU_ConfigPWR(CGU_PERIPHERAL_TIMER3, ENABLE);
 
     TIMER->PR = 180;
     TIMER->IR = 0xFFFFFFFF; // clear interrupts
@@ -33,12 +33,13 @@ void tm_uptime_init()
     TIMER->TCR = (1<<1); // reset counter
     TIMER->TCR = (1<<0); // release reset and start
 
-    NVIC_EnableIRQ(TIMER1_IRQn);
+    NVIC_EnableIRQ(TIMER3_IRQn);
 }
 
 uint32_t tm_uptime_micro ()
 {
-    return LPC_TIMER1->TC;
+
+    return TIMER->TC;
 }
 
 void hw_timer_update_interrupt()
@@ -65,7 +66,7 @@ void hw_timer_update_interrupt()
     TIMER->MCR &= ~TIMER_MCR(TIMER_CHAN_EVT); // Disable timer match interrupt
 }
 
-void __attribute__ ((interrupt)) TIMER1_IRQHandler() {
+void __attribute__ ((interrupt)) TIMER3_IRQHandler() {
     if (TIMER->IR & TIMER_IR(TIMER_CHAN_EVT)) {
         TIMER->IR = TIMER_IR(TIMER_CHAN_EVT);
         tm_event_trigger(&tm_timer_event);

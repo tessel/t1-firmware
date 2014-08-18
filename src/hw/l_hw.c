@@ -24,6 +24,8 @@
 #include "tessel_wifi.h"
 
 #include "audio-vs1053b.h"
+#include "gps-a2235h.h"
+#include "gps-nmea.h"
 
 
 #define ARG1 1
@@ -345,6 +347,34 @@ static int l_hw_uart_send(lua_State* L)
 	return 1;
 }
 
+static int l_hw_swuart_receive(lua_State* L)
+{
+	// initialize it here because sw_uart could get an IRQ request later
+	int buff_len = SW_UART_RECV_POS; 
+	// create buffer on lua heap
+	uint8_t* uart_rxbuff = colony_createbuffer(L, buff_len);
+	// copy over sw uart recieve values 
+	memset(uart_rxbuff, 0, buff_len);
+	memcpy(uart_rxbuff, SW_UART_BUFF, buff_len);
+
+	// reset position
+	SW_UART_RDY = 0;
+	SW_UART_RECV_POS = 0;
+
+	return 1;
+}
+
+static int l_hw_swuart_enable(lua_State* L)
+{
+	lua_pushnumber(L, hw_swuart_enable());
+	return 1;
+}
+
+static int l_hw_swuart_disable(lua_State* L)
+{
+	lua_pushnumber(L, hw_swuart_disable());
+	return 1;
+}
 
 static int l_hw_digital_output(lua_State* L)
 {
@@ -650,6 +680,66 @@ static int l_audio_stop_recording(lua_State* L) {
 	return 1;
 }
 
+
+/**
+ * GPS
+ * These are functions for interacting with the GPS NMEA parser
+ */
+
+static int l_gps_init(lua_State* L)
+{
+	lua_pushnumber(L, gps_init());
+	return 1;
+}
+
+static int l_gps_get_time(lua_State* L) {
+	double r = gps_get_time();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_date(lua_State* L) {
+	double r = gps_get_time();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_fix(lua_State* L) {
+	int r = gps_get_fix();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_altitude(lua_State* L) {
+	double r = gps_get_altitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_latitude(lua_State* L) {
+	double r = gps_get_latitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_longitude(lua_State* L) {
+	double r = gps_get_longitude();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_satellites(lua_State* L) {
+	int r = gps_get_satellites();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
+static int l_gps_get_speed(lua_State* L) {
+	double r = gps_get_speed();
+	lua_pushnumber(L, r);
+	return 1;
+}
+
 /**
  * NTP
  */
@@ -832,6 +922,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "uart_disable", l_hw_uart_disable },
 		{ "uart_initialize", l_hw_uart_initialize },
 		{ "uart_send", l_hw_uart_send },
+		{ "swuart_receive", l_hw_swuart_receive },
+		{ "swuart_enable", l_hw_swuart_enable },
+		{ "swuart_disable", l_hw_swuart_disable },
 
 		// sleep
 		{ "sleep_us", l_hw_sleep_us },
@@ -881,6 +974,18 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "audio_get_state", l_audio_get_state },
 		{ "audio_start_recording", l_audio_start_recording },
 		{ "audio_stop_recording", l_audio_stop_recording },
+
+
+		// gps
+		{ "gps_init", l_gps_init },
+		{ "gps_get_time", l_gps_get_time },
+		{ "gps_get_date", l_gps_get_date },
+		{ "gps_get_fix", l_gps_get_fix },
+		{ "gps_get_altitude", l_gps_get_altitude },
+		{ "gps_get_latitude", l_gps_get_latitude },
+		{ "gps_get_longitude", l_gps_get_longitude },
+		{ "gps_get_satellites", l_gps_get_satellites },
+		{ "gps_get_speed", l_gps_get_speed },
 
 		// clock sync
 		{ "clocksync", l_clocksync },
