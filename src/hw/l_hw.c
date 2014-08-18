@@ -350,11 +350,14 @@ static int l_hw_sw_uart_recv(lua_State* L)
 {
 	// (void) L;
 
-	// if (SW_UART_RDY) {
-	// 	memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
-	// 	SW_UART_RDY = 0;
-	// 	SW_UART_RECV_POS = 0;
-	// }
+	if (SW_UART_RDY) {
+		TM_DEBUG("have this in the buffer %s", SW_UART_BUFF);
+		// memset(SW_UART_BUFF, 0, SW_UART_BUFF_LEN);
+		SW_UART_RDY = 0;
+		SW_UART_RECV_POS = 0;
+	} else {
+		TM_DEBUG("uart not ready");
+	}
 	// return num of bytes in sw uart rx
 	lua_pushnumber(L, SW_UART_RECV_POS);
 
