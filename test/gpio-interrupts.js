@@ -279,4 +279,14 @@ test('Removing one interrupt of two from the same pin', function(t) {
   }, 100);
 });
 
+test('Interrupts return the uptime in fractional milliseconds', function(t) {
+  trigger.high();
+  var start = new Date();
+  pin.once('fall', function(time) {
+    var finish = new Date();
+    t.ok(finish - start < 1000, false, "The interrupt time is in milliseconds");
+    t.end();
+  });
+  trigger.low();
+})
 
