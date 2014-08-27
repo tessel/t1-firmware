@@ -127,6 +127,13 @@ extern "C" {
 #define	CC3000_MINIMAL_TX_SIZE      (130 + 1)  
 #define	CC3000_MAXIMAL_TX_SIZE      (1519 + 1)
 
+
+/* Maximum time to wait for an event in microseconds
+*/
+
+#define CC3000_MAX_WAIT (1000000 * 10) // 10s
+
+
 //TX and RX buffer sizes, allow to receive and transmit maximum data at length 8.
 #ifdef CC3000_TINY_DRIVER
 #define TINY_CC3000_MAXIMAL_RX_SIZE 44

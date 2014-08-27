@@ -52,6 +52,10 @@
 #include "netapp.h"
 #include "../host_spi.h"
 
+#ifdef CC3K_TIMEOUT
+#include "tm.h"
+#endif
+
 //#include "tm_debug.h"
  
 
@@ -241,10 +245,13 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 	unsigned char *pucReceivedParams;
 	unsigned short usReceivedEventOpcode = 0;
 	unsigned long retValue32;
-  unsigned char * RecvParams;
-  unsigned char *RetParams;
-	
-	
+	unsigned char * RecvParams;
+	unsigned char *RetParams;
+
+#ifdef CC3K_TIMEOUT
+	double maxWait = tm_timestamp() + CC3000_MAX_WAIT;
+#endif
+
 	while (1)
 	{
 		CC_BLOCKS();
@@ -489,7 +496,25 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 			{
 				return NULL;
 			}	
+		} 
+#ifdef CC3K_TIMEOUT
+
+		else {
+
+			// check the system timer
+			// compare it to maximum allowed wait
+			if (tm_timestamp() >= maxWait) {
+				hw_digital_write(LED1, 1);
+				// past maximum wait, get out of here
+				return NULL;
+				// TODO: check what event we're waiting for
+
+				// TODO: if we've errored out 3 times in a row, reset the cc
+			}
+
 		}
+#endif
+
 	}
 
 }
