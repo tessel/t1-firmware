@@ -249,7 +249,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 	unsigned char *RetParams;
 
 #ifdef CC3K_TIMEOUT
-	double maxWait = tm_timestamp() + CC3000_MAX_WAIT;
+	uint32_t ccStartTime = tm_uptime_micro();
 #endif
 
 	while (1)
@@ -503,11 +503,9 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 
 			// check the system timer
 			// compare it to maximum allowed wait
-			if (tm_timestamp() >= maxWait) {
-				hw_digital_write(LED1, 1);
+			if (tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) {
 				// past maximum wait, get out of here
 				return NULL;
-				// TODO: check what event we're waiting for
 
 				// TODO: if we've errored out 3 times in a row, reset the cc
 			}
