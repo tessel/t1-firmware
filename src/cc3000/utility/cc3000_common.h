@@ -127,6 +127,13 @@ extern "C" {
 #define	CC3000_MINIMAL_TX_SIZE      (130 + 1)  
 #define	CC3000_MAXIMAL_TX_SIZE      (1519 + 1)
 
+
+/* Maximum time to wait for an event in microseconds
+*/
+
+#define CC3000_MAX_WAIT (1000000 * 10) // 10s
+
+
 //TX and RX buffer sizes, allow to receive and transmit maximum data at length 8.
 #ifdef CC3000_TINY_DRIVER
 #define TINY_CC3000_MAXIMAL_RX_SIZE 44
@@ -342,7 +349,8 @@ extern unsigned long STREAM_TO_UINT32_f(char* p, unsigned short offset);
 #define STREAM_TO_UINT32(_p, _offset, _u32)	{_u32 = STREAM_TO_UINT32_f(_p, _offset);}
 #define STREAM_TO_STREAM(p, a, l) 	{register short _i; for (_i = 0; _i < l; _i++) *(a)++= ((unsigned char *) p)[_i];}
 
-
+// error code for timing out on hci event handler
+#define CC3K_TIMEOUT_ERR -5
 
 
 //*****************************************************************************

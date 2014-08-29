@@ -206,7 +206,8 @@
       'defines': [
         'CC3000_DEBUG',
         'SEND_NON_BLOCKING',
-        'TESSEL_FASTCONNECT=1'
+        'TESSEL_FASTCONNECT=1',
+        'CC3K_TIMEOUT=1'
       ],
       'sources': [
         # Startup script
