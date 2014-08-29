@@ -592,7 +592,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 						break;
 				}
 				
-				// TM_DEBUG("HCI Event error on command: %x", tSLInformation.usRxEventOpcode);
+				TM_DEBUG("HCI Event error on command: %x", tSLInformation.usRxEventOpcode);
 
 				// past maximum wait, get out of here
 				return NULL;
