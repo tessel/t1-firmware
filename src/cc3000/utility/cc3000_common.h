@@ -349,7 +349,8 @@ extern unsigned long STREAM_TO_UINT32_f(char* p, unsigned short offset);
 #define STREAM_TO_UINT32(_p, _offset, _u32)	{_u32 = STREAM_TO_UINT32_f(_p, _offset);}
 #define STREAM_TO_STREAM(p, a, l) 	{register short _i; for (_i = 0; _i < l; _i++) *(a)++= ((unsigned char *) p)[_i];}
 
-
+// error code for timing out on hci event handler
+#define CC3K_TIMEOUT_ERR -5
 
 
 //*****************************************************************************

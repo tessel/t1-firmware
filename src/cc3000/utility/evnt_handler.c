@@ -314,7 +314,6 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 					case HCI_CMND_WLAN_IOCTL_SIMPLE_CONFIG_STOP:
 					case HCI_CMND_WLAN_IOCTL_SIMPLE_CONFIG_SET_PREFIX:
 					case HCI_CMND_EVENT_MASK:
-//						TM_DEBUG("EVENT MASK CASE HIT");
 					case HCI_EVNT_WLAN_DISCONNECT:
 					case HCI_EVNT_SOCKET:
 					case HCI_EVNT_BIND:
@@ -504,10 +503,99 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 			// check the system timer
 			// compare it to maximum allowed wait
 			if (tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) {
+
+				// set pRetParams to some default values
+				switch(tSLInformation.usRxEventOpcode) {
+					case HCI_CMND_READ_BUFFER_SIZE:
+						// tSLInformation values are defaulted to 0
+						tSLInformation.usNumberOfFreeBuffers = 0;
+						tSLInformation.usSlBufferLength = 0;
+						break;
+					case HCI_CMND_WLAN_CONFIGURE_PATCH:
+					case HCI_NETAPP_DHCP:
+					case HCI_NETAPP_PING_SEND:
+					case HCI_NETAPP_PING_STOP:
+					case HCI_NETAPP_ARP_FLUSH:
+					case HCI_NETAPP_SET_DEBUG_LEVEL:
+					case HCI_NETAPP_SET_TIMERS:
+					case HCI_EVNT_NVMEM_READ:
+					case HCI_EVNT_NVMEM_CREATE_ENTRY:
+					case HCI_CMND_NVMEM_WRITE_PATCH:
+					case HCI_NETAPP_PING_REPORT:
+					case HCI_EVNT_MDNS_ADVERTISE:
+						// return CC3K_TIMEOUT_ERR for errored out on timeout
+						*(signed char *)pRetParams = CC3K_TIMEOUT_ERR;
+						break;
+						
+					case HCI_CMND_SETSOCKOPT:
+					case HCI_CMND_WLAN_CONNECT:
+					case HCI_CMND_WLAN_IOCTL_STATUSGET:
+					case HCI_EVNT_WLAN_IOCTL_ADD_PROFILE:
+					case HCI_CMND_WLAN_IOCTL_DEL_PROFILE:
+					case HCI_CMND_WLAN_IOCTL_SET_CONNECTION_POLICY:
+					case HCI_CMND_WLAN_IOCTL_SET_SCANPARAM:
+					case HCI_CMND_WLAN_IOCTL_SIMPLE_CONFIG_START:
+					case HCI_CMND_WLAN_IOCTL_SIMPLE_CONFIG_STOP:
+					case HCI_CMND_WLAN_IOCTL_SIMPLE_CONFIG_SET_PREFIX:
+					case HCI_CMND_EVENT_MASK:
+					case HCI_EVNT_WLAN_DISCONNECT:
+					case HCI_EVNT_SOCKET:
+					case HCI_EVNT_BIND:
+					case HCI_CMND_LISTEN:
+					case HCI_EVNT_CLOSE_SOCKET:
+					case HCI_EVNT_CONNECT:
+					case HCI_EVNT_NVMEM_WRITE:
+						// return CC3K_TIMEOUT_ERR for errored out on timeout
+						*(long *)pRetParams = CC3K_TIMEOUT_ERR;
+						break;
+						
+					case HCI_EVNT_BSD_GETHOSTBYNAME:
+						// expects a tBsdGethostbynameParams, set error on retVal and default outputAddress
+						((tBsdGethostbynameParams *)pRetParams)->retVal = CC3K_TIMEOUT_ERR;
+						((tBsdGethostbynameParams *)pRetParams)->outputAddress = 0;				
+						break;
+					
+					case HCI_EVNT_READ_SP_VERSION:
+					case HCI_CMND_SIMPLE_LINK_START:
+					case HCI_EVNT_ACCEPT:
+					case HCI_EVNT_RECV:
+					case HCI_EVNT_RECVFROM:
+						{
+							// these don't do anything, we're not in a blocking loop for this
+							break;
+						}
+
+					case HCI_EVNT_SEND:
+					case HCI_EVNT_SENDTO:
+						// expects a tBsdReadReturnParams, set the iNumberOfBytes to zero
+						((tBsdReadReturnParams *)pRetParams)->iNumberOfBytes = 0;
+						break;
+						
+					case HCI_EVNT_SELECT:
+						// expects a tBsdSelectRecvParams, set the isStatus
+						((tBsdSelectRecvParams *)pRetParams)->iStatus = CC3K_TIMEOUT_ERR;
+						break;
+						
+					case HCI_CMND_GETSOCKOPT:
+						// HCI_CMND_GETSOCKOPT expects a tBsdGetSockOptReturnParams, set the error code
+						((tBsdGetSockOptReturnParams *)pRetParams)->iStatus = CC3K_TIMEOUT_ERR;
+						break;
+						
+					case HCI_CMND_WLAN_IOCTL_GET_SCAN_RESULTS:
+						// no results on error
+						*(unsigned char *)pRetParams = 0;
+						break;
+						
+					case HCI_NETAPP_IPCONFIG:
+						// set all values to zero
+						memset(pRetParams,0,sizeof(tNetappIpconfigRetArgs));
+						break;
+				}
+				
+				// TM_DEBUG("HCI Event error on command: %x", tSLInformation.usRxEventOpcode);
+
 				// past maximum wait, get out of here
 				return NULL;
-
-				// TODO: if we've errored out 3 times in a row, reset the cc
 			}
 
 		}
