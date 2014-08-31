@@ -94,6 +94,9 @@ process.on('interrupt', function interruptFired(interruptId, trigger, time) {
   // Grab the pin corresponding to this interrupt
   var pin = board.interrupts[interruptId];
 
+  // Return the time as a fractional millisecond
+  time = time/1000;
+
   // If the pin exists (it should)
   if (pin) {
     // Grab the type of trigger (eg. 'level' or 'edge')
