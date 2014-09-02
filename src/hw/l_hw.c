@@ -1037,9 +1037,10 @@ LUALIB_API int luaopen_hw(lua_State* L)
 	luaL_setfieldnumber(L, "UART_DATABIT_8", (uint32_t)UART_DATABIT_8);
 	luaL_setfieldnumber(L, "UART_STOPBIT_1", (uint32_t)UART_STOPBIT_1);
 	luaL_setfieldnumber(L, "UART_STOPBIT_2", (uint32_t)UART_STOPBIT_2);
-	luaL_setfieldnumber(L, "PIN_PULLUP", MD_PUP);
-	luaL_setfieldnumber(L, "PIN_PULLDOWN", MD_PDN);
-	luaL_setfieldnumber(L, "PIN_DEFAULT", MD_PLN|MD_EZI|MD_ZI);
+	luaL_setfieldnumber(L, "PIN_PULLUP",    PUP_ENABLE  | PDN_DISABLE);
+	luaL_setfieldnumber(L, "PIN_PULLDOWN",  PUP_DISABLE | PDN_ENABLE);
+	luaL_setfieldnumber(L, "PIN_NOPULL",    PUP_DISABLE | PDN_DISABLE);
+	luaL_setfieldnumber(L, "PIN_BUSKEEPER", PUP_ENABLE  | PDN_ENABLE);
 
 	luaL_setfieldnumber(L, "PIN_A_G1", A_G1);
 	luaL_setfieldnumber(L, "PIN_A_G2", A_G2);

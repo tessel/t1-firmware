@@ -302,7 +302,8 @@ function _registerPinInterrupt(pin, type, mode) {
 var pinModes = {
   pullup: hw.PIN_PULLUP,
   pulldown: hw.PIN_PULLDOWN,
-  none: hw.PIN_DEFAULT
+  buskeeper: hw.PIN_BUSKEEPER,
+  none: hw.PIN_NOPULL,
 }
 
 
