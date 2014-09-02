@@ -1,5 +1,5 @@
 /*
- SETUP: Connect G2 and G3 on port B
+ SETUP: Connect G1 and G2 on GPIO bank
 */
 
 var tessel = require('tessel'),
@@ -10,6 +10,11 @@ var tessel = require('tessel'),
 if (pin.read() != 0) {
   throw new Error("You must connect pins G1 and G2 on the GPIO bank prior to running test");
 }
+
+test('port name', function(t) {
+  (tessel.port['A'].id == 'A')
+  t.end();
+})
 
 var invalidLevelError = new Error("You cannot use 'on' with level interrupts. You can only use 'once'.");
 
