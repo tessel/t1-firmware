@@ -283,3 +283,21 @@ test('Removing one interrupt of two from the same pin', function(t) {
     trigger.toggle();
   }, 100);
 });
+
+test('Pull resistors', function(t) {
+  pin.input().pull('none');
+  trigger.input().pull('pullup');
+  t.equal(!!pin.read(), true);
+  t.equal(!!trigger.read(), true);
+
+  trigger.pull('buskeeper')
+  t.equal(!!trigger.read(), true);
+
+  trigger.pull('pulldown');
+  t.equal(!!pin.read(), false);
+  t.equal(!!trigger.read(), false);
+  t.end();
+
+  trigger.pull('buskeeper')
+  t.equal(!!trigger.read(), false);
+});

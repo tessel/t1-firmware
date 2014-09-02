@@ -68,7 +68,7 @@ int hw_pwm_pin_pulsewidth (int pin, uint32_t pulsewidth)
 
   scu_pinmux(g_APinDescription[pin].port,
     g_APinDescription[pin].pin,
-    g_APinDescription[pin].mode,
+    PUP_DISABLE | PDN_DISABLE,
     g_APinDescription[pin].alternate_func);
 
   return 0;

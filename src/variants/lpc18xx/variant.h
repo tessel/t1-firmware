@@ -60,7 +60,6 @@ typedef struct _PinDescription
 {
   uint8_t port; // port bank 0...15
   uint8_t pin; // pin number 0...31
-  uint8_t mode; // MD_PUP :Pull-up enabled, MD_BUK  :Plain input, MD_PLN  :Repeater mode, MD_PDN  :Pull-down enabled
   uint8_t func; // FUNC0...FUNC7
   uint8_t portNum; // port 0...7
   uint8_t bitNum; // bit number. need to do (1 << (bitNum)) in order to get bitValue
@@ -147,8 +146,10 @@ enum PinLabel{
 	ADC_7
 };
 
+#define NUM_PINS ((int32_t)ADC_7 + 1)
+
 static inline int hw_valid_pin(int pin) {
-	return pin >= 0 && pin <= BTN1;
+	return pin >= 0 && pin < NUM_PINS;
 }
 
 #ifdef __cplusplus

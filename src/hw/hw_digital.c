@@ -21,15 +21,29 @@ extern "C" {
 #define GPIO_INPUT 0x00
 #define GPIO_OUTPUT 0x01
 
+#define PIN_MODE (FILTER_ENABLE | INBUF_ENABLE)
+
+// Pin modes for use in GPIO only (other pin functions set their own mode)
+uint8_t pin_modes[NUM_PINS] = {0};
+
+void hw_digital_configure_gpio(uint8_t ulPin) {
+	scu_pinmux(g_APinDescription[ulPin].port,
+		g_APinDescription[ulPin].pin,
+		PIN_MODE | pin_modes[ulPin],
+		g_APinDescription[ulPin].func);
+}
+
 int hw_digital_set_mode (uint8_t ulPin, uint8_t mode)
 {
-	(void) ulPin; (void) mode;
+	// JS only gets to override pull resistor bits
+	pin_modes[ulPin] = mode & (PUP_DISABLE | PDN_ENABLE);
+	hw_digital_configure_gpio(ulPin);
 	return 0;
 }
 
 uint8_t hw_digital_get_mode (uint8_t ulPin)
 {
-	return g_APinDescription[ulPin].mode;
+	return pin_modes[ulPin];
 }
 
 void hw_digital_output (uint8_t ulPin)
@@ -40,10 +54,7 @@ void hw_digital_output (uint8_t ulPin)
 	// 	return;
 	// }
 
-	scu_pinmux(g_APinDescription[ulPin].port,
-		g_APinDescription[ulPin].pin,
-		g_APinDescription[ulPin].mode,
-		g_APinDescription[ulPin].func);
+	hw_digital_configure_gpio(ulPin);
 
 	// set the direction
 	GPIO_SetDir(g_APinDescription[ulPin].portNum,
@@ -52,10 +63,8 @@ void hw_digital_output (uint8_t ulPin)
 }
 
 void hw_digital_startup (uint8_t ulPin) {
-	scu_pinmux(g_APinDescription[ulPin].port,
-		g_APinDescription[ulPin].pin,
-		PUP_ENABLE | PDN_DISABLE | FILTER_ENABLE,
-		g_APinDescription[ulPin].func);
+	pin_modes[ulPin] = PUP_ENABLE | PDN_DISABLE;
+	hw_digital_configure_gpio(ulPin);
 
 	// set the direction
 	GPIO_SetDir(g_APinDescription[ulPin].portNum,
@@ -70,10 +79,7 @@ void hw_digital_input (uint8_t ulPin)
 	// 	return;
 	// }
 
-	scu_pinmux(g_APinDescription[ulPin].port,
-		g_APinDescription[ulPin].pin,
-		g_APinDescription[ulPin].mode,
-		g_APinDescription[ulPin].func);
+	hw_digital_configure_gpio(ulPin);
 
 	// set the direction
 	GPIO_SetDir(g_APinDescription[ulPin].portNum,
