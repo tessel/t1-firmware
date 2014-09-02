@@ -2,14 +2,11 @@
   "name": "tessel-firmware",
   "version": "v0.1.14",
   "scripts": {
-    "test": "tinytap -e 'tessel run' test/*.js",
+    "test": "cd test; npm install; npm test",
     "install": "true"
   },
   "dependencies": {
     "colony-compiler": "~0.5.0-1"
   },
-  "private": true,
-  "devDependencies": {
-    "tinytap": "^0.1.0"
-  }
+  "private": true
 }

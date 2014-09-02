@@ -4,11 +4,11 @@
 
 var tessel = require('tessel'),
     test = require('tape'),
-    pin = tessel.port['B'].digital[1].input(),
-    trigger = tessel.port['B'].digital[2].output().low();
+    pin = tessel.port['GPIO'].digital[0].input(),
+    trigger = tessel.port['GPIO'].digital[1].output().low();
 
 if (pin.read() != 0) {
-  throw new Error("You must connect pins G2 and G3 on port B prior to running test");
+  throw new Error("You must connect pins G1 and G2 on the GPIO bank prior to running test");
 }
 
 var invalidLevelError = new Error("You cannot use 'on' with level interrupts. You can only use 'once'.");
@@ -28,21 +28,21 @@ test('registering edge listeners', function(t) {
 test('Using "on" with level triggers', function(t) {
   t.throws(pin.on.bind(pin, 'high', function() {}), invalidLevelError, "Throws an error when using on with 'high'");
   t.end();
-}); 
+});
 
 test('Using "on" with high level emits an error', function(t) {
   pin.once('error', function() {
     t.end();
   })
   t.doesNotThrow(pin.on.bind(pin, 'high', function() {}), invalidLevelError, "Emits an error when using on with 'high'");
-}); 
+});
 
 test('Using "on" with low level triggers with an error', function(t) {
   pin.once('error', function() {
     t.end();
   })
   t.doesNotThrow(pin.on.bind(pin, 'low', function() {}), invalidLevelError, "Emits an error when using on with 'low'");
-}); 
+});
 
 test('Does not throw an error with non-interrupt events', function(t) {
   t.doesNotThrow(pin.once.bind(pin, 'foo', function() {t.end()}), new Error, "Allows non-interrupt events to be used.'");
@@ -228,12 +228,12 @@ test('a bunch of repeated levels', function(t) {
   var times = 0;
 
   pin.once('high', function highListener() {
-      
+
     pin.once('high', function highListener() {
       clearInterval(interval);
       t.end();
     })
-    
+
   });
 
   interval = setInterval(function() {
@@ -278,5 +278,3 @@ test('Removing one interrupt of two from the same pin', function(t) {
     trigger.toggle();
   }, 100);
 });
-
-
