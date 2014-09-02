@@ -67,7 +67,7 @@ extern "C" {
  *
  */
 
-PinDescription g_APinDescription_boardV0[] =
+const PinDescription g_APinDescription_boardV0[] =
 {
 
 	// Debug leds - TM-00-00, TM-00-02
@@ -137,7 +137,7 @@ PinDescription g_APinDescription_boardV0[] =
 
 };
 
-PinDescription g_APinDescription_boardV2[]=
+const PinDescription g_APinDescription_boardV2[]=
 {
 
 	// Debug leds - TM-00-00, TM-00-02
@@ -209,7 +209,7 @@ PinDescription g_APinDescription_boardV2[]=
 
 };
 
-PinDescription g_APinDescription_boardV3[]=
+const PinDescription g_APinDescription_boardV3[]=
 {
 
   // Debug leds - TM-00-00, TM-00-02
@@ -283,7 +283,7 @@ PinDescription g_APinDescription_boardV3[]=
 
 };
 
-PinDescription *g_APinDescription = g_APinDescription_boardV3; // default
+const PinDescription *g_APinDescription = g_APinDescription_boardV3; // default
 
 #ifdef __cplusplus
 }

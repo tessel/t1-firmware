@@ -87,15 +87,15 @@ typedef struct _PinDescription
 // } PinDescription ;
 
 /* Pins table to be instanciated into variant.cpp */
-extern PinDescription *g_APinDescription ;
+extern const PinDescription *g_APinDescription ;
 
 
 // Global pinmux arrays.
 
-extern PinDescription *g_APinDescription;
-extern PinDescription g_APinDescription_boardV0[];
-extern PinDescription g_APinDescription_boardV2[];
-extern PinDescription g_APinDescription_boardV3[];
+extern const PinDescription *g_APinDescription;
+extern const PinDescription g_APinDescription_boardV0[];
+extern const PinDescription g_APinDescription_boardV2[];
+extern const PinDescription g_APinDescription_boardV3[];
 
 // PIN LABELS CORRESPOND 1:1 WITH PIN_DESCRIPTION
 // EG. g_APinDescription[U1_RXD] SHOULD PROVIDE CORRECT DESCRIPTION OF U1_RXD

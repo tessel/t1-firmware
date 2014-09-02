@@ -23,7 +23,7 @@ extern "C" {
 
 int hw_digital_set_mode (uint8_t ulPin, uint8_t mode)
 {
-	g_APinDescription[ulPin].mode = mode;
+	(void) ulPin; (void) mode;
 	return 0;
 }
 
@@ -101,7 +101,7 @@ uint8_t hw_digital_read ( size_t ulPin )
 void hw_interrupt_enable(int index, int ulPin, int mode)
 {
 	assert(index >= 0 && index < 8);
-	
+
 	unsigned portNum = g_APinDescription[ulPin].portNum;
 	unsigned bitNum = g_APinDescription[ulPin].bitNum;
 	unsigned int_id = PIN_INT0_IRQn + index;
