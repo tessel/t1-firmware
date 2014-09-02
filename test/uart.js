@@ -31,7 +31,7 @@ async.series([
     catch (err) {
       t.ok(err, 'no error was thrown.');
     }
-    
+
     t.end();
   }),
 
@@ -44,7 +44,7 @@ async.series([
     catch (err) {
       t.ok(err, 'no error was thrown.');
     }
-    
+
     t.end();
   }),
 
@@ -57,7 +57,7 @@ async.series([
     catch (err) {
       t.ok(err, 'no error was thrown.');
     }
-    
+
     t.end();
   }),
 

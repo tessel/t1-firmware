@@ -1,7 +1,7 @@
 var tessel = require('tessel');
 var test = require('tape');
 
-var hardware = tessel.port['A'];
+var hardware = tessel.port['GPIO'];
 var spi = hardware.SPI({chipSelect:hardware.digital[1]});
 var failed = false;
 
@@ -18,7 +18,7 @@ function testBuf(len) {
 function wrapCallback(t, cb) {
   var timeout = setTimeout(function fail() {
     t.fail("test timed out");
-  }, 10000);
+  }, 1000);
   return function() {
     clearTimeout(timeout);
     cb.apply(null, arguments);
@@ -69,4 +69,3 @@ test('large async transfer', function(t) {
     t.end();
   }));
 });
-

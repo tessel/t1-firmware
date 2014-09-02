@@ -1,14 +1,15 @@
 {
   "name": "test",
+  "private": "true",
   "version": "0.0.0",
-  "description": "",
-  "main": "_simple.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tinytap -e 'tessel run' *.js"
   },
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
-    "tape": "^2.13.2"
+    "tape": "^2.13.2",
+    "tinytap": "^0.2.0",
+    "async": "~0.9.0"
+  },
+  "dependencies": {
   }
 }
