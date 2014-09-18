@@ -143,6 +143,7 @@ uint8_t hw_gpdma_transfer_config(uint32_t channelNum, hw_GPDMA_Chan_Config *chan
     | GPDMA_DMACCxConfig_SrcPeripheral(SrcPeripheral) \
     | GPDMA_DMACCxConfig_DestPeripheral(DestPeripheral);
 
+
   return SUCCESS;
 }
 

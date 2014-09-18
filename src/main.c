@@ -44,6 +44,7 @@
 #include "bootloader.h"
 #include "utility/wlan.h"
 
+#include "module_shims/audio-vs1053b.h"
 #include "addons/neopixel.h"
 
 #ifdef TESSEL_TEST
@@ -504,7 +505,8 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 
 	// Clean up our SPI structs and dereference our lua objects
 	hw_spi_async_cleanup();
-
+	// Stop any audio playback/recording and clean up memory
+	audio_reset();
 	// Clean up the neopixel datastructures and lua refs
 	neopixel_reset_animation();
 

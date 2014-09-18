@@ -313,6 +313,7 @@
         'src/test',
         'src/tm',
         'src/variants/lpc18xx',
+        'src/module_shims',
         'src/addons'
       ]
     },
