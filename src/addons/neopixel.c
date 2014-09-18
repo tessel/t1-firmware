@@ -82,7 +82,7 @@ void LEDDRIVER_open (void)
   LPC_SCT->RES = 0;
 
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
-    if (sct_animation_channels[i].animationStatus != NULL) {
+    if (sct_animation_channels[i].animationStatus->animation.frames != NULL) {
 
       LPC_SCT->OUTPUT &= ~(0 
         | (1u << sct_animation_channels[i].sctOutputChannel)
@@ -161,7 +161,7 @@ void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel)
 {
   
   // Make sure this channel actually has animations
-  if (sct_channel.animationStatus != NULL) {
+  if (sct_channel.animationStatus->animation.frames != NULL) {
     // Get the current rgb value
     uint32_t rgb = (sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesPending] << 16
                  | sct_channel.animationStatus->animation.frames[sct_channel.animationStatus->framesSent][sct_channel.animationStatus->bytesPending + 1] << 8
@@ -238,7 +238,7 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
   bool byteSent = false;
 
   // If this channel doesn't have an animation, then we can return
-  if (channel.animationStatus == NULL) return byteSent;
+  if (channel.animationStatus->animation.frames == NULL) return byteSent;
 
   channel.animationStatus->bytesSent+=3;
 
@@ -304,7 +304,7 @@ void neopixel_reset_animation() {
 
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
       // If we have an active animation
-    if (sct_animation_channels[i].animationStatus != NULL &&
+    if (sct_animation_channels[i].animationStatus->animation.frames != NULL &&
       sct_animation_channels[i].animationStatus->animation.numFrames != 0) {
       // Unreference our buffer so it can be garbage collected
       luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i].animationStatus->animation.frameRef);
@@ -403,7 +403,7 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
     // If this channel has animation frames
-    if (channel_animations[i] != NULL) {
+    if (channel_animations[i]->animation.frames != NULL) {
       // Assign the data buffers to the memory struct
       *sct_animation_channels[i].animationStatus = *channel_animations[i];
 
