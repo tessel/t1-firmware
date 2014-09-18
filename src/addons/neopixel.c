@@ -2,7 +2,7 @@
 
 #define SYSTEM_CORE_CLOCK                   180000000
 #define DATA_SPEED                          800000  
-#define BITS_PER_INTERRUPT                  24 // Used to be 24
+#define BITS_PER_INTERRUPT                  24
 #define PRESCALER                           SYSTEM_CORE_CLOCK / (25 * DATA_SPEED)
 
 #define PERIOD_EVENT_NUM                    15
@@ -12,18 +12,17 @@
 #define CHAN_A_AUX_BUFFER_EVENT_NUM         11
 #define COMPLETE_FRAME_EVENT                6
 
+neopixel_animation_status_t channel_a_animation;
 
-volatile neopixel_sct_status_t channel_a = {
-  .pin = E_G4,
-  .animationStatus = NULL,
-  .sctOutputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
-  .sctAuxBuffer = CHAN_A_AUX_BUFFER_EVENT_NUM,
-  .sctOutputChannel = 8,
-  .sctAuxChannel = 1,
-};
-
-volatile neopixel_sct_status_t *sct_animation_channels[] = {
-  &channel_a,
+const neopixel_sct_status_t sct_animation_channels[MAX_SCT_CHANNELS] = {
+  {
+    .pin = E_G4,
+    .animationStatus = &channel_a_animation,
+    .sctOutputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
+    .sctAuxBuffer = CHAN_A_AUX_BUFFER_EVENT_NUM,
+    .sctOutputChannel = 8,
+    .sctAuxChannel = 1,
+  }
 };
 
 
@@ -83,53 +82,53 @@ void LEDDRIVER_open (void)
   LPC_SCT->RES = 0;
 
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
-    if (sct_animation_channels[i]->animationStatus != NULL) {
+    if (sct_animation_channels[i].animationStatus != NULL) {
 
       LPC_SCT->OUTPUT &= ~(0 
-        | (1u << sct_animation_channels[i]->sctOutputChannel)
+        | (1u << sct_animation_channels[i].sctOutputChannel)
       );
-      LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i]->sctAuxChannel);
+      LPC_SCT->OUTPUT |= (1u << sct_animation_channels[i].sctAuxChannel);
       
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctOutputBuffer].CTRL = 0
+      LPC_SCT->EVENT[sct_animation_channels[i].sctOutputBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
         | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-        | (sct_animation_channels[i]->sctAuxChannel << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+        | (sct_animation_channels[i].sctAuxChannel << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
         | (0 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 0 */
         | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
         ;
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctAuxBuffer].CTRL = 0
+      LPC_SCT->EVENT[sct_animation_channels[i].sctAuxBuffer].CTRL = 0
         | (1 << SCT_EVx_CTRL_MATCHSEL_Pos)  /* MATCH1_H */
         | (1 << SCT_EVx_CTRL_HEVENT_Pos)    /* Belongs to H counter */
         | (1 << SCT_EVx_CTRL_OUTSEL_Pos)    /* Use OUTPUT for I/O condition */
-        | (sct_animation_channels[i]->sctAuxChannel << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
+        | (sct_animation_channels[i].sctAuxChannel << SCT_EVx_CTRL_IOSEL_Pos)    /* Use AUX signal */
         | (3 << SCT_EVx_CTRL_IOCOND_Pos)    /* AUX = 1 */
         | (3 << SCT_EVx_CTRL_COMBMODE_Pos)  /* MATCH AND I/O */
         ;
 
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctOutputBuffer].STATE = 0;
-      LPC_SCT->EVENT[sct_animation_channels[i]->sctAuxBuffer].STATE = 0; 
+      LPC_SCT->EVENT[sct_animation_channels[i].sctOutputBuffer].STATE = 0;
+      LPC_SCT->EVENT[sct_animation_channels[i].sctAuxBuffer].STATE = 0; 
 
-      LPC_SCT->OUT[sct_animation_channels[i]->sctAuxChannel].SET = 0
+      LPC_SCT->OUT[sct_animation_channels[i].sctAuxChannel].SET = 0
           | (1u << COMPLETE_FRAME_EVENT)                        /* Complete Event toggles the AUX signal */
           ;
-      LPC_SCT->OUT[sct_animation_channels[i]->sctAuxChannel].CLR = 0
+      LPC_SCT->OUT[sct_animation_channels[i].sctAuxChannel].CLR = 0
           | (1u << COMPLETE_FRAME_EVENT)                        /* Complete Event toggles the AUX signal */
           ;
-      LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].SET = 0
+      LPC_SCT->OUT[sct_animation_channels[i].sctOutputChannel].SET = 0
           | (1u << PERIOD_EVENT_NUM)                        /* Event 15 sets the DATA signal */
-          | (1u << sct_animation_channels[i]->sctOutputBuffer)                        /* Event 12 sets the DATA signal */
-          | (1u << sct_animation_channels[i]->sctAuxBuffer)                        /* Event 11 sets the DATA signal */
+          | (1u << sct_animation_channels[i].sctOutputBuffer)                        /* Event 12 sets the DATA signal */
+          | (1u << sct_animation_channels[i].sctAuxBuffer)                        /* Event 11 sets the DATA signal */
           ;
-      LPC_SCT->OUT[sct_animation_channels[i]->sctOutputChannel].CLR = 0
+      LPC_SCT->OUT[sct_animation_channels[i].sctOutputChannel].CLR = 0
           | (1u << T1H_EVENT_NUM)                        /* Event 14 clears the DATA signal */
           | (1u << T0H_EVENT_NUM)                        /* Event 13 clears the DATA signal */
           | (1u << COMPLETE_FRAME_EVENT)                        /* Complete Event clears the DATA signal */
           ;
 
       LPC_SCT->RES |= 0
-            | (0 << 2 * sct_animation_channels[i]->sctOutputChannel)            /* DATA signal doesn't change */
-            | (3 << 2 * sct_animation_channels[i]->sctAuxChannel) 
+            | (0 << 2 * sct_animation_channels[i].sctOutputChannel)            /* DATA signal doesn't change */
+            | (3 << 2 * sct_animation_channels[i].sctAuxChannel) 
             ;
     }
   }
@@ -218,7 +217,7 @@ void SCT_IRQHandler (void)
     for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
       // Attempt to update their channel
-      if (updateChannelAnimation(*(sct_animation_channels[i]))) {
+      if (updateChannelAnimation((sct_animation_channels[i]))) {
         // If we did, then we aren't complete with sending data
         complete = false;
       }
@@ -305,16 +304,18 @@ void neopixel_reset_animation() {
 
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
       // If we have an active animation
-    if (sct_animation_channels[i]->animationStatus != NULL &&
-      sct_animation_channels[i]->animationStatus->animation.numFrames != 0) {
+    if (sct_animation_channels[i].animationStatus != NULL &&
+      sct_animation_channels[i].animationStatus->animation.numFrames != 0) {
       // Unreference our buffer so it can be garbage collected
-      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i]->animationStatus->animation.frameRef);
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, sct_animation_channels[i].animationStatus->animation.frameRef);
 
       // Free our animation buffers and struct memory
-      free(sct_animation_channels[i]->animationStatus->animation.frames);
+      free(sct_animation_channels[i].animationStatus->animation.frames);
       
-      free((neopixel_animation_status_t *)sct_animation_channels[i]->animationStatus);
-      sct_animation_channels[i]->animationStatus = NULL;
+      sct_animation_channels[i].animationStatus->animation.frames = NULL;
+      sct_animation_channels[i].animationStatus->animation.frameLength = 0;
+      sct_animation_channels[i].animationStatus->animation.numFrames = 0;
+      sct_animation_channels[i].animationStatus->animation.frameRef = -1;
     }
 
   }
@@ -338,7 +339,8 @@ void animation_complete() {
 
 void continueAnimation() {
 
-  LEDDRIVER_writeNextRGBValue(channel_a);
+  // Todo: Make this extensible for more channels
+  LEDDRIVER_writeNextRGBValue(sct_animation_channels[0]);
 
   // Don't halt
   LPC_SCT->HALT_H = 0;
@@ -364,14 +366,14 @@ void beginAnimation() {
   // Fill the double buffer with the first two bytes
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
     // Reset struct status vars
-    sct_animation_channels[i]->animationStatus->bytesPending = 0;
-    sct_animation_channels[i]->animationStatus->bytesSent = 0;
+    sct_animation_channels[i].animationStatus->bytesPending = 0;
+    sct_animation_channels[i].animationStatus->bytesSent = 0;
     // Write the first bytes to the output
-    LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
+    LEDDRIVER_writeNextRGBValue((sct_animation_channels[i]));
     // Toggle the AUX Output so the next write will go to Aux
-    LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i]->sctAuxChannel);
+    LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i].sctAuxChannel);
     // Write the next bytes to Aux
-    LEDDRIVER_writeNextRGBValue(*(sct_animation_channels[i]));
+    LEDDRIVER_writeNextRGBValue((sct_animation_channels[i]));
   }
 
   // Allow SCT IRQs (which update the relevant data byte)
@@ -403,10 +405,10 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
     // If this channel has animation frames
     if (channel_animations[i] != NULL) {
       // Assign the data buffers to the memory struct
-      sct_animation_channels[i]->animationStatus = channel_animations[i];
+      *sct_animation_channels[i].animationStatus = *channel_animations[i];
 
       // Set up the pin as SCT
-      setPinSCTFunc(sct_animation_channels[i]->pin);
+      setPinSCTFunc(sct_animation_channels[i].pin);
 
       animationsReady = true;
     }

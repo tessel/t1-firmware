@@ -663,7 +663,7 @@ static int l_audio_start_recording(lua_State* L) {
 	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
 	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	const uint8_t* dir_name = colony_toconstdata(L, ARG1 + 2, NULL);
+	const uint8_t* dir_name = colony_toconstdata(L, ARG1 +  2, NULL);
 	size_t buf_len;
 	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
 	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
