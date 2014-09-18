@@ -274,6 +274,8 @@
         'src/module_shims/audio-vs1053b.c',
         'src/module_shims/gps-a2235h.c',
         'src/module_shims/gps-nmea.c',
+        
+        'src/addons/neopixel.c'
       ],
       'dependencies': [
         'deps/runtime/libtm.gyp:libtm',
@@ -312,6 +314,7 @@
         'src/tm',
         'src/variants/lpc18xx',
         'src/module_shims',
+        'src/addons'
       ]
     },
 

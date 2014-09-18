@@ -45,6 +45,7 @@
 #include "utility/wlan.h"
 
 #include "module_shims/audio-vs1053b.h"
+#include "addons/neopixel.h"
 
 #ifdef TESSEL_TEST
 #include "test.h"
@@ -113,10 +114,14 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 	
 	} else if (cmd == 'M') {
 		if (tm_lua_state != NULL) {
-			colony_ipc_emit(tm_lua_state, "raw-message", buf, size);
+			colony_ipc_emit(tm_lua_state, "serialized-message", buf, size);
 		}
 	
-	} else if (cmd == 'B') {
+	} else if (cmd == 'N') {
+		if (tm_lua_state != NULL) {
+			colony_ipc_emit(tm_lua_state, "unserialized-message", buf, size);
+		}
+	}else if (cmd == 'B') {
 		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
 		while(1);
 	
@@ -502,6 +507,8 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	hw_spi_async_cleanup();
 	// Stop any audio playback/recording and clean up memory
 	audio_reset();
+	// Clean up the neopixel datastructures and lua refs
+	neopixel_reset_animation();
 
 	initialize_GPIO_interrupts();
 	tessel_gpio_init(0);

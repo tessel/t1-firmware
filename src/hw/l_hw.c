@@ -26,6 +26,7 @@
 #include "audio-vs1053b.h"
 #include "gps-a2235h.h"
 #include "gps-nmea.h"
+#include "neopixel.h"
 
 
 #define ARG1 1
@@ -662,7 +663,7 @@ static int l_audio_start_recording(lua_State* L) {
 	uint8_t xcs = (uint8_t)lua_tonumber(L, ARG1);
 	// uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 1);
-	const uint8_t* dir_name = colony_toconstdata(L, ARG1 + 2, NULL);
+	const uint8_t* dir_name = colony_toconstdata(L, ARG1 +  2, NULL);
 	size_t buf_len;
 	uint8_t *buf = colony_tobuffer(L, ARG1+3, &buf_len);
 	uint32_t buf_ref = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -738,6 +739,50 @@ static int l_gps_get_speed(lua_State* L) {
 	double r = gps_get_speed();
 	lua_pushnumber(L, r);
 	return 1;
+}
+
+static int l_neopixel_animation_buffer(lua_State* L) {
+
+	size_t frameLength =  lua_tonumber(L, ARG1);
+
+	size_t animationLength = 0;
+	size_t numFrames = 0;
+	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &animationLength);
+	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
+
+	// Allocate memory for an animation
+	neopixel_animation_status_t *channel_animation;
+
+	// If there are frames for this channel
+	if (frameLength != 0 && animationLength != 0) {
+
+		numFrames = animationLength/frameLength;
+
+		// Allocate memory for an animation
+		channel_animation = malloc(sizeof(neopixel_animation_status_t));
+
+		// Allocate memory for the frame pointers
+		const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
+		// Allocate memory for the length of each frame (TODO Remove this. Don't need an array)
+
+		// Iterate through frames
+		for (uint32_t i = 0; i < numFrames; i++) {
+			// Put the frame element onto the stack
+			frames[i] = (uint8_t *)&(txbuf[i * frameLength]);
+		}
+
+		channel_animation->animation.frames = frames;
+		channel_animation->animation.frameLength = frameLength;
+		channel_animation->animation.frameRef = frameRef;
+		channel_animation->animation.numFrames = numFrames;
+		channel_animation->bytesSent = 0;
+		channel_animation->framesSent = 0;
+	}
+
+	// Begin the animation
+	writeAnimationBuffers(&channel_animation);
+
+	return 0;
 }
 
 /**
@@ -986,6 +1031,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "gps_get_longitude", l_gps_get_longitude },
 		{ "gps_get_satellites", l_gps_get_satellites },
 		{ "gps_get_speed", l_gps_get_speed },
+
+		// Neopixel
+		{ "neopixel_animation_buffer", l_neopixel_animation_buffer },
 
 		// clock sync
 		{ "clocksync", l_clocksync },
