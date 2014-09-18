@@ -390,7 +390,7 @@ void setPinSCTFunc(uint8_t pin) {
   // Set up the pin as SCT out
   scu_pinmux(g_APinDescription[pin].port,
     g_APinDescription[pin].pin,
-    g_APinDescription[pin].mode,
+    PUP_DISABLE | PDN_DISABLE,
     g_APinDescription[pin].alternate_func);
 }
 
