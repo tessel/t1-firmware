@@ -131,7 +131,8 @@ extern "C" {
 /* Maximum time to wait for an event in microseconds
 */
 
-#define CC3000_MAX_WAIT (1000000 * 10) // 10s
+#define CC3000_MAX_WAIT   (1000000 * 10) // 10s for longer feedback loops like AP connections
+#define CC3000_EVENT_WAIT (1000000) // 0.5s for CC3k comms
 
 
 //TX and RX buffer sizes, allow to receive and transmit maximum data at length 8.

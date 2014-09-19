@@ -502,7 +502,15 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 
 			// check the system timer
 			// compare it to maximum allowed wait
-			if (tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) {
+			// If it's a WLAN event give it a bigger wait time since we might be waiting for APs
+			// check for HCI_CMND_WLAN_CONFIGURE_PATCH because all the WLAN commands range from 0
+			//  to 0xD and PATCH is the biggest one.
+			// If it's not a WLAN event, give it the shorter event wait time
+			if ( (tSLInformation.usRxEventOpcode <= HCI_CMND_WLAN_CONFIGURE_PATCH 
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) 
+				 || (tSLInformation.usRxEventOpcode > HCI_CMND_WLAN_CONFIGURE_PATCH
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_EVENT_WAIT)
+				) {
 
 				// set pRetParams to some default values
 				switch(tSLInformation.usRxEventOpcode) {
