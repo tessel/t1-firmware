@@ -212,7 +212,8 @@ tm_socket_t tm_tcp_open ()
 
 int tm_tcp_close (tm_socket_t sock)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	// if (!hw_net_online_status()) return -NO_CONNECTION;
+	// doesn't matter if we have a connection or not, we can still close the socket
 	CC3000_START;
 
 	int ret = closesocket(sock);
