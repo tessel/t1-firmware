@@ -132,7 +132,11 @@ extern "C" {
 */
 
 #define CC3000_MAX_WAIT   (1000000 * 10) // 10s for longer feedback loops like AP connections
-#define CC3000_EVENT_WAIT (1000000) // 0.5s for CC3k comms
+#define CC3000_BUFFER_WAIT   (1000000 * 5)
+#define CC3000_EVENT_WAIT (1000000) // 1s for CC3k comms
+#define CC3000_SELECT_HANG (1000000*5) // 1s for select holdup
+#define CC3000_CLOSE_HANG (1000000*10) // 1s for select holdup
+
 
 
 //TX and RX buffer sizes, allow to receive and transmit maximum data at length 8.
