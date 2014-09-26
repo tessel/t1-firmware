@@ -219,7 +219,7 @@ int tm_tcp_close (tm_socket_t sock)
 	int ret = closesocket(sock);
 	
 	CC3000_END;
-	if (ret == 0) {
+	if (ret == 0 || ret == -57) {
 		if (track_close_socket()) {
 			return -SOCKET_TRACK_ERR;
 		}

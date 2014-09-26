@@ -250,6 +250,9 @@ socket(long domain, long type, long protocol)
 	
 	set_socket_active_status(ret, SOCKET_STATUS_ACTIVE);
 	
+	#ifdef CC3000_DEBUG
+	TM_DEBUG("Opening socket %d", ret);
+	#endif
 	return(ret);
 }
 
@@ -316,6 +319,9 @@ closesocket(long sd)
 	// mark this socket as invalid 
 	set_socket_active_status(sd, SOCKET_STATUS_INACTIVE);
 	
+	#ifdef CC3000_DEBUG
+	TM_DEBUG("Closing socket %d", sd);
+	#endif
 	return(ret);
 }
 
@@ -795,6 +801,10 @@ int
 setsockopt(long sd, long level, long optname, const void *optval,
 					 socklen_t optlen)
 {
+// #ifdef CC3000_DEBUG
+// 	TM_DEBUG("setting sockopt on socket %d. level: %d, optname: %d, optval: %d, optlen: %d",
+// 		sd, level, &optval, optlen);
+// #endif
 	int ret;
 	unsigned char *ptr, *args;
 	
@@ -989,6 +999,7 @@ simple_link_recv(long sd, void *buf, long len, long flags, sockaddr *from,
 int
 recv(long sd, void *buf, long len, long flags)
 {
+
 	int ret = simple_link_recv(sd, buf, len, flags, NULL, NULL, HCI_CMND_RECV);
 	if (ret == 0) {
 #ifdef CC3000_DEBUG
@@ -1200,6 +1211,16 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 int
 send(long sd, const void *buf, long len, long flags)
 {
+	#ifdef CC3000_DEBUG
+	TM_DEBUG("SENDING %d bytes", len);
+	#endif
+	if (len == 27) {
+		#ifdef CC3000_DEBUG
+		TM_DEBUG("skip sending %d bytes", len);
+		#endif
+		// skip sending;
+		return 27;
+	}
 	int ret = simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND);
 	if (ret == -2) {
 		errno = EWOULDBLOCK;

@@ -9,7 +9,6 @@
       'COLONY_EMBED',
       'CONFIG_PLATFORM_EMBED',
       'TM_FS_vfs',
-
       '__thumb2__=1',
       'GPIO_PIN_INT',
       '_POSIX_SOURCE',
@@ -204,7 +203,7 @@
         '-Werror',
       ],
       'defines': [
-        'CC3000_DEBUG',
+        'CC3000_DEBUG=1',
         'SEND_NON_BLOCKING',
         'TESSEL_FASTCONNECT=1',
         'CC3K_TIMEOUT=1'
