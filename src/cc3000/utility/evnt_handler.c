@@ -512,11 +512,11 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 			// check for HCI_CMND_WLAN_CONFIGURE_PATCH because all the WLAN commands range from 0
 			//  to 0xD and PATCH is the biggest one.
 			// If it's not a WLAN event, give it the shorter event wait time
-			if ( (tSLInformation.usRxEventOpcode <= HCI_CMND_WLAN_CONFIGURE_PATCH 
+			if ( ((tSLInformation.usRxEventOpcode <= HCI_CMND_WLAN_CONFIGURE_PATCH 
+					|| tSLInformation.usRxEventOpcode == HCI_EVNT_SOCKET)
 				 	&& tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) 
 				// give HCI_EVNT_CLOSE_SOCKET more time
-				 || ( (tSLInformation.usRxEventOpcode == HCI_EVNT_CLOSE_SOCKET 
-					  || tSLInformation.usRxEventOpcode == HCI_EVNT_SOCKET)
+				 || ( tSLInformation.usRxEventOpcode == HCI_EVNT_CLOSE_SOCKET 
 				 	&& tm_uptime_micro() - ccStartTime >= CC3000_CLOSE_SOCKET_WAIT) 
 				 || (tSLInformation.usRxEventOpcode > HCI_CMND_WLAN_CONFIGURE_PATCH
 				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_CLOSE_SOCKET

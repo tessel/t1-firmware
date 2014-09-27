@@ -1211,16 +1211,42 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 int
 send(long sd, const void *buf, long len, long flags)
 {
-	#ifdef CC3000_DEBUG
-	TM_DEBUG("SENDING %d bytes", len);
-	#endif
-	if (len == 27) {
-		#ifdef CC3000_DEBUG
-		TM_DEBUG("skip sending %d bytes", len);
-		#endif
-		// skip sending;
-		return 27;
-	}
+
+	// #ifdef CC3000_DEBUG
+	// if (sd == -8) {
+	// 	TM_DEBUG("SSL DEBUG === about to start send_alert in ssl_basic read");
+	// 	return 0;	
+	// }
+	// if (sd == -12) {
+	// 	TM_DEBUG("SSL DEBUG === ending send_alert in ssl_basic read");
+	// 	return 0;	
+	// }
+	// if (sd == -9) {
+	// 	TM_DEBUG("SSL DEBUG === about to call ssl_basic read");
+	// 	return 0;	
+	// }
+	// if (sd == -10) {
+	// 	TM_DEBUG("SSL DEBUG === ssl_read got code %d", flags);
+	// 	return 0;	
+	// }
+	// if (sd == -11) {
+	// 	TM_DEBUG("SSL DEBUG === ssl_read about to send alert %d", flags);
+	// 	return 0;	
+	// }
+	// TM_DEBUG("SENDING %d bytes", len);
+	// #endif
+	// if (len == 27) {
+	// 	#ifdef CC3000_DEBUG
+	// 	TM_DEBUG("skip sending %d bytes", len);
+	// 	for(int i =0; i<len; i++){
+	// 		TM_DEBUG("%x", ((char *)buf)[i]);
+	// 	}
+	
+	// 	#endif
+	// 	// skip sending;
+	// 	while(1){};
+	// 	return 27;
+	// }
 	int ret = simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND);
 	if (ret == -2) {
 		errno = EWOULDBLOCK;

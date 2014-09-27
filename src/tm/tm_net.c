@@ -255,6 +255,9 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 	if (!hw_net_online_status()) return -NO_CONNECTION;
 	CC3000_START;
 
+#ifdef CC3000_DEBUG
+	TM_DEBUG("tm_tcp_write len %d", buflen);
+#endif
 	int sentLen = send(sock, buf, buflen, 0);
 	// TM_DEBUG("Wrote %d bytes to TCP socket.", sentLen);
 	CC3000_END;
