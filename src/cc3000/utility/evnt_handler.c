@@ -388,10 +388,6 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 						
 					case HCI_EVNT_SELECT:
 						{
-							// TM_DEBUG("GOT HCI_EVNT_SELECT pRetParams %d", pRetParams->iStatus)
-// #ifdef CC3000_DEBUG
-							// TM_DEBUG("GOT HCI_EVENT_SELECT. usReceivedEventOpcode %d, tSLInformation.usRxEventOpcode %d", usReceivedEventOpcode, tSLInformation.usRxEventOpcode);
-// #endif
 							STREAM_TO_UINT32((char *)pucReceivedParams,SELECT_STATUS_OFFSET,*(unsigned long *)pRetParams);
 							pRetParams = ((char *)pRetParams) + 4;
 							STREAM_TO_UINT32((char *)pucReceivedParams,SELECT_READFD_OFFSET,*(unsigned long *)pRetParams);
@@ -479,9 +475,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 				
 				memcpy(pRetParams, pucReceivedParams + HCI_DATA_HEADER_SIZE + ucArgsize,
 							 usLength - ucArgsize);
-// #ifdef CC3000_DEBUG
-							// TM_DEBUG("DATAPENDING IS 0, pucReceivedData is %d", *pucReceivedData);
-// #endif		
+
 				tSLInformation.usRxDataPending = 0;
 			}
 		
@@ -763,9 +757,6 @@ hci_unsol_event_handler(char *event_hdr)
 	{
                 char *pArg;
                 long status;
-#ifdef CC3K_TIMEOUT 
-                TM_DEBUG("HCI_EVNT_WRITE hit");
-#endif
                 pArg = M_BSD_RESP_PARAMS_OFFSET(event_hdr);
                 STREAM_TO_UINT32(pArg, BSD_RSP_PARAMS_STATUS_OFFSET,status);
                 
@@ -892,10 +883,6 @@ hci_event_unsol_flowcontrol_handler(char *pEvent)
 	}
 	
 	tSLInformation.usNumberOfFreeBuffers += temp;
-
-#ifdef CC3000_DEBUG
-	TM_DEBUG("CC3000 buffer freed %d. total is %d", temp, tSLInformation.usNumberOfFreeBuffers);
-#endif
 	tSLInformation.NumberOfReleasedPackets += temp;
 	
 	return(ESUCCESS);

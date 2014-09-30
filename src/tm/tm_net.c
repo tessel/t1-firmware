@@ -32,21 +32,29 @@ static uint8_t track_open_socket() {
 	// returns 0 if we can, 1 if we can't
 	if (openSockets <= MAX_OPEN_SOCKETS){
 		openSockets++;
+#ifdef CC3000_DEBUG
 		TM_DEBUG("currently have %d sockets open", openSockets);
+#endif
 		return 0;
 	}
+#ifdef CC3000_DEBUG
 	TM_DEBUG("About to run out of sockets");
+#endif
 	return 1;
 }
 
 static uint8_t track_close_socket() {
 	if (openSockets >= 1) {
 		openSockets--;
+#ifdef CC3000_DEBUG
 		TM_DEBUG("closing. currently have %d sockets open", openSockets);
+#endif
 		return 0;
 	}
 
+#ifdef CC3000_DEBUG
 	TM_DEBUG("closing more sockets than are open");
+#endif
 	return 1;
 }
 
@@ -60,7 +68,9 @@ uint32_t tm_hostname_lookup (const uint8_t *hostname)
 	/* get the host info */
 	int err = 0;
 	if ((err = gethostbyname((char *) hostname, strlen((char *) hostname), &out_ip_addr)) < 0) {
+#ifdef CC3000_DEBUG
 		TM_DEBUG("gethostbyname(): error %d", err);
+#endif
 		return 0;
 	}
 	CC3000_END;
@@ -97,7 +107,9 @@ int tm_udp_close (int ulSocket)
 			return -SOCKET_TRACK_ERR;
 		}
 	} else {
+#ifdef CC3000_DEBUG
 		TM_DEBUG("Trouble closing socket %d", ulSocket);
+#endif
 	}
 
 	return 0xFFFFFFFF;
@@ -182,18 +194,17 @@ int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip
 
 	CC3000_START;
 	int sent = sendto(ulSocket, buf, buf_len, 0, &tSocketAddr, sizeof(sockaddr));
-//	TM_DEBUG("Sent udp packet %d to %d.%d.%d.%d:%d", sent, ip0, ip1, ip2, ip3, port);
 	CC3000_END;
 	return sent;
 }
 
 tm_socket_t tm_tcp_open ()
 {
-	// if (open_socket()) return -OUT_OF_SOCKETS;
-
 	if (!hw_net_online_status()) return -NO_CONNECTION;
 	CC3000_START;
+#ifdef CC3000_DEBUG
 	TM_DEBUG("trying to open socket with %d sockets already open", openSockets);
+#endif
 	int ulSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	uint16_t wAccept = SOCK_ON;
 	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, &wAccept, sizeof(wAccept)); // TODO this is duplicated in tm_tcp_listen
@@ -212,19 +223,21 @@ tm_socket_t tm_tcp_open ()
 
 int tm_tcp_close (tm_socket_t sock)
 {
-	// if (!hw_net_online_status()) return -NO_CONNECTION;
 	// doesn't matter if we have a connection or not, we can still close the socket
 	CC3000_START;
 
 	int ret = closesocket(sock);
 	
 	CC3000_END;
-	if (ret == 0 || ret == -57) {
+	if (ret == 0) {
 		if (track_close_socket()) {
 			return -SOCKET_TRACK_ERR;
 		}
 	} else {
-		TM_DEBUG("Trouble closing socket %d", sock);
+#ifdef CC3000_DEBUG
+		// if we get -57 here it means socket is already closed
+		TM_DEBUG("Trouble closing socket %d. Got %d", sock, ret);
+#endif
 	}
 	return ret;
 }
@@ -255,11 +268,7 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 	if (!hw_net_online_status()) return -NO_CONNECTION;
 	CC3000_START;
 
-#ifdef CC3000_DEBUG
-	TM_DEBUG("tm_tcp_write len %d", buflen);
-#endif
 	int sentLen = send(sock, buf, buflen, 0);
-	// TM_DEBUG("Wrote %d bytes to TCP socket.", sentLen);
 	CC3000_END;
 	return sentLen;
 }
@@ -315,7 +324,6 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 	localSocketAddr.sin_addr.s_addr = 0;
 
 	// Bind socket
-	TM_DEBUG("Binding local socket...");
 	int sockStatus;
 	if ((sockStatus = bind(sock, (sockaddr *) &localSocketAddr, sizeof(localSocketAddr))) != 0) {
 		TM_DEBUG("binding failed: %d", sockStatus);
@@ -323,7 +331,6 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 		return -1;
 	}
 
-	TM_DEBUG("Listening on local socket...");
 	int listenStatus = listen(sock, 1);
 	if (listenStatus != 0) {
 		TM_DEBUG("cannot listen to socket: %d", listenStatus);

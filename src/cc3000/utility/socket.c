@@ -126,9 +126,6 @@ HostFlowControlConsumeBuff(int sd)
 	fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
     FD_ZERO(&readSet);
     FD_SET(sd, &readSet);
-    struct timeval hostFlowTimeout;
-    hostFlowTimeout.tv_sec = 10;
-    hostFlowTimeout.tv_usec = 20000;
 #endif
 
 	/* wait in busy loop */
@@ -152,7 +149,7 @@ HostFlowControlConsumeBuff(int sd)
 #ifdef CC3K_TIMEOUT
 		if (tm_uptime_micro() - ccPollTime >= CC3000_EVENT_WAIT) {
 			ccPollTime = tm_uptime_micro();
-			select(sd + 1, NULL, &readSet, NULL, &hostFlowTimeout);
+			select(sd + 1, NULL, &readSet, NULL, NULL);
 		}
 #endif
 
@@ -172,9 +169,6 @@ HostFlowControlConsumeBuff(int sd)
 	
 	return 0;
 // #else
-	
-
-
 // 	// In case last transmission failed then we will return the last failure 
 // 	// reason here.
 // 	// Note that the buffer will not be allocated in this case
@@ -271,33 +265,7 @@ socket(long domain, long type, long protocol)
 long
 closesocket(long sd)
 {
-	fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
-    FD_ZERO(&readSet);
-    FD_SET(sd, &readSet);
-    struct timeval hostFlowTimeout;
-    hostFlowTimeout.tv_sec = 10;
-    hostFlowTimeout.tv_usec = 20000;
-
-    select(sd + 1, NULL, &readSet, NULL, &hostFlowTimeout);
-
-	// make closing sockets slow
-// #ifdef CC3K_TIMEOUT
-// 	TM_DEBUG("closing socket %d", sd);
-// 	uint32_t ccStartTime = tm_uptime_micro();
-// 	uint32_t ccPollTime = tm_uptime_micro();
-
-// 	while (tm_uptime_micro() - ccStartTime <= CC3000_CLOSE_HANG) {
-// 		if (tm_uptime_micro() - ccPollTime >= CC3000_EVENT_WAIT) {
-// 			ccPollTime = tm_uptime_micro();
-// 			select(sd + 1, NULL, &readSet, NULL, &hostFlowTimeout);
-// 		}
-// 	}
-// #endif
-	// call select
-	
-    select(sd + 1, NULL, &readSet, NULL, &hostFlowTimeout);
-
-	long ret;
+    long ret;
 	unsigned char *ptr, *args;
 	
 	ret = EFAIL;
@@ -733,11 +701,6 @@ select(long nfds, fd_set *readsds, fd_set *writesds, fd_set *exceptsds,
 		{
 			memcpy(exceptsds, &tParams.uiExfd, sizeof(tParams.uiExfd)); 
 		}
-
-// #ifdef CC3000_DEBUG
-// 
-		// TM_DEBUG("HCI_EVNT_SELECT.iStatus %d, readsds %d, writesds %d, exceptsds %d", tParams.iStatus, readsds, writesds, exceptsds);
-// #endif
 		
 		return(tParams.iStatus);
 		
@@ -801,10 +764,6 @@ int
 setsockopt(long sd, long level, long optname, const void *optval,
 					 socklen_t optlen)
 {
-// #ifdef CC3000_DEBUG
-// 	TM_DEBUG("setting sockopt on socket %d. level: %d, optname: %d, optval: %d, optlen: %d",
-// 		sd, level, &optval, optlen);
-// #endif
 	int ret;
 	unsigned char *ptr, *args;
 	
@@ -1002,9 +961,6 @@ recv(long sd, void *buf, long len, long flags)
 
 	int ret = simple_link_recv(sd, buf, len, flags, NULL, NULL, HCI_CMND_RECV);
 	if (ret == 0) {
-#ifdef CC3000_DEBUG
-		TM_DEBUG("recv is EWOULDBLOCK");
-#endif
 		ret = -1;
 		errno = EWOULDBLOCK;
 	}
@@ -1076,7 +1032,6 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 	unsigned long addr_offset = 0;
 	int res;
         tBsdReadReturnParams tSocketSendEvent;
-	// int freeBuffs = tSLInformation.usNumberOfFreeBuffers;
 	
 	// Check the bsd_arguments
 	if (0 != (res = HostFlowControlConsumeBuff(sd)))
@@ -1142,9 +1097,6 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 		ARRAY_TO_STREAM(pDataPtr, ((unsigned char *)to), tolen);
 	}
 	
-#ifdef CC3000_DEBUG
-	TM_DEBUG("SENDING length %d on socket %d", len, sd);
-#endif
 	// Initiate a HCI command
 	hci_data_send(opcode, ptr, uArgSize, len,(unsigned char*)to, tolen);
         
@@ -1153,35 +1105,6 @@ simple_link_send(long sd, const void *buf, long len, long flags,
          else
             SimpleLinkWaitEvent(HCI_EVNT_SEND, &tSocketSendEvent);
 	
-
-	fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
-    FD_ZERO(&readSet);
-    FD_SET(sd, &readSet);
-    // struct timeval hostFlowTimeout;
-    // hostFlowTimeout.tv_sec = 10;
-    // hostFlowTimeout.tv_usec = 10000;
-
-    // purposefully make it a little slow
-// #ifdef CC3K_TIMEOUT
-// 	uint32_t ccStartTime = tm_uptime_micro();
-// 	while (tm_uptime_micro() - ccStartTime <= CC3000_SELECT_HANG) {}
-// #endif
-
-// #ifdef CC3K_TIMEOUT
-// 	// TM_DEBUG("waiting for buffer free after send on socket %d", sd);
-// 	uint32_t ccStartTime = tm_uptime_micro();
-// 	uint32_t ccPollTime = tm_uptime_micro();
-
-// 	while (tm_uptime_micro() - ccStartTime <= CC3000_SELECT_HANG) {
-// 		if (tm_uptime_micro() - ccPollTime >= CC3000_EVENT_WAIT) {
-// 			ccPollTime = tm_uptime_micro();
-// 			select(sd + 1, NULL, &readSet, NULL, &hostFlowTimeout);
-// 		}
-// 	}
-// #endif
-	// do a select call to try to free up that buffer
-	select(sd + 1, NULL, &readSet, NULL, NULL);
-
 	return	(len);
 }
 
@@ -1211,42 +1134,6 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 int
 send(long sd, const void *buf, long len, long flags)
 {
-
-	// #ifdef CC3000_DEBUG
-	// if (sd == -8) {
-	// 	TM_DEBUG("SSL DEBUG === about to start send_alert in ssl_basic read");
-	// 	return 0;	
-	// }
-	// if (sd == -12) {
-	// 	TM_DEBUG("SSL DEBUG === ending send_alert in ssl_basic read");
-	// 	return 0;	
-	// }
-	// if (sd == -9) {
-	// 	TM_DEBUG("SSL DEBUG === about to call ssl_basic read");
-	// 	return 0;	
-	// }
-	// if (sd == -10) {
-	// 	TM_DEBUG("SSL DEBUG === ssl_read got code %d", flags);
-	// 	return 0;	
-	// }
-	// if (sd == -11) {
-	// 	TM_DEBUG("SSL DEBUG === ssl_read about to send alert %d", flags);
-	// 	return 0;	
-	// }
-	// TM_DEBUG("SENDING %d bytes", len);
-	// #endif
-	// if (len == 27) {
-	// 	#ifdef CC3000_DEBUG
-	// 	TM_DEBUG("skip sending %d bytes", len);
-	// 	for(int i =0; i<len; i++){
-	// 		TM_DEBUG("%x", ((char *)buf)[i]);
-	// 	}
-	
-	// 	#endif
-	// 	// skip sending;
-	// 	while(1){};
-	// 	return 27;
-	// }
 	int ret = simple_link_send(sd, buf, len, flags, NULL, 0, HCI_CMND_SEND);
 	if (ret == -2) {
 		errno = EWOULDBLOCK;
