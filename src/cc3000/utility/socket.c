@@ -154,7 +154,7 @@ HostFlowControlConsumeBuff(int sd)
 #endif
 
 		if(SOCKET_STATUS_ACTIVE != get_socket_active_status(sd))
-			return -1;
+			return -EPERM;
 
 #ifdef CC3K_TIMEOUT
 		// WORKAROUND: sometimes this doesn't work and we need to kick out of this loop

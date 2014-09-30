@@ -9,6 +9,7 @@
 
 #include <tm.h>
 
+#include <errno.h>
 #include "hw.h"
 #include "tm.h"
 #include "host_spi.h"
@@ -60,7 +61,7 @@ static uint8_t track_close_socket() {
 
 uint32_t tm_hostname_lookup (const uint8_t *hostname)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	unsigned long out_ip_addr = 0;
@@ -79,7 +80,7 @@ uint32_t tm_hostname_lookup (const uint8_t *hostname)
 
 tm_socket_t tm_udp_open ()
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -87,7 +88,7 @@ tm_socket_t tm_udp_open ()
 
 	if (sock >= 0) {
 		if (track_open_socket()){
-			return -SOCKET_TRACK_ERR;
+			return -EMFILE;
 		}
 	}
 	
@@ -96,7 +97,7 @@ tm_socket_t tm_udp_open ()
 
 int tm_udp_close (int ulSocket)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	int ret = closesocket(ulSocket);
@@ -104,7 +105,7 @@ int tm_udp_close (int ulSocket)
 
 	if (ret == 0) {
 		if (track_close_socket()) {
-			return -SOCKET_TRACK_ERR;
+			return -EMFILE;
 		}
 	} else {
 #ifdef CC3000_DEBUG
@@ -117,7 +118,7 @@ int tm_udp_close (int ulSocket)
 
 int tm_udp_listen (int ulSocket, int port)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 
 	sockaddr localSocketAddr;
 	localSocketAddr.sa_family = AF_INET;
@@ -140,7 +141,7 @@ int tm_udp_listen (int ulSocket, int port)
 
 int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t *ip)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	sockaddr from;
@@ -159,7 +160,7 @@ int tm_udp_receive (int ulSocket, uint8_t *buf, unsigned long buf_len, uint32_t 
 
 int tm_udp_readable (tm_socket_t sock)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
     CC3000_START;
 
     fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
@@ -180,7 +181,7 @@ int tm_udp_readable (tm_socket_t sock)
 
 int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3, int port, const uint8_t *buf, unsigned long buf_len)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 
 	sockaddr tSocketAddr;
 
@@ -200,7 +201,7 @@ int tm_udp_send (int ulSocket, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip
 
 tm_socket_t tm_tcp_open ()
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 #ifdef CC3000_DEBUG
 	TM_DEBUG("trying to open socket with %d sockets already open", openSockets);
@@ -215,7 +216,7 @@ tm_socket_t tm_tcp_open ()
 	CC3000_END;
 	if (ulSocket >= 0) {
 		if (track_open_socket()){
-			return -SOCKET_TRACK_ERR;
+			return -EMFILE;
 		}
 	} 
 	return ulSocket;
@@ -231,7 +232,7 @@ int tm_tcp_close (tm_socket_t sock)
 	CC3000_END;
 	if (ret == 0) {
 		if (track_close_socket()) {
-			return -SOCKET_TRACK_ERR;
+			return -EMFILE;
 		}
 	} else {
 #ifdef CC3000_DEBUG
@@ -244,7 +245,7 @@ int tm_tcp_close (tm_socket_t sock)
 
 int tm_tcp_connect (tm_socket_t sock, uint32_t addr, uint16_t port)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	// the family is always AF_INET
@@ -265,7 +266,7 @@ int tm_tcp_connect (tm_socket_t sock, uint32_t addr, uint16_t port)
 
 int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	int sentLen = send(sock, buf, buflen, 0);
@@ -275,7 +276,7 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
 
 int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 
 	// Limit buffer limit to 512 bytes to be reliable.
 	if (buflen > 512) {
@@ -290,7 +291,7 @@ int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
 
 int tm_tcp_readable (tm_socket_t sock)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
     CC3000_START;
 
     // Socket file descriptors we want to wake up for, using select()
@@ -315,7 +316,7 @@ int tm_tcp_readable (tm_socket_t sock)
 
 int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
 
 	sockaddr_in localSocketAddr;
@@ -354,7 +355,7 @@ int tm_tcp_listen (tm_socket_t sock, uint16_t port)
 // Returns >= 0 for socket descriptor.
 tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *addr, uint16_t *port)
 {
-	if (!hw_net_online_status()) return -NO_CONNECTION;
+	if (!hw_net_online_status()) return -ENETUNREACH;
 
 	// the family is always AF_INET
 	sockaddr_in addrClient;
