@@ -387,7 +387,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 						}
 						
 					case HCI_EVNT_SELECT:
-						{ 
+						{
 							STREAM_TO_UINT32((char *)pucReceivedParams,SELECT_STATUS_OFFSET,*(unsigned long *)pRetParams);
 							pRetParams = ((char *)pRetParams) + 4;
 							STREAM_TO_UINT32((char *)pucReceivedParams,SELECT_READFD_OFFSET,*(unsigned long *)pRetParams);
@@ -475,7 +475,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 				
 				memcpy(pRetParams, pucReceivedParams + HCI_DATA_HEADER_SIZE + ucArgsize,
 							 usLength - ucArgsize);
-				
+
 				tSLInformation.usRxDataPending = 0;
 			}
 		
@@ -502,7 +502,21 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 
 			// check the system timer
 			// compare it to maximum allowed wait
-			if (tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) {
+			// If it's a WLAN event give it a bigger wait time since we might be waiting for APs
+			// check for HCI_CMND_WLAN_CONFIGURE_PATCH because all the WLAN commands range from 0
+			//  to 0xD and PATCH is the biggest one.
+			// If it's not a WLAN event, give it the shorter event wait time
+			if ( ((tSLInformation.usRxEventOpcode <= HCI_CMND_WLAN_CONFIGURE_PATCH 
+					|| tSLInformation.usRxEventOpcode == HCI_EVNT_SOCKET)
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) 
+				// give HCI_EVNT_CLOSE_SOCKET more time
+				 || ( tSLInformation.usRxEventOpcode == HCI_EVNT_CLOSE_SOCKET 
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_CLOSE_SOCKET_WAIT) 
+				 || (tSLInformation.usRxEventOpcode > HCI_CMND_WLAN_CONFIGURE_PATCH
+				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_CLOSE_SOCKET
+				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_SOCKET
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_EVENT_WAIT)
+				) {
 
 				// set pRetParams to some default values
 				switch(tSLInformation.usRxEventOpcode) {
@@ -743,7 +757,6 @@ hci_unsol_event_handler(char *event_hdr)
 	{
                 char *pArg;
                 long status;
-                
                 pArg = M_BSD_RESP_PARAMS_OFFSET(event_hdr);
                 STREAM_TO_UINT32(pArg, BSD_RSP_PARAMS_STATUS_OFFSET,status);
                 

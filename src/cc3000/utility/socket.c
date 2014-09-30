@@ -47,7 +47,9 @@
 #include "socket.h"
 #include "evnt_handler.h"
 #include "netapp.h"
-
+#ifdef CC3000_DEBUG
+	#include "tm.h"
+#endif
 
 
 //Enable this flag if and only if you must comply with BSD socket 
@@ -112,7 +114,20 @@
 int
 HostFlowControlConsumeBuff(int sd)
 {
-#ifndef SEND_NON_BLOCKING
+
+#ifdef CC3000_DEBUG
+	TM_DEBUG("tSLInformation.usNumberOfFreeBuffers %d", tSLInformation.usNumberOfFreeBuffers);
+#endif
+// #ifndef SEND_NON_BLOCKING
+
+#ifdef CC3K_TIMEOUT
+	uint32_t ccStartTime = tm_uptime_micro();
+	uint32_t ccPollTime = tm_uptime_micro();
+	fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
+    FD_ZERO(&readSet);
+    FD_SET(sd, &readSet);
+#endif
+
 	/* wait in busy loop */
 	do
 	{
@@ -121,45 +136,64 @@ HostFlowControlConsumeBuff(int sd)
 		// Note that the buffer will not be allocated in this case
 		if (tSLInformation.slTransmitDataError != 0)
 		{
+#ifdef CC3000_DEBUG
+	TM_DEBUG("last transmission failed with code %d", tSLInformation.slTransmitDataError);
+#endif
+
 			errno = tSLInformation.slTransmitDataError;
 			tSLInformation.slTransmitDataError = 0;
 			return errno;
 		}
 		
+		// every now and then do some select calls to free
+#ifdef CC3K_TIMEOUT
+		if (tm_uptime_micro() - ccPollTime >= CC3000_EVENT_WAIT) {
+			ccPollTime = tm_uptime_micro();
+			select(sd + 1, NULL, &readSet, NULL, NULL);
+		}
+#endif
+
 		if(SOCKET_STATUS_ACTIVE != get_socket_active_status(sd))
-			return -1;
-	} while(0 == tSLInformation.usNumberOfFreeBuffers);
+			return -EPERM;
+
+#ifdef CC3K_TIMEOUT
+		// WORKAROUND: sometimes this doesn't work and we need to kick out of this loop
+		if (tm_uptime_micro() - ccStartTime >= CC3000_BUFFER_WAIT) {
+			TM_DEBUG("kicking out of buffer wait");
+			return CC3K_TIMEOUT_ERR;
+		}
+#endif
+	} while(tSLInformation.usNumberOfFreeBuffers <= 1);
 	
 	tSLInformation.usNumberOfFreeBuffers--;
 	
 	return 0;
-#else
+// #else
+// 	// In case last transmission failed then we will return the last failure 
+// 	// reason here.
+// 	// Note that the buffer will not be allocated in this case
+// 	if (tSLInformation.slTransmitDataError != 0)
+// 	{
+// 		errno = tSLInformation.slTransmitDataError;
+// 		tSLInformation.slTransmitDataError = 0;
+// 		return errno;
+// 	}
+// 	if(SOCKET_STATUS_ACTIVE != get_socket_active_status(sd))
+// 		return -1;
 	
-	// In case last transmission failed then we will return the last failure 
-	// reason here.
-	// Note that the buffer will not be allocated in this case
-	if (tSLInformation.slTransmitDataError != 0)
-	{
-		errno = tSLInformation.slTransmitDataError;
-		tSLInformation.slTransmitDataError = 0;
-		return errno;
-	}
-	if(SOCKET_STATUS_ACTIVE != get_socket_active_status(sd))
-		return -1;
-	
-	//If there are no available buffers, return -2. It is recommended to use  
-	// select or receive to see if there is any buffer occupied with received data
-	// If so, call receive() to release the buffer.
-	if(0 == tSLInformation.usNumberOfFreeBuffers)
-	{
-		return -2;
-	}
-	else
-	{
-		tSLInformation.usNumberOfFreeBuffers--;
-		return 0;
-	}
-#endif
+// 	//If there are no available buffers, return -2. It is recommended to use  
+// 	// select or receive to see if there is any buffer occupied with received data
+// 	// If so, call receive() to release the buffer.
+// 	if(0 == tSLInformation.usNumberOfFreeBuffers)
+// 	{
+// 		return -2;
+// 	}
+// 	else
+// 	{
+// 		tSLInformation.usNumberOfFreeBuffers--;
+// 		return 0;
+// 	}
+// #endif
 }
 
 //*****************************************************************************
@@ -210,6 +244,9 @@ socket(long domain, long type, long protocol)
 	
 	set_socket_active_status(ret, SOCKET_STATUS_ACTIVE);
 	
+	#ifdef CC3000_DEBUG
+	TM_DEBUG("Opening socket %d", ret);
+	#endif
 	return(ret);
 }
 
@@ -228,7 +265,7 @@ socket(long domain, long type, long protocol)
 long
 closesocket(long sd)
 {
-	long ret;
+    long ret;
 	unsigned char *ptr, *args;
 	
 	ret = EFAIL;
@@ -250,6 +287,9 @@ closesocket(long sd)
 	// mark this socket as invalid 
 	set_socket_active_status(sd, SOCKET_STATUS_INACTIVE);
 	
+	#ifdef CC3000_DEBUG
+	TM_DEBUG("Closing socket %d", sd);
+	#endif
 	return(ret);
 }
 
@@ -918,6 +958,7 @@ simple_link_recv(long sd, void *buf, long len, long flags, sockaddr *from,
 int
 recv(long sd, void *buf, long len, long flags)
 {
+
 	int ret = simple_link_recv(sd, buf, len, flags, NULL, NULL, HCI_CMND_RECV);
 	if (ret == 0) {
 		ret = -1;
@@ -995,9 +1036,12 @@ simple_link_send(long sd, const void *buf, long len, long flags,
 	// Check the bsd_arguments
 	if (0 != (res = HostFlowControlConsumeBuff(sd)))
 	{
+#ifdef CC3000_DEBUG
+	TM_DEBUG("HostFlowControlConsumeBuff is bad %d", res);
+#endif
+		// if HostFlowControlConsumeBuff is -2, we need to back off and retry once the buffer is freed
 		return res;
 	}
-	
 	//Update the number of sent packets
 	tSLInformation.NumberOfSentPackets++;
 	

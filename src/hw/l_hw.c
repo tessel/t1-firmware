@@ -821,6 +821,7 @@ static int l_clocksync (lua_State* L) {
 	uint32_t retip;
 	int size = tm_udp_receive(sock, buf, 256, &retip);
 	(void) size;
+
 	tm_udp_close(sock);
 
 	// Offset to get to the "Transmit Timestamp" field (time at which the reply
