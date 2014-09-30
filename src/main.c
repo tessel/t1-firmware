@@ -125,6 +125,16 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		jump_to_flash(FLASH_BOOT_ADDR, BOOT_MAGIC);
 		while(1);
 	
+	} else if (cmd == 'c') {
+		unsigned char mac_address[6] = {0};
+		int8_t mac_status = -1;
+		mac_status = nvmem_get_mac_address(mac_address);
+		if (mac_status) {
+			TM_COMMAND('c', "{\"event\": \"error\", \"status\": \"%d.\"}", mac_status);
+		}
+		else {
+			TM_COMMAND('c', "{\"event\": \"success\", \"mac_address\": \"%d.%d.%d.%d.%d.%d\"}", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
+		}
 	} else if (cmd == 'n') {
 		if (tm_lua_state != NULL) {
 			colony_ipc_emit(tm_lua_state, "stdin", buf, size);
