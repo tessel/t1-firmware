@@ -5,6 +5,10 @@ var pass = process.argv[3];
 
 console.log('Loggin in with network:', network, 'password:', pass);
 
+function getMacAddress() {
+  return wifi.macAddress();
+}
+
 function tryConnect(){
   if (!wifi.isBusy()) {
     console.log("not busy");
@@ -96,6 +100,8 @@ wifi.on('timeout', function(err){
 wifi.on('error', function(err){
   console.log("error emitted", err);
 });
+
+console.log("Mac Address: ", getMacAddress());
 
 tryConnect();
 

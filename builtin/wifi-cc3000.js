@@ -153,6 +153,23 @@ function Wifi(){
     return self;
   }
 
+  self.macAddress = function() {
+    // Create the buffer to store the mac address in
+    var macAddress = new Buffer(6);
+    // Fill it with zeros as a sanity check
+    macAddress.fill(0);
+    // Gather the mac address
+    var err = hw.wifi_mac_address(macAddress);
+    // If there was an issue
+    if (err) {
+      // Return null
+      return null;
+    } 
+    
+    // Return the mac address buffer
+    return macAddress;
+  }
+
   self._emitConnection();
 }
 
