@@ -933,11 +933,13 @@ static int l_wifi_disconnect(lua_State* L) {
 }
 
 static int l_wifi_mac_address(lua_State* L) {
-	size_t buffer_len;
+	uint8_t* mac_buffer = colony_createbuffer(L, MAC_ADDR_LEN);
 	int8_t mac_status = -1;
-	uint8_t *mac_buffer = colony_tobuffer(L, ARG1, &buffer_len);
 	mac_status = nvmem_get_mac_address(mac_buffer);
-	lua_pushnumber(L, mac_status);
+	if (mac_status) {
+		TM_DEBUG("Error retrieving MAC Address: %d", mac_status);
+		return 0;
+	}
 	return 1;
 }
 
