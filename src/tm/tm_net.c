@@ -362,7 +362,14 @@ tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *addr, uint16_t *port)
 	socklen_t addrlen = sizeof(addrClient);
 	CC3000_START;
 	int res = accept(sock, (sockaddr *) &addrClient, &addrlen);
+
 	CC3000_END;
+	// track 
+	if (res >= 0) {
+		if (track_open_socket()){
+			return -EMFILE;
+		}
+	} 
 	*addr = ntohl(addrClient.sin_addr.s_addr);
 	*port = ntohs(addrClient.sin_addr.s_addr);
 	return res;
