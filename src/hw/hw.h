@@ -39,6 +39,7 @@ void hw_usb_init(void);
 
 #include "utility/socket.h"
 #include "utility/cc3000_common.h"
+#include "utility/nvmem.h"
 #include "host_spi.h"
 
 void hw_net_initialize (void);

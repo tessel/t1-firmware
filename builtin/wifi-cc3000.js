@@ -153,6 +153,11 @@ function Wifi(){
     return self;
   }
 
+  self.macAddress = function() {
+    // Gather the mac address
+    return hw.wifi_mac_address();
+  }
+
   self._emitConnection();
 }
 

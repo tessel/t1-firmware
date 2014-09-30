@@ -932,6 +932,16 @@ static int l_wifi_disconnect(lua_State* L) {
 	return 1;
 }
 
+static int l_wifi_mac_address(lua_State* L) {
+	uint8_t* mac_buffer = colony_createbuffer(L, MAC_ADDR_LEN);
+	int8_t mac_status = nvmem_get_mac_address(mac_buffer);
+	if (mac_status) {
+		TM_DEBUG("Error retrieving MAC Address: %d", mac_status);
+		return 0;
+	}
+	return 1;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1047,6 +1057,7 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "wifi_disconnect", l_wifi_disconnect },
 		{ "wifi_disable", l_wifi_disable },
 		{ "wifi_enable", l_wifi_enable },
+		{ "wifi_mac_address", l_wifi_mac_address},
 
 		// End of array (must be last)
 		{ NULL, NULL }
