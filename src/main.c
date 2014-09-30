@@ -127,8 +127,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 	
 	} else if (cmd == 'c') {
 		unsigned char mac_address[6] = {0};
-		int8_t mac_status = -1;
-		mac_status = nvmem_get_mac_address(mac_address);
+		int8_t mac_status = nvmem_get_mac_address(mac_address);
 		if (mac_status) {
 			TM_COMMAND('c', "{\"event\": \"error\", \"status\": \"%d.\"}", mac_status);
 		}
