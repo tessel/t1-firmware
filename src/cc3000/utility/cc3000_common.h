@@ -131,13 +131,13 @@ extern "C" {
 /* Maximum time to wait for an event in microseconds
 */
 
-#define CC3000_CLOSE_SOCKET_WAIT   (1000000 * 3) // 3s to close a socket
-#define CC3000_MAX_WAIT   (1000000 * 10) // 10s for longer feedback loops like AP connections
-#define CC3000_BUFFER_WAIT   (1000000 * 5)
-#define CC3000_EVENT_WAIT (1000000) // 1s for CC3k comms
-#define CC3000_SELECT_HANG (1000000*5) // 5s before select hangs
-#define CC3000_CLOSE_HANG (1000000*10) // 10s before close hangs
-
+#define CC3000_CLOSE_SOCKET_WAIT   (1e6 * 3) // 3s to close a socket
+#define CC3000_MAX_WAIT   (1e6 * 10) // 10s for longer feedback loops like AP connections
+#define CC3000_BUFFER_WAIT   (1e6 * 5)
+#define CC3000_EVENT_WAIT (1e6) // 1s for CC3k comms
+#define CC3000_SELECT_HANG (1e6*5) // 5s before select hangs
+#define CC3000_CLOSE_HANG (1e6*10) // 10s before close hangs
+#define CC3000_BLOCKS_WAIT (1e6*20)
 
 
 //TX and RX buffer sizes, allow to receive and transmit maximum data at length 8.

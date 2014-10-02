@@ -103,7 +103,7 @@ int tm_udp_close (int ulSocket)
 	int ret = closesocket(ulSocket);
 	CC3000_END;
 
-	if (ret == 0) {
+	if (ret == 0 || ret == -CC_ENOTCONN) {
 		if (track_close_socket()) {
 			return -EMFILE;
 		}
@@ -230,7 +230,7 @@ int tm_tcp_close (tm_socket_t sock)
 	int ret = closesocket(sock);
 	
 	CC3000_END;
-	if (ret == 0) {
+	if (ret == 0 || ret == -CC_ENOTCONN) {
 		if (track_close_socket()) {
 			return -EMFILE;
 		}
