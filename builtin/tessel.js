@@ -131,7 +131,7 @@ Pin.prototype.removeListener = function(event, listener) {
   var emitter = Pin.super_.prototype.removeListener.call(this, event, listener);
 
   // If it's an interrupt event, remove as necessary
-  _interruptRemovalCheck(event);
+  _interruptRemovalCheck(this, event);
 
   return emitter;
 };
@@ -187,15 +187,15 @@ Pin.prototype.on = function(mode, callback) {
   }
 };
 
-function _interruptRemovalCheck (event) {
+function _interruptRemovalCheck (pin, event) {
   // Check if this is an interrupt mode
   var type = _triggerTypeForMode(event);
 
   // If it is, and the listener count is now zero
-  if (type && !EventEmitter.listenerCount(this, event)) {
+  if (type && !EventEmitter.listenerCount(pin, event)) {
 
     // Remove this interrupt
-    _removeInterruptMode(this, type, event);
+    _removeInterruptMode(pin, type, event);
   }
 
 }
@@ -232,7 +232,7 @@ function _removeInterruptMode(pin, type, mode) {
     if (!interrupt.mode) {
 
       // Delete this interrupt from the pin dict
-      delete pin.interrupts[type];
+      pin.interrupts[type] = null;
     }
   }
 }
