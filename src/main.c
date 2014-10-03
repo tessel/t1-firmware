@@ -132,7 +132,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			TM_COMMAND('c', "{\"event\": \"error\", \"status\": \"%d.\"}", mac_status);
 		}
 		else {
-			TM_COMMAND('c', "{\"event\": \"success\", \"mac_address\": \"%d.%d.%d.%d.%d.%d\"}", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
+			TM_COMMAND('c', "{\"event\": \"success\", \"mac_address\": \"%02x:%02x:%02x:%02x:%02x:%02x\"}", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
 		}
 	} else if (cmd == 'n') {
 		if (tm_lua_state != NULL) {
