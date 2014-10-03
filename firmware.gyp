@@ -228,6 +228,7 @@
         'src/hw/hw_analog.c',
         'src/hw/hw_highspeedsignal.c',
         'src/hw/hw_digital.c',
+        'src/hw/hw_readpulse.c',
         'src/hw/hw_i2c.c',
         'src/hw/hw_interrupt.c',
         'src/hw/hw_net.c',

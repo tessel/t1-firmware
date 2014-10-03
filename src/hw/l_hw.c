@@ -453,6 +453,17 @@ static int l_hw_digital_get_mode(lua_State* L)
 }
 
 
+// SCT
+
+static int l_sct_read_pulse(lua_State* L)
+{
+	const char* type = (const char*)lua_tostring(L, ARG1);
+	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	lua_pushnumber(L, sct_read_pulse(type,timeout));
+	return 1;
+}
+
+
 // interrupts
 
 static int l_hw_interrupts_remaining(lua_State* L)
@@ -939,6 +950,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "digital_set_mode", l_hw_digital_set_mode},
 		{ "analog_write", l_hw_analog_write },
 		{ "analog_read", l_hw_analog_read },
+
+		// sct
+		{ "sct_read_pulse", l_sct_read_pulse },
 
 		// external gpio interrupts
 		{ "interrupts_remaining", l_hw_interrupts_remaining },
