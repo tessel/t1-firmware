@@ -418,6 +418,34 @@ Pin.prototype.readSync = function(value) {
   return this.read();
 };
 
+Pin.prototype.readPulse = function(type, timeout, callback) {
+
+  // calls the provided callback with an error if there was a timeout
+  function cb_read_pulse_complete(pulsetime) {
+    if (callback) {
+      if (pulsetime < 0) {
+        err = new Error("SCT timed out while attempting to read pulse");
+      }
+      callback(err,pulsetime);
+    }
+  }
+
+  // when the read is complete, process it and call the callback
+  process.once('read_pulse_complete', cb_read_pulse_complete);
+
+  // call the read pulse function
+  if (hw.sct_read_pulse(type.toLowerCase(), timeout)) {
+  } else {
+    process.removeListener('read_pulse_complete', cb_read_pulse_complete);
+  }
+
+}
+
+Pin.prototype.pulseIn = function(type, timeout, callback) {
+  console.warn('pin.pulseIn() is deprecated. Use pin.readPulse() instead.');
+  this.readPulse(type, timeout, callback);
+};
+
 Pin.prototype.write = function (value, next) {
   this.rawWrite(value);
   this.rawDirection(true);

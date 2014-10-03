@@ -368,6 +368,12 @@ int hw_digital_set_mode (uint8_t ulPin, uint8_t mode);
 uint32_t hw_analog_read (uint32_t ulPin);
 int hw_analog_write (uint32_t ulPin, float ulValue);
 
+
+// sct
+
+uint8_t sct_read_pulse (const char* type, uint32_t timeout);
+
+
 #ifdef __cplusplus
 };
 #endif /**CPP**/
