@@ -442,7 +442,19 @@ long SpiWrite(unsigned char *pUserBuffer, unsigned short usLength)
 	// here we will wait till end of transaction
 	//
 //	TM_DEBUG("waiting for sSpiInformation.ulSpiState");
+#ifdef CC3K_TIMEOUT
+	double ccStartTime = tm_timestamp();
+#endif
 	while (eSPI_STATE_IDLE != sSpiInformation.ulSpiState) {
+#ifdef CC3K_TIMEOUT
+		// wait the max of all of our timeouts
+		if (tm_timestamp() - ccStartTime >= CC3000_BLOCKS_WAIT) {
+			TM_DEBUG("Kicking out of CC_BLOCKS");
+			break;
+		}
+#endif
+
+
 		CC_BLOCKS();
 		continue;
 	}

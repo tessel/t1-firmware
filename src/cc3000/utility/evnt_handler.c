@@ -249,7 +249,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 	unsigned char *RetParams;
 
 #ifdef CC3K_TIMEOUT
-	uint32_t ccStartTime = tm_uptime_micro();
+	double ccStartTime = tm_timestamp();
 #endif
 
 	while (1)
@@ -508,14 +508,14 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 			// If it's not a WLAN event, give it the shorter event wait time
 			if ( ((tSLInformation.usRxEventOpcode <= HCI_CMND_WLAN_CONFIGURE_PATCH 
 					|| tSLInformation.usRxEventOpcode == HCI_EVNT_SOCKET)
-				 	&& tm_uptime_micro() - ccStartTime >= CC3000_MAX_WAIT) 
+				 	&& tm_timestamp() - ccStartTime >= CC3000_MAX_WAIT) 
 				// give HCI_EVNT_CLOSE_SOCKET more time
 				 || ( tSLInformation.usRxEventOpcode == HCI_EVNT_CLOSE_SOCKET 
-				 	&& tm_uptime_micro() - ccStartTime >= CC3000_CLOSE_SOCKET_WAIT) 
+				 	&& tm_timestamp() - ccStartTime >= CC3000_CLOSE_SOCKET_WAIT) 
 				 || (tSLInformation.usRxEventOpcode > HCI_CMND_WLAN_CONFIGURE_PATCH
 				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_CLOSE_SOCKET
 				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_SOCKET
-				 	&& tm_uptime_micro() - ccStartTime >= CC3000_EVENT_WAIT)
+				 	&& tm_timestamp() - ccStartTime >= CC3000_EVENT_WAIT)
 				) {
 
 				// set pRetParams to some default values
