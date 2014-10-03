@@ -6,7 +6,7 @@
     "install": "true"
   },
   "dependencies": {
-    "colony-compiler": "~0.5.0-1"
+    "colony-compiler": "~0.6.21"
   },
   "private": true
 }
