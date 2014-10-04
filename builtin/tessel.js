@@ -417,7 +417,7 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   // calls the provided callback with an error if there was a timeout
   function cb_read_pulse_complete(pulsetime) {
     if (callback) {
-      if (pulsetime < 0) {
+      if (pulsetime == 0xFFFFFFFF) {
         err = new Error("SCT timed out while attempting to read pulse");
       }
       callback(err,pulsetime);
@@ -428,8 +428,7 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   process.once('read_pulse_complete', cb_read_pulse_complete);
 
   // call the read pulse function
-  if (hw.sct_read_pulse(type.toLowerCase(), timeout)) {
-  } else {
+  if (!hw.sct_read_pulse(type.toLowerCase(), timeout)) {
     process.removeListener('read_pulse_complete', cb_read_pulse_complete);
   }
 
