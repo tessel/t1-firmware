@@ -443,12 +443,12 @@ long SpiWrite(unsigned char *pUserBuffer, unsigned short usLength)
 	//
 //	TM_DEBUG("waiting for sSpiInformation.ulSpiState");
 #ifdef CC3K_TIMEOUT
-	double ccStartTime = tm_timestamp();
+	uint32_t ccStartTime = tm_uptime_micro();
 #endif
 	while (eSPI_STATE_IDLE != sSpiInformation.ulSpiState) {
 #ifdef CC3K_TIMEOUT
 		// wait the max of all of our timeouts
-		if (tm_timestamp() - ccStartTime >= CC3000_BLOCKS_WAIT) {
+		if (tm_uptime_micro() - ccStartTime >= CC3000_BLOCKS_WAIT) {
 			TM_DEBUG("Kicking out of CC_BLOCKS");
 			break;
 		}

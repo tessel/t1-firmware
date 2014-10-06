@@ -121,8 +121,8 @@ HostFlowControlConsumeBuff(int sd)
 // #ifndef SEND_NON_BLOCKING
 
 #ifdef CC3K_TIMEOUT
-	double ccStartTime = tm_timestamp();
-	double ccPollTime = tm_timestamp();
+	uint32_t ccStartTime = tm_uptime_micro();
+	uint32_t ccPollTime = tm_uptime_micro();
 	fd_set readSet;        // Socket file descriptors we want to wake up for, using select()
     FD_ZERO(&readSet);
     FD_SET(sd, &readSet);
@@ -147,8 +147,8 @@ HostFlowControlConsumeBuff(int sd)
 		
 		// every now and then do some select calls to free
 #ifdef CC3K_TIMEOUT
-		if (tm_timestamp() - ccPollTime >= CC3000_EVENT_WAIT) {
-			ccPollTime = tm_timestamp();
+		if (tm_uptime_micro() - ccPollTime >= CC3000_EVENT_WAIT) {
+			ccPollTime = tm_uptime_micro();
 			select(sd + 1, NULL, &readSet, NULL, NULL);
 		}
 #endif
@@ -158,7 +158,7 @@ HostFlowControlConsumeBuff(int sd)
 
 #ifdef CC3K_TIMEOUT
 		// WORKAROUND: sometimes this doesn't work and we need to kick out of this loop
-		if (tm_timestamp() - ccStartTime >= CC3000_BUFFER_WAIT) {
+		if (tm_uptime_micro() - ccStartTime >= CC3000_BUFFER_WAIT) {
 			TM_DEBUG("kicking out of buffer wait");
 			return CC3K_TIMEOUT_ERR;
 		}
