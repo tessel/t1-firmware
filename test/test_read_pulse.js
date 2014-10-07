@@ -1,57 +1,70 @@
-/* The pins that are being used as input and output */
 var tessel = require('tessel');
 var gpio = tessel.port['GPIO'];
-var pin_output = gpio.pin['G5'];
+var pin_output = gpio.pin['G4'];
 var pin_input = gpio.pin['G3'];
 
-/* The amount of time to pause inbetween tests (ms) */
-var TIME_OUT = 1000;
+// Percent diff of what's read and what's expected. setTimeout inaccuracy
+var MARGIN_OF_ERROR = 0.02;
 
-/* Configure the input pin to be input and a pulldown */
+// Configure the input pin to be input and pull it down
 pin_input.input();
 pin_input.pull('pulldown');
 
-/* The various tests that need to run */
+// The various tests that need to run
 var tests = [
-    { 'pre_pulse_length': 150, 'pulse_length': 250, 'post_pulse_length': 350, 'pull': 'high', 'timeout': 5000, 'callback': cb_read_pulse },
+  { 'pre_len': 200,  'pulse_len': 300,  'post_len': 200,  'pull': 'high',  'timeout': 5000 },
+//  { 'pre_len': 200,  'pulse_len': 300,  'post_len': 200,  'pull': 'low',   'timeout': 5000 },
+//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 5000 },
+//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 5000 },
+//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 100 },
+//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'low',   'timeout': 100 },
 ]
 
-/* Loop though the tests and make sure that they all work */
+// Loop though the tests and make sure that they all work
 for (var i = 0; i < tests.length; ++i) {
-    run_test(tests[i]);
+  run_test(tests[i])
 }
 
+// Run the test and output results
 function run_test(test) {
-    console.log('TEST:',test.pulse_length,'ms',test.pull,'pulse with a',test.timeout,'ms timeout');
-    console.log('--------------------------------------------------------------------------------');
-    pull_output(test.pull);
-    pin_input.readPulse(test.pull, test.timeout, function (err,pulsetime) {
-        if (err) { console.log("TIMED OUT"); }
-        else if ( Math.abs(pulsetime - test.pulse_length) < 1 ) { console.log('GOOD READ'); }
-        else { console.log('BAD READ:',pulsetime,'!=',test.pulse_length); }
-    });
-    send_pulse_out(test.pull, test.pre_pulse_length, test.pulse_length, test.post_pulse_length);
+  pull_output(test.pull);
+  pin_input.readPulse(test.pull, test.timeout, function (err,pulse_len) {
+    if (err) {
+      console.log('[T] Failed - expected',test.pulse_len.toString()+'ms',
+                  test.pull,'pulse and timed out');
+      return;
+    }
+    var moe = get_margin_of_error(test.pulse_len,pulse_len);
+    var status = (moe <= MARGIN_OF_ERROR) ? 'Passed' : 'Failed';
+    console.log('[T]',status,'- expected',
+                test.pulse_len.toString()+'ms',test.pull,'pulse and read a',
+                pulse_len.toFixed(2).toString()+'ms pulse (',
+                (moe*100).toFixed(2).toString()+'% margin of error )');
+  });
+  send_pulse_out(test.pull, test.pre_len, test.pulse_len, test.post_len);
 }
 
-/* Pulls the output pin 'pulldown' or 'pullhigh' inverse of the actual pull */
+// Pulls the output pin 'pulldown' or 'pullhigh' inverse of the actual pull
 function pull_output(pull) {
-    var pulli = 'pulldown';
-    if (pull == 'low') { pulli = 'pullup'; }
-    pin_output.pull(pulli);
+  pin_output.pull((pull == 'low')?'pullup':'pulldown');
 }
 
-/* Outputs a pulse to the output pin */
-function send_pulse_out(pull,pre_pulse_length,pulse_length,post_pulse_length) {
-    var ipi = 0;
-    if (pull == 'high') { ipi = 1; } 
-    write_output(ipi,pre_pulse_length);
-    write_output(!ipi, pre_pulse_length+pulse_length);
-    write_output(ipi, pre_pulse_length+pulse_length+post_pulse_length);
+// Outputs a pulse to the output pin
+function send_pulse_out(pull,pre_len,pulse_len,post_len) {
+  var pull_i = (pull == 'high') ? 1 : 0;
+  write_output(pull_i,pre_len);
+  write_output(!pull_i, pre_len+pulse_len);
+  if (pull_i) { write_output(pull_i, pre_len+pulse_len+post_len); }
 }
 
-/* Writes the value to output on the pin */
+// Writes the value to output on the pin
 function write_output(pull,time) {
-    setTimeout(function () {
-        pin_output.write(pull);
-    }, time);
+  setTimeout(function () {
+    pin_output.write(pull);
+  }, time);
+}
+
+// Returns the margin of error
+function get_margin_of_error(exp,act) {
+  return (Math.abs(exp-act)/exp);
 }

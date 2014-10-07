@@ -420,11 +420,18 @@ Pin.prototype.readSync = function(value) {
 
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
+  // make sure the timeout is not too long or the SCT limit will trigger early
+  if (timeout > 10000) {
+    console.warn("SCT timeout value too large. Setting to maximum value at 10000 ms");
+    timeout = 10000;
+  }
+
   // calls the provided callback with an error if there was a timeout
   function cb_read_pulse_complete(pulsetime) {
     if (callback) {
       if (pulsetime == 0xFFFFFFFF) {
         err = new Error("SCT timed out while attempting to read pulse");
+        pulsetime = 0x0;
       }
       callback(err,pulsetime);
     }
