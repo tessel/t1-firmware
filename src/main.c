@@ -465,24 +465,24 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	lua_pop(L, 1);
 
 	// Open tessel lib.
-	TM_DEBUG("Loading tessel library...");
-	int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
-	if (res != 0) {
-		TM_ERR("Error in %s: %d\n", "tessel.js", res);
-		tm_fs_destroy(tm_fs_root);
-		tm_fs_root = 0;
-		return;
-	}
-	lua_setglobal(L, "_tessel_lib");
+	// TM_DEBUG("Loading tessel library...");
+	// int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
+	// if (res != 0) {
+	// 	TM_ERR("Error in %s: %d\n", "tessel.js", res);
+	// 	tm_fs_destroy(tm_fs_root);
+	// 	tm_fs_root = 0;
+	// 	return;
+	// }
+	// lua_setglobal(L, "_tessel_lib");
 
-	res = luaL_loadbuffer(L, builtin_wifi_cc3000_js, builtin_wifi_cc3000_js_len, "wifi-cc3000.js");
-	if (res != 0) {
-		TM_ERR("Error in %s: %d\n", "wifi-cc3000.js", res);
-		tm_fs_destroy(tm_fs_root);
-		tm_fs_root = 0;
-		return;
-	}
-	lua_setglobal(L, "_wifi_cc3000_lib");
+	// res = luaL_loadbuffer(L, builtin_wifi_cc3000_js, builtin_wifi_cc3000_js_len, "wifi-cc3000.js");
+	// if (res != 0) {
+	// 	TM_ERR("Error in %s: %d\n", "wifi-cc3000.js", res);
+	// 	tm_fs_destroy(tm_fs_root);
+	// 	tm_fs_root = 0;
+	// 	return;
+	// }
+	// lua_setglobal(L, "_wifi_cc3000_lib");
 
 	lua_getglobal(L, "_colony");
 	lua_getfield(L, -1, "global");

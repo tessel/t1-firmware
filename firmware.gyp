@@ -299,7 +299,7 @@
       ],
       'include_dirs': [
         'deps/runtime/src',
-        'deps/runtime/deps/colony-lua/src',
+        'deps/runtime/deps/colony-luajit/src',
         'deps/runtime/deps/axtls/config',
         'deps/runtime/deps/axtls/ssl',
         'deps/runtime/deps/axtls/crypto',
