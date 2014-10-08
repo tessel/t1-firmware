@@ -213,7 +213,7 @@ void sct_read_pulse_complete ()
 
   // set the SCT state back to inactive
   hw_sct_status = SCT_INACTIVE;
-
+  
   // unreference the event
   tm_event_unref(&sct_read_pulse_complete_event);
 
