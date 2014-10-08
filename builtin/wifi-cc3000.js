@@ -133,8 +133,10 @@ function Wifi(){
   }
 
   self._failProcedure = function (err, callback){
-    self.emit('error', err);
-    if (callback) callback(err);
+    setImmediate(function(){
+      self.emit('error', err);
+      if (callback) callback(err);
+    });
   } 
 
   self.isEnabled = function() {
