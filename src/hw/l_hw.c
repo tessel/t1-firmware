@@ -457,9 +457,9 @@ static int l_hw_digital_get_mode(lua_State* L)
 
 static int l_sct_read_pulse(lua_State* L)
 {
-	const char* type = (const char*)lua_tostring(L, ARG1);
+	char* type = (char*)lua_tostring(L, ARG1);
 	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
-	lua_pushnumber(L, sct_read_pulse(type,timeout));
+	lua_pushnumber(L, sct_read_pulse(*type,timeout));
 	return 1;
 }
 

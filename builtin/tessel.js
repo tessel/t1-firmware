@@ -414,6 +414,15 @@ Pin.prototype.readSync = function(value) {
 
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
+  // make sure the user enters a valid type
+  if (type == '') {
+    console.error("SCT input pulse type not set correctly. Must be either \"high\" or \"low\"");
+    return;
+  }
+
+  // format the type so C avoids errors (note - default is 'high')
+  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
+
   // make sure the timeout is not too long or the SCT limit will trigger early
   if (timeout > 10000) {
     console.warn("SCT timeout value too large. Setting to maximum value at 10000 ms");
@@ -423,9 +432,8 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   // calls the provided callback with an error if there was a timeout
   function cb_read_pulse_complete(pulsetime) {
     if (callback) {
-      if (pulsetime == 0xFFFFFFFF) {
+      if (!pulsetime) {
         err = new Error("SCT timed out while attempting to read pulse");
-        pulsetime = 0x0;
       }
       callback(err,pulsetime);
     }
@@ -435,9 +443,7 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   process.once('read_pulse_complete', cb_read_pulse_complete);
 
   // call the read pulse function
-  if (!hw.sct_read_pulse(type.toLowerCase(), timeout)) {
-    process.removeListener('read_pulse_complete', cb_read_pulse_complete);
-  }
+  hw.sct_read_pulse(type, timeout);
 
 }
 

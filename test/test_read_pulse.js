@@ -6,18 +6,9 @@ var pin_input = gpio.pin['G3'];
 // Percent diff of what's read and what's expected. setTimeout inaccuracy
 var MARGIN_OF_ERROR = 0.02;
 
-// Configure the input pin to be input and pull it down
-pin_input.input();
-pin_input.pull('pulldown');
-
 // The various tests that need to run
 var tests = [
   { 'pre_len': 200,  'pulse_len': 300,  'post_len': 200,  'pull': 'high',  'timeout': 5000 },
-//  { 'pre_len': 200,  'pulse_len': 300,  'post_len': 200,  'pull': 'low',   'timeout': 5000 },
-//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 5000 },
-//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 5000 },
-//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'high',  'timeout': 100 },
-//  { 'pre_len': 200,  'pulse_len': 5000, 'post_len': 200,  'pull': 'low',   'timeout': 100 },
 ]
 
 // Loop though the tests and make sure that they all work

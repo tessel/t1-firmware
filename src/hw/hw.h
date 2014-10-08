@@ -370,7 +370,7 @@ int hw_analog_write (uint32_t ulPin, float ulValue);
 
 // sct
 
-uint8_t sct_read_pulse (const char* type, uint32_t timeout);
+uint8_t sct_read_pulse (char type, uint32_t timeout);
 
 
 #ifdef __cplusplus

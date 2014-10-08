@@ -46,16 +46,16 @@ extern "C" {
     name##_MSK = (int)(((1ul << width) - 1) << pos), \
   }
 
-// SCT control positions using CMSIS styler macro
+// SCT control positions using CMSIS style macro
 LPCLIB_DEFINE_REG_BIT(STOP_L,   1,  1);
 LPCLIB_DEFINE_REG_BIT(HALT_L,   2,  1);
 LPCLIB_DEFINE_REG_BIT(CLRCTR_L, 3,  1);
 LPCLIB_DEFINE_REG_BIT(PRE_L,    5,  8);
 
-// SCT config positions using CMSIS styler macro
+// SCT config positions using CMSIS style macro
 LPCLIB_DEFINE_REG_BIT(UNIFY,    0,  1);
 
-// Event control positions using CMSIS styler macro
+// Event control positions using CMSIS style macro
 LPCLIB_DEFINE_REG_BIT(MATCHSEL, 0,  4);
 LPCLIB_DEFINE_REG_BIT(IOSEL,    6,  4);
 LPCLIB_DEFINE_REG_BIT(IOCOND,   10, 2);
@@ -65,20 +65,20 @@ LPCLIB_DEFINE_REG_BIT(STATEV,   15, 5);
 
 // Prototypes
 void sct_set_scu_pin(uint8_t pin);
-void sct_driver_configure (const char* type, uint32_t timeout);
+void sct_configure_gpio(uint8_t pin);
+void sct_driver_configure (char type, uint32_t timeout);
 void sct_driver_start (void);
 void sct_read_pulse_complete ();
-void sct_log_registers (const char* msg);
 
-// The recorded pulse time
-uint32_t pulse_time = 0;
+// The recorded number of ticks over the pulse
+uint32_t pulse_ticks = 0;
 
 // Event triggered when read pulse is complete
 tm_event sct_read_pulse_complete_event = TM_EVENT_INIT(sct_read_pulse_complete);
 
 
-// Reads a pulse in opens its spot in the event queue
-uint8_t sct_read_pulse (const char* type, uint32_t timeout)
+// Begins waiting for pulse in
+uint8_t sct_read_pulse (char type, uint32_t timeout)
 {
   // set the pin configuration
   sct_set_scu_pin(E_G3);
@@ -110,12 +110,22 @@ void sct_set_scu_pin(uint8_t pin)
 }
 
 
+// Sets the pin back to gpio
+void sct_configure_gpio(uint8_t pin)
+{
+  scu_pinmux(g_APinDescription[pin].port,
+    g_APinDescription[pin].pin,
+    FILTER_ENABLE | INBUF_ENABLE,
+    g_APinDescription[pin].func);
+}
+
+
 // Configures the driver for the SCT
-void sct_driver_configure (const char* type, uint32_t timeout)
+void sct_driver_configure (char type, uint32_t timeout)
 {
   // what edge to look for at start and end (rising edge = 1, falling edge = 2)
-  int type_start = (type[0] == 'h') ? 1 : 2;
-  int type_end   = (type[0] == 'h') ? 2 : 1;
+  int type_start = (type == 'h') ? 1 : 2;
+  int type_end   = (type == 'h') ? 2 : 1;
 
   // set the config to be a unity 32 bit counter (timeout is a uint32)
   LPC_SCT->CONFIG |= (1 << UNIFY_POS);
@@ -200,6 +210,9 @@ void sct_driver_start (void)
 // Function called when event has been completed and should exit event queue
 void sct_read_pulse_complete ()
 {
+  // reconfigure the pin back to gpio
+  sct_configure_gpio(E_G3);
+
   // disable the SCT IRQ
   NVIC_DisableIRQ(SCT_IRQn);
 
@@ -216,8 +229,12 @@ void sct_read_pulse_complete ()
   // the process message identifier
   lua_pushstring(L, "read_pulse_complete");
 
+  // if timed out set the pulsetime to zero
+  if (pulse_ticks == 0xFFFFFFFF)
+    pulse_ticks = 0;
+
   // the number of milliseconds the pulse was high
-  lua_pushnumber(L, pulse_time);
+  lua_pushnumber(L, (pulse_ticks/SYSTEM_CORE_CLOCK_MS_F));
 
   // call _colony_emit to run the JS callback
   tm_checked_call(L, 2);
@@ -230,14 +247,14 @@ void SCT_IRQHandler (void)
   // interupt triggered by the end of a pulse (set the pulse length)
   if (LPC_SCT->EVFLAG & (1 << EVENT_END_TIMING))
   {
-    pulse_time = (LPC_SCT->CAP[1].U/SYSTEM_CORE_CLOCK_MS_F);
+    pulse_ticks = LPC_SCT->CAP[1].U;
     LPC_SCT->EVFLAG = (1 << EVENT_END_TIMING);
   }
 
   // interupt triggered by a timeout (set pulse as -1 unsigned == 0xFFFFFFFF)
   else if (LPC_SCT->EVFLAG & (1 << EVENT_TIMEOUT))
   {
-    pulse_time = -1;
+    pulse_ticks = -1;
     LPC_SCT->EVFLAG = (1 << EVENT_TIMEOUT);
   }
 
