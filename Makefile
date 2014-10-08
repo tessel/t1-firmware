@@ -23,7 +23,7 @@ nuke:
 update:
 	git submodule update --init --recursive
 	npm install
-	(cd deps/runtime; npm install)
+	(cd deps/runtime; make update)
 	(cd test; npm install)
 
 
