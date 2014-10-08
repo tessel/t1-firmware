@@ -44,6 +44,8 @@
 #include "bootloader.h"
 #include "utility/wlan.h"
 
+#include <lpc18xx_sct.h>
+
 #include "module_shims/audio-vs1053b.h"
 #include "addons/neopixel.h"
 
@@ -283,6 +285,15 @@ void cc_animation ()
 	add_animation(anim);
 }
 
+/**
+ * SCT interupt handler
+ */
+
+hw_sct_status_t hw_sct_status = SCT_INACTIVE;
+
+void SCT_IRQHandler (void) {
+  if (hw_sct_status == SCT_READPULSE) sct_readpulse_IRQHandler();
+}
 
 /**
  * Main body of Tessel OS

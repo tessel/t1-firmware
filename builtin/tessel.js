@@ -448,8 +448,12 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   // when the read is complete, process it and call the callback
   process.once('read_pulse_complete', cb_read_pulse_complete);
 
-  // call the read pulse function
-  hw.sct_read_pulse(type, timeout);
+  // call the read pulse function and throw an error if SCT is in use
+  var curr_sct_status = hw.sct_read_pulse(type, timeout);
+  if(curr_sct_status) {
+    err = new Error("SCT is in use by "+['_','PWM','_','Neopixels'][curr_sct_status]);
+    callback(err,0);
+  }
 
 }
 

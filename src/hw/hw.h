@@ -371,7 +371,17 @@ int hw_analog_write (uint32_t ulPin, float ulValue);
 
 // sct
 
+typedef enum {
+  SCT_INACTIVE,
+  SCT_PWM,
+  SCT_READPULSE,
+  SCT_NEOPIXEL
+} hw_sct_status_t;
+
+extern hw_sct_status_t hw_sct_status;
+
 uint8_t sct_read_pulse (char type, uint32_t timeout);
+void sct_readpulse_IRQHandler (void);
 
 
 #ifdef __cplusplus

@@ -79,6 +79,12 @@ tm_event sct_read_pulse_complete_event = TM_EVENT_INIT(sct_read_pulse_complete);
 // Begins waiting for pulse in
 uint8_t sct_read_pulse (char type, uint32_t timeout)
 {
+  // if the SCT status is in use it's error time
+  if (hw_sct_status != SCT_INACTIVE) return hw_sct_status;
+
+  // set the SCT state to be active with pulse read
+  hw_sct_status = SCT_READPULSE;
+
   // set the pin configuration
   sct_set_scu_pin(E_G3);
 
@@ -122,7 +128,7 @@ void sct_driver_configure (char type, uint32_t timeout)
   // set the sct control register
   LPC_SCT->CTRL_U = 0
     | ( 0 << STOP_L_POS )              // clear the stop register
-    | ( 1 << HALT_L_POS )              // halt while configuring the sct
+    | ( 1 << HALT_L_POS )              // halt while configuring the SCT
     | ( 1 << CLRCTR_L_POS )            // clear the other bits
     | ( 0 << PRE_L_POS )               // set prescaler to match sys clock
     ;
@@ -205,6 +211,9 @@ void sct_read_pulse_complete ()
   // disable the SCT IRQ
   NVIC_DisableIRQ(SCT_IRQn);
 
+  // set the SCT state back to inactive
+  hw_sct_status = SCT_INACTIVE;
+
   // unreference the event
   tm_event_unref(&sct_read_pulse_complete_event);
 
@@ -231,7 +240,7 @@ void sct_read_pulse_complete ()
 
 
 // IRQ handler called if there's an interupt
-void SCT_IRQHandler (void)
+void sct_readpulse_IRQHandler (void)
 {
   // interupt triggered by the end of a pulse (set the pulse length)
   if (LPC_SCT->EVFLAG & (1 << EVENT_END_TIMING))

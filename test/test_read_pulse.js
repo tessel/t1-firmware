@@ -22,7 +22,7 @@ function run_test(test) {
   pin_input.readPulse(test.pull, test.timeout, function (err,pulse_len) {
     if (err) {
       console.log('[T] Failed - expected',test.pulse_len.toString()+'ms',
-                  test.pull,'pulse and timed out');
+                  test.pull,'pulse and',err.message);
       return;
     }
     var moe = get_margin_of_error(test.pulse_len,pulse_len);
