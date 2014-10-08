@@ -293,6 +293,7 @@ hw_sct_status_t hw_sct_status = SCT_INACTIVE;
 
 void SCT_IRQHandler (void) {
   if (hw_sct_status == SCT_READPULSE) sct_readpulse_IRQHandler();
+  else if (hw_sct_status == SCT_NEOPIXEL) sct_neopixel_IRQHandler(); 
 }
 
 /**

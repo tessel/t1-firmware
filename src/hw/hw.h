@@ -368,6 +368,9 @@ int hw_digital_set_mode (uint8_t ulPin, uint8_t mode);
 uint32_t hw_analog_read (uint32_t ulPin);
 int hw_analog_write (uint32_t ulPin, float ulValue);
 
+// neopixel
+
+void sct_neopixel_IRQHandler (void);
 
 // sct
 
