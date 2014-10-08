@@ -65,7 +65,6 @@ LPCLIB_DEFINE_REG_BIT(STATEV,   15, 5);
 
 // Prototypes
 void sct_set_scu_pin(uint8_t pin);
-void sct_configure_gpio(uint8_t pin);
 void sct_driver_configure (char type, uint32_t timeout);
 void sct_driver_start (void);
 void sct_read_pulse_complete ();
@@ -107,16 +106,6 @@ void sct_set_scu_pin(uint8_t pin)
     g_APinDescription[pin].pin,
     PUP_DISABLE | PDN_DISABLE | FILTER_ENABLE | INBUF_ENABLE,
     g_APinDescription[pin].alternate_func);
-}
-
-
-// Sets the pin back to gpio
-void sct_configure_gpio(uint8_t pin)
-{
-  scu_pinmux(g_APinDescription[pin].port,
-    g_APinDescription[pin].pin,
-    FILTER_ENABLE | INBUF_ENABLE,
-    g_APinDescription[pin].func);
 }
 
 
@@ -210,8 +199,8 @@ void sct_driver_start (void)
 // Function called when event has been completed and should exit event queue
 void sct_read_pulse_complete ()
 {
-  // reconfigure the pin back to gpio
-  sct_configure_gpio(E_G3);
+  // reconfigure the pin back to gpio in
+  hw_digital_startup(E_G3);
 
   // disable the SCT IRQ
   NVIC_DisableIRQ(SCT_IRQn);
