@@ -105,7 +105,8 @@ int main() {
 
 	SCnSCB->ACTLR &= ~2;
 	spiflash_init();
-	spiflash_erase_sector(0);
+	spiflash_erase_bulk();
+	// spiflash_erase_sector(0);
 
 	hw_digital_write(LED1, 1);
 

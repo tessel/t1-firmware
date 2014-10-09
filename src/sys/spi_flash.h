@@ -18,6 +18,7 @@ void spiflash_write_enable();
 void spiflash_write_disable();
 void spiflash_write_page(unsigned addr, uint8_t* data, unsigned length);
 void spiflash_erase_sector(unsigned addr);
+void spiflash_erase_bulk();
 void spiflash_read(unsigned addr, uint8_t* data, unsigned length);
 void spiflash_mem_mode();
 

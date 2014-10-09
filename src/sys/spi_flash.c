@@ -149,6 +149,14 @@ _ramfunc void spiflash_erase_sector(unsigned addr) {
 	spifi_cmd(0xDC, SPIFI_FRAMEFORM_4, addr, false, 0, NULL);
 }
 
+_ramfunc void spiflash_erase_bulk(){
+	spiflash_wait();
+	spiflash_wait();
+	spiflash_write_enable();
+
+	spifi_cmd(0x60, SPIFI_FRAMEFORM_0, 0, false, 0, NULL);
+}
+
 _ramfunc void spiflash_mem_mode_slow() {
 	LPC_SPIFI->MEMCMD = (0x13 << 24) | SPIFI_FRAMEFORM_4 | SPIFI_FIELDFORM_ALL_SERIAL;
 	while (!(LPC_SPIFI->STAT & SPIFI_STATUS_MCINIT));
