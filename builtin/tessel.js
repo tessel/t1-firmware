@@ -128,10 +128,28 @@ util.inherits(Pin, EventEmitter);
 Pin.prototype.removeListener = function(event, listener) {
 
   // Call the regular event emitter method
-  var emitter = Pin.super_.prototype.removeListener.call(this, event, listener);
+  var emitter = Pin.super_.prototype.removeListener.apply(this, arguments);
 
   // If it's an interrupt event, remove as necessary
   _interruptRemovalCheck(this, event);
+
+  return emitter;
+};
+
+Pin.prototype.removeAllListeners = function(event) {
+  // Call the regular event emitter method
+  var emitter = Pin.super_.prototype.removeAllListeners.apply(this, arguments);
+
+  if (event) {
+    // Remove interrupt events as necessary
+    _interruptRemovalCheck(this, event);
+  } else {
+    // Remove flags manually.
+    var self = this;
+    Object.keys(_bitFlags).forEach(function (event) {
+      _interruptRemovalCheck(self, event);
+    })
+  }
 
   return emitter;
 };
