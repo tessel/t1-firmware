@@ -420,20 +420,29 @@ Pin.prototype.readSync = function(value) {
 
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
+  // the maximum timeout
+  var maxTimeout = 10000;
+
   // make sure the user enters a valid type
   if (type == '') {
     console.error("SCT input pulse type not set correctly. Must be either \"high\" or \"low\"");
     return;
   }
 
-  // format the type so C avoids errors (note - default is 'high')
-  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
+  // make sure the user enters a valid timeout
+  if (typeof(timeout) != 'number') {
+    console.error("SCT input pulse timeout not set correctly. Must be a number (in milliseconds) less than",maxTimeout.toString()+'ms');
+    return; 
+  }
 
   // make sure the timeout is not too long or the SCT limit will trigger early
-  if (timeout > 10000) {
+  if (timeout > maxTimeout) {
     console.warn("SCT timeout value too large. Setting to maximum value at 10000 ms");
-    timeout = 10000;
+    timeout = maxTimeout;
   }
+
+  // format the type so C avoids errors (note - default is 'high')
+  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
 
   // calls the provided callback with an error if there was a timeout
   function cb_read_pulse_complete(pulsetime) {
@@ -445,15 +454,15 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
     }
   }
 
-  // when the read is complete, process it and call the callback
-  process.once('read_pulse_complete', cb_read_pulse_complete);
-
   // call the read pulse function and throw an error if SCT is in use
-  var curr_sct_status = hw.sct_read_pulse(type, timeout);
-  if(curr_sct_status) {
-    err = new Error("SCT is in use by "+['_','PWM','_','Neopixels'][curr_sct_status]);
+  var sctStatus = hw.sct_read_pulse(type, timeout);
+  if(sctStatus) {
+    err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
     callback(err,0);
   }
+
+  // when the read is complete, process it and call the callback
+  process.once('read_pulse_complete', cb_read_pulse_complete);
 
 }
 

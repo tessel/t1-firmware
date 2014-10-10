@@ -324,12 +324,10 @@ void neopixel_reset_animation() {
 }
 
 void animation_complete() {
-  // Reset all of our variables
-  neopixel_reset_animation();
-  
   // set the SCT state back to inactive
   hw_sct_status = SCT_INACTIVE;
-
+  // Reset all of our variables
+  neopixel_reset_animation();
   lua_State* L = tm_lua_state;
   if (!L) return;
   // Push the _colony_emit helper function onto the stack
@@ -362,12 +360,6 @@ void continueAnimation() {
 }
 
 void beginAnimation() {
-
-  // if the SCT status is in use it's error time
-  if (hw_sct_status != SCT_INACTIVE) return;
-
-  // set the SCT state to be active with pulse read
-  hw_sct_status = SCT_NEOPIXEL;
 
   // Initialize the LEDDriver
   LEDDRIVER_open();

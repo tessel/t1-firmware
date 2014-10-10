@@ -68,6 +68,7 @@ void sct_set_scu_pin(uint8_t pin);
 void sct_driver_configure (char type, uint32_t timeout);
 void sct_driver_start (void);
 void sct_read_pulse_complete ();
+void sct_log_registers (void);
 
 // The recorded number of ticks over the pulse
 uint32_t pulse_ticks = 0;
@@ -79,12 +80,6 @@ tm_event sct_read_pulse_complete_event = TM_EVENT_INIT(sct_read_pulse_complete);
 // Begins waiting for pulse in
 uint8_t sct_read_pulse (char type, uint32_t timeout)
 {
-  // if the SCT status is in use it's error time
-  if (hw_sct_status != SCT_INACTIVE) return hw_sct_status;
-
-  // set the SCT state to be active with pulse read
-  hw_sct_status = SCT_READPULSE;
-
   // set the pin configuration
   sct_set_scu_pin(E_G3);
 
@@ -160,7 +155,7 @@ void sct_driver_configure (char type, uint32_t timeout)
     | ( SCT_INPUT_PIN << IOSEL_POS )   // selects the input pin
     | ( 2 << COMBMODE_POS )            // look for IO and not a match
     | ( 1 << STATELD_POS )             // load the state in STATEV
-    | ( STATE_ACTIVE << STATEV_POS )   // state to load when event triggers
+    | ( STATE_RETURN << STATEV_POS )   // state to load when event triggers
     ;
 
   // timeouts occur after looking for a rising/falling edge for too long
@@ -205,15 +200,12 @@ void sct_driver_start (void)
 // Function called when event has been completed and should exit event queue
 void sct_read_pulse_complete ()
 {
-  // reconfigure the pin back to gpio in
-  hw_digital_startup(E_G3);
-
   // disable the SCT IRQ
   NVIC_DisableIRQ(SCT_IRQn);
 
   // set the SCT state back to inactive
   hw_sct_status = SCT_INACTIVE;
-  
+
   // unreference the event
   tm_event_unref(&sct_read_pulse_complete_event);
 
@@ -227,15 +219,14 @@ void sct_read_pulse_complete ()
   // the process message identifier
   lua_pushstring(L, "read_pulse_complete");
 
-  // if timed out set the pulsetime to zero
-  if (pulse_ticks == 0xFFFFFFFF)
-    pulse_ticks = 0;
-
   // the number of milliseconds the pulse was high
   lua_pushnumber(L, (pulse_ticks/SYSTEM_CORE_CLOCK_MS_F));
 
   // call _colony_emit to run the JS callback
   tm_checked_call(L, 2);
+
+  // reconfigure the pin back to gpio in
+  hw_digital_startup(E_G3);
 }
 
 
@@ -249,10 +240,10 @@ void sct_readpulse_IRQHandler (void)
     LPC_SCT->EVFLAG = (1 << EVENT_END_TIMING);
   }
 
-  // interupt triggered by a timeout (set pulse as -1 unsigned == 0xFFFFFFFF)
+  // interupt triggered by a timeout (set the pulse length to zero)
   else if (LPC_SCT->EVFLAG & (1 << EVENT_TIMEOUT))
   {
-    pulse_ticks = -1;
+    pulse_ticks = 0;
     LPC_SCT->EVFLAG = (1 << EVENT_TIMEOUT);
   }
 

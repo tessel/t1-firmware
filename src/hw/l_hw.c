@@ -458,6 +458,13 @@ static int l_hw_digital_get_mode(lua_State* L)
 
 static int l_sct_read_pulse(lua_State* L)
 {
+	if (hw_sct_status != SCT_INACTIVE) {
+		lua_pushnumber(L, hw_sct_status);
+		return 1;
+	}
+
+	hw_sct_status = SCT_READPULSE;
+
 	char* type = (char*)lua_tostring(L, ARG1);
 	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
 	lua_pushnumber(L, sct_read_pulse(*type,timeout));
@@ -753,6 +760,12 @@ static int l_gps_get_speed(lua_State* L) {
 }
 
 static int l_neopixel_animation_buffer(lua_State* L) {
+
+	// if the SCT status is in use it's error time
+	if (hw_sct_status != SCT_INACTIVE) return 0;
+
+	// set the SCT state to be active with pulse read
+	hw_sct_status = SCT_NEOPIXEL;
 
 	size_t frameLength =  lua_tonumber(L, ARG1);
 
