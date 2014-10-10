@@ -420,25 +420,16 @@ Pin.prototype.readSync = function(value) {
 
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
-  // the maximum timeout
-  var maxTimeout = 10000;
-
   // make sure the user enters a valid type
   if (type == '') {
-    console.error("SCT input pulse type not set correctly. Must be either \"high\" or \"low\"");
+    console.error('SCT input pulse type not set correctly. Must be either "high" or "low"');
     return;
   }
 
   // make sure the user enters a valid timeout
   if (typeof(timeout) != 'number') {
-    console.error("SCT input pulse timeout not set correctly. Must be a number (in milliseconds) less than",maxTimeout.toString()+'ms');
-    return; 
-  }
-
-  // make sure the timeout is not too long or the SCT limit will trigger early
-  if (timeout > maxTimeout) {
-    console.warn("SCT timeout value too large. Setting to maximum value at 10000 ms");
-    timeout = maxTimeout;
+    console.error('SCT input pulse timeout not a number');
+    return;
   }
 
   // format the type so C avoids errors (note - default is 'high')
@@ -454,9 +445,14 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
     }
   }
 
-  // call the read pulse function and throw an error if SCT is in use
+  // call the read pulse function
   var sctStatus = hw.sct_read_pulse(type, timeout);
-  if(sctStatus) {
+
+  // handle timeout range error and SCT in use error (0 = successful return)
+  if (sctStatus < 0) {
+    err = new Error("SCT timeout value set greater than maximum allowable value");
+    callback(err,0);
+  } else if(sctStatus) {
     err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
     callback(err,0);
   }

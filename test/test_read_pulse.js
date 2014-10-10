@@ -13,7 +13,7 @@ var MARGIN_OF_ERROR = 0.02;
 
 // The various testss that need to run
 var tests = [
-  { 'pre_len': 2000,  'pulse_len': 300,  'post_len': 200,  'pull': 'high',  'timeout': 5000, 'neo': 'before' },
+  { 'pre_len': 2000,  'pulse_len': 300,  'post_len': 200,  'pull': 'high',  'timeout': 12000, 'neo': 'none' },
 ]
 
 for (var i = 0; i < tests.length; ++i) {

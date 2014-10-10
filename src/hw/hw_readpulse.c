@@ -21,11 +21,6 @@ extern "C" {
 #include <variant.h>
 #include <lpc18xx_sct.h>
 
-// System definitions
-#define SYSTEM_CORE_CLOCK       180000000
-#define SYSTEM_CORE_CLOCK_MS    ( (SYSTEM_CORE_CLOCK) / (1000) )
-#define SYSTEM_CORE_CLOCK_MS_F  ( (SYSTEM_CORE_CLOCK_MS) * (1.0) )
-
 // Event definitions
 #define EVENT_TIMEOUT           1
 #define EVENT_START_TIMING      2
@@ -220,7 +215,7 @@ void sct_read_pulse_complete ()
   lua_pushstring(L, "read_pulse_complete");
 
   // the number of milliseconds the pulse was high
-  lua_pushnumber(L, (pulse_ticks/SYSTEM_CORE_CLOCK_MS_F));
+  lua_pushnumber(L, (((double)pulse_ticks)/SYSTEM_CORE_CLOCK_MS_F));
 
   // call _colony_emit to run the JS callback
   tm_checked_call(L, 2);
