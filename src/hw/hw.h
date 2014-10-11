@@ -392,6 +392,7 @@ extern hw_sct_status_t hw_sct_status;
 
 uint8_t sct_read_pulse (char type, uint32_t timeout);
 void sct_readpulse_IRQHandler (void);
+void sct_read_pulse_reset (void);
 
 
 #ifdef __cplusplus

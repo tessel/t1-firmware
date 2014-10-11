@@ -195,14 +195,8 @@ void sct_driver_start (void)
 // Function called when event has been completed and should exit event queue
 void sct_read_pulse_complete ()
 {
-  // disable the SCT IRQ
-  NVIC_DisableIRQ(SCT_IRQn);
-
-  // set the SCT state back to inactive
-  hw_sct_status = SCT_INACTIVE;
-
-  // unreference the event
-  tm_event_unref(&sct_read_pulse_complete_event);
+  // reset the SCT
+  sct_read_pulse_reset();
 
   // get the Lua state or return if there is no state
   lua_State* L = tm_lua_state;
@@ -222,6 +216,21 @@ void sct_read_pulse_complete ()
 
   // reconfigure the pin back to gpio in
   hw_digital_startup(E_G3);
+}
+
+void sct_read_pulse_reset (void)
+{
+  // disable the SCT IRQ
+  NVIC_DisableIRQ(SCT_IRQn);
+
+  // set the SCT state back to inactive
+  hw_sct_status = SCT_INACTIVE;
+
+  // halt the SCT
+  LPC_SCT->CTRL_U = ( 1 << HALT_L_POS );
+
+  // unreference the event
+  tm_event_unref(&sct_read_pulse_complete_event);
 }
 
 
