@@ -1478,6 +1478,10 @@ util.inherits(Tessel, EventEmitter);
 
 var board = module.exports = new Tessel();
 
+board.module = function(lib, portName) {
+  return require('/app/node_modules/' + lib).use(this.port[portName]);
+}
+
 board.button.on('newListener', function(event, callback) {
   if (event === 'release') {
     board.button.on('fall', board.button.emit.bind(board.button, 'release'));
