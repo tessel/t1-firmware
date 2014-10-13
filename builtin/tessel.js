@@ -746,25 +746,20 @@ function UART(params, port) {
 
   this.doBuffer = true;
 
-  // Delay initialization to let user subscribe on data events
-  setImmediate(function(){
+  // Initialize the port
+  this.initialize();
 
-     // Initialize the port
-     this.initialize();
-
-     // When we get UART data
-     process.on('uart-receive', function (port, data) {
-        // If it's on this port
-        if (port === this.uartPort) {
-           // Emit the data
-           if (this.doBuffer) {
-              this.bufferedData.push(data);
-           } else {
-              this.doBuffer = !this.push(data);
-           }
-        }
-     }.bind(this));
-
+  // When we get UART data
+  process.on('uart-receive', function (port, data) {
+    // If it's on this port
+    if (port === this.uartPort) {
+       // Emit the data
+       if (this.doBuffer) {
+          this.bufferedData.push(data);
+       } else {
+          this.doBuffer = !this.push(data);
+       }
+    }
   }.bind(this));
 }
 
