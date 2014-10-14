@@ -15,11 +15,6 @@
 #endif
 
 
-/**
- * Constants
- */
-
-
 
 /**
  * Includes
@@ -50,6 +45,45 @@
 #ifdef TESSEL_TEST
 #include "test.h"
 #endif
+
+
+/**
+ * Constants
+ */
+
+volatile uint32_t g_msTicks;
+
+uint8_t led_state = 0;
+uint32_t led_next_time = 0;
+
+void led_task() {
+	g_msTicks++;
+	if (g_msTicks > led_next_time) {
+		led_next_time += 4e6;
+		hw_digital_write(LED1, led_state);
+		hw_digital_write(LED2, led_state);
+		hw_digital_write(CC3K_ERR_LED, led_state);
+		hw_digital_write(CC3K_CONN_LED, led_state);
+		led_state = !led_state;
+	}
+}
+
+void HardFault_Handler(void)
+{
+	while (1) {
+		led_task();
+		__NOP();
+	}
+}
+
+void UsageFault_Handler(void)
+{
+	while (1) {
+		led_task();
+		__NOP();
+	}
+}
+
 
 
 /*----------------------------------------------------------------------------
@@ -465,24 +499,24 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	lua_pop(L, 1);
 
 	// Open tessel lib.
-	TM_DEBUG("Loading tessel library...");
-	int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
-	if (res != 0) {
-		TM_ERR("Error in %s: %d\n", "tessel.js", res);
-		tm_fs_destroy(tm_fs_root);
-		tm_fs_root = 0;
-		return;
-	}
-	lua_setglobal(L, "_tessel_lib");
+	// TM_DEBUG("Loading tessel library...");
+	// int res = luaL_loadbuffer(L, builtin_tessel_js, builtin_tessel_js_len, "tessel.js");
+	// if (res != 0) {
+	// 	TM_ERR("Error in %s: %d\n", "tessel.js", res);
+	// 	tm_fs_destroy(tm_fs_root);
+	// 	tm_fs_root = 0;
+	// 	return;
+	// }
+	// lua_setglobal(L, "_tessel_lib");
 
-	res = luaL_loadbuffer(L, builtin_wifi_cc3000_js, builtin_wifi_cc3000_js_len, "wifi-cc3000.js");
-	if (res != 0) {
-		TM_ERR("Error in %s: %d\n", "wifi-cc3000.js", res);
-		tm_fs_destroy(tm_fs_root);
-		tm_fs_root = 0;
-		return;
-	}
-	lua_setglobal(L, "_wifi_cc3000_lib");
+	// res = luaL_loadbuffer(L, builtin_wifi_cc3000_js, builtin_wifi_cc3000_js_len, "wifi-cc3000.js");
+	// if (res != 0) {
+	// 	TM_ERR("Error in %s: %d\n", "wifi-cc3000.js", res);
+	// 	tm_fs_destroy(tm_fs_root);
+	// 	tm_fs_root = 0;
+	// 	return;
+	// }
+	// lua_setglobal(L, "_wifi_cc3000_lib");
 
 	lua_getglobal(L, "_colony");
 	lua_getfield(L, -1, "global");
