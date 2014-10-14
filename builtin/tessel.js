@@ -426,39 +426,43 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
     return;
   }
 
+  // format the type so C avoids errors (note - default is 'high')
+  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
+
   // make sure the user enters a valid timeout
   if (typeof(timeout) != 'number') {
     console.error('SCT input pulse timeout not a number');
     return;
   }
 
-  // format the type so C avoids errors (note - default is 'high')
-  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
+  // call the read pulse function
+  var sctStatus = hw.sct_read_pulse(type, timeout);
+
+  // if there was an issue with the timeout size (too large)
+  if (sctStatus < 0) {
+    err = new Error("SCT timeout value set greater than maximum allowable value");
+    callback(err,0);
+
+  // if the SCT was in use by another process
+  } else if(sctStatus) {
+    err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
+    callback(err,0);
+
+  // if there's nothing wrong then trigger event complete
+  } else {
+    process.once('read_pulse_complete', cb_read_pulse_complete);    
+  }
 
   // calls the provided callback with an error if there was a timeout
   function cb_read_pulse_complete(pulsetime) {
     if (callback) {
+      var err;
       if (!pulsetime) {
         err = new Error("SCT timed out while attempting to read pulse");
       }
       callback(err,pulsetime);
     }
   }
-
-  // call the read pulse function
-  var sctStatus = hw.sct_read_pulse(type, timeout);
-
-  // handle timeout range error and SCT in use error (0 = successful return)
-  if (sctStatus < 0) {
-    err = new Error("SCT timeout value set greater than maximum allowable value");
-    callback(err,0);
-  } else if(sctStatus) {
-    err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
-    callback(err,0);
-  }
-
-  // when the read is complete, process it and call the callback
-  process.once('read_pulse_complete', cb_read_pulse_complete);
 
 }
 

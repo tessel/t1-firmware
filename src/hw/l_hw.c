@@ -768,7 +768,10 @@ static int l_gps_get_speed(lua_State* L) {
 static int l_neopixel_animation_buffer(lua_State* L) {
 
 	// if the SCT status is in use it's error time
-	if (hw_sct_status != SCT_INACTIVE) return 0;
+	if (hw_sct_status != SCT_INACTIVE) {
+		lua_pushnumber(L,hw_sct_status);
+		return 1;
+	}
 
 	// set the SCT state to be active with pulse read
 	hw_sct_status = SCT_NEOPIXEL;
@@ -812,7 +815,8 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	// Begin the animation
 	writeAnimationBuffers(&channel_animation);
 
-	return 0;
+	lua_pushnumber(L,0);
+	return 1;
 }
 
 /**

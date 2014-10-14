@@ -3,73 +3,93 @@ var tessel = require('tessel');
 var gpio = tessel.port['GPIO'];
 var pin_output = gpio.pin['G5'];
 var pin_input = gpio.pin['G3'];
+var test = require('tape');
 
 // Neopixel related vars
 var Neopixels = require('neopixels');
 var neopixels = new Neopixels();
+var numNeopixels = 24;
 
 // Percent diff of what's read and what's expected due to setTimeout inaccuracy
-var MARGIN_OF_ERROR = 0.02;
+var marginOfError = 0.02;
 
-// The various testss that need to run
-var tests = [
-  { 'pre_len': 2000,  'pulse_len': 5000,  'post_len': 200,  'pull': 'high',  'timeout': 5000, 'neo': 'none' },
-]
-
-for (var i = 0; i < tests.length; ++i) {
-  run_test(tests[i]);
-}
-
-function run_test(test) {
-
-  if (tests[i].neo == 'only') {
-    neopixels.animate(100, Buffer.concat(tracer(24))); return;
-  }
-
-  if (tests[i].neo == 'before') {
-    neopixels.animate(100, Buffer.concat(tracer(24)));
-  }
-
-  pin_input.readPulse(test.pull, test.timeout, function (err,pulse_len) {
-    if (err) {
-      console.log('[T] Failed - expected',test.pulse_len.toString()+'ms',
-                  test.pull,'pulse and',err.message);
-    } else {
-      var moe = (Math.abs(test.pulse_len-pulse_len)/test.pulse_len)
-      var status = (moe <= MARGIN_OF_ERROR) ? 'Passed' : 'Failed';
-      console.log('[T]',status,'- expected',
-                  test.pulse_len.toString()+'ms',test.pull,'pulse and read a',
-                  pulse_len.toFixed(2).toString()+'ms pulse (',
-                  (moe*100).toFixed(2).toString()+'% diff',(status=='Passed'?'<':'>'),
-                  (MARGIN_OF_ERROR*100).toFixed(2).toString()+'% margin of error )');
-    }
+pin_output.write(0);
+var date = new Date();
+test('testing readPulse functionality', function (t) {
+  // test if a high pulse can be read and that neopixel does not interfere it
+  pin_input.readPulse('high',5000, function (err,pul) {
+    t.error(err,'no error when reading 250ms pulse');
+    t.equal((Math.abs(250-pul)/250) <= marginOfError, true, 'high 250ms pulse');
   });
-
-  if (test.pulse_len) {
-    send_pulse_out(test.pull, test.pre_len, test.pulse_len, test.post_len);
-  }
-
-  if (tests[0].neo == 'after') {
-    neopixels.animate(100, Buffer.concat(tracer(24)));
-  }
-
-}
-
-
-// Outputs a pulse to the output pin
-function send_pulse_out(pull, pre_len, pulse_len, post_len) {
-  var p = (pull == 'high') ? 1 : 0;
-  pin_output.pull((pull=='high')?'pulldown':'pullup');
+  // this is neopixel trying to interfere with readPulse
+  neopixels.animate(numNeopixels, Buffer.concat(tracer(numNeopixels)), function (err) {
+    t.equal(err == null,false,'error when animating neopixel');
+    t.equal(err.message, 'SCT is already in use by Read Pulse', 'neopixel tried using sct (in use by readPulse)');
+  });
   setTimeout( function () {
-    pin_output.write(p);
+    pin_output.write(1);
     setTimeout( function () {
-      pin_output.write(!p);
-      setTimeout ( function () {
-        pin_output.write(p);
-      }, post_len );
-    }, pulse_len );
-  }, pre_len );
-}
+      pin_output.write(0);
+      setTimeout( function () {
+        pin_output.write(1);
+        setTimeout( function () {
+          //  test if a low can be read
+          pin_input.readPulse('low',5000, function (err,pul) {
+            t.error(err,'no error when reading pulse');
+            t.equal((Math.abs(350-pul)/350) <= marginOfError, true, 'low 350ms pulse');
+          });
+          setTimeout( function () {
+            pin_output.write(0);
+            setTimeout( function () {
+              pin_output.write(1);
+              setTimeout( function () {
+                pin_output.write(0);
+                setTimeout( function () {
+                  // test that a high pulse can timeout and test that timeouts can happen when a pulse is sent
+                  pin_input.readPulse('high',100, function (err,pul) {
+                    t.equal(err == null,false,'error when reading pulse');
+                    t.equal(err.message, 'SCT timed out while attempting to read pulse', 'high pulse timeout with sent pulse');
+                  });
+                  setTimeout( function () {
+                    pin_output.write(1);
+                    setTimeout( function () {
+                      pin_output.write(0);
+                      setTimeout( function () {
+                        pin_output.write(1);
+                        setTimeout( function () {
+                          // test that readPulse does not interfere with neopixel
+                          neopixels.animate(numNeopixels, Buffer.concat(tracer(numNeopixels)), function (err) {
+                            t.error(err,'no error when animating neopixels');
+                            // test that a low pulse can timeout and test that timeouts can happen when a pulse is not sent
+                            pin_input.readPulse('low',5000, function (err,pul) {
+                              t.equal(err == null,false,'error when reading pulse');
+                              t.equal(err.message, 'SCT timed out while attempting to read pulse', 'low pulse timeout without pulse sent');
+                              t.end();
+                            });
+                            // test that readPulse cannot interfere with another readPulse process
+                            pin_input.readPulse('high',5000, function (err,pul) {
+                              t.equal(err == null,false,'error when reading pulse');
+                              t.equal(err.message, 'SCT is already in use by Read Pulse', 'readPulse tried using sct (in use by readPulse)');
+                            });
+                          });
+                          // this is readPulse trying to interfere with neopixel
+                          pin_input.readPulse('low',5000, function (err,pul) {
+                            t.equal(err == null,false,'error when reading pulse');
+                            t.equal(err.message, 'SCT is already in use by Neopixels', 'readPulse tried using sct (in use by neopixels)');
+                          });
+                        }, 200 );
+                      }, 300 );
+                    }, 450 );
+                  }, 1300 );
+                }, 200 );
+              }, 300 );
+            }, 350 );
+          }, 1300 );
+        }, 200 );
+      }, 300 );
+    }, 250 );
+  }, 1300 );
+});
 
 // The animation to run on neopixel strip/ring
 function tracer(numLEDs) {

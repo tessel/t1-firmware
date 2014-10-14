@@ -292,11 +292,19 @@ bool updateChannelAnimation(neopixel_sct_status_t channel) {
 
 void neopixel_reset_animation() {
 
+  // set the SCT state back to inactive
+  hw_sct_status = SCT_INACTIVE;
+
   // Disable the SCT IRQ
   NVIC_DisableIRQ(SCT_IRQn);
 
   // We should make sure the SCT is halted
   LEDDRIVER_haltAfterFrame(true);
+
+  // really clear the SCT
+  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
+  //       (right now it will not let me link in LPC18xx.h)
+  LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
@@ -324,8 +332,6 @@ void neopixel_reset_animation() {
 }
 
 void animation_complete() {
-  // set the SCT state back to inactive
-  hw_sct_status = SCT_INACTIVE;
   // Reset all of our variables
   neopixel_reset_animation();
   lua_State* L = tm_lua_state;
@@ -379,9 +385,9 @@ void beginAnimation() {
 
   // Allow SCT IRQs (which update the relevant data byte)
   NVIC_EnableIRQ(SCT_IRQn);
-  
+
   // Do not halt after the first frame
-  LEDDRIVER_haltAfterFrame(0); 
+  LEDDRIVER_haltAfterFrame(0);
 
   // Start the operation
   LEDDRIVER_start();
@@ -396,6 +402,11 @@ void setPinSCTFunc(uint8_t pin) {
 }
 
 int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
+  
+  // really clear the SCT
+  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
+  //       (right now it will not let me link in LPC18xx.h)
+  LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // Bool indicating whether any channels have animations ready
   bool animationsReady = false;
