@@ -76,7 +76,7 @@
       },
       'Release': {
         'cflags': [
-          '-Ofast',
+          '-O0',
         ]
       }
     },
