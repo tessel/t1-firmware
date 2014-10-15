@@ -18,7 +18,7 @@ function testBuf(len) {
 function wrapCallback(t, cb) {
   var timeout = setTimeout(function fail() {
     t.fail("test timed out");
-  }, 1000);
+  }, 3000);
   return function() {
     clearTimeout(timeout);
     cb.apply(null, arguments);
