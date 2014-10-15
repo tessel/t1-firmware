@@ -20,6 +20,13 @@
 #include "utility/netapp.h"
 #include "utility/evnt_handler.h"
 
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define SET_BIT(var,pos) ((var) |= (1 << (pos)))
+#define CLR_BIT(var,pos) ((var) &= ~((1) << (pos)))
+
+// set bits for which socket is open
+// ex: 1 = socket 0 is open, 2 = socket 1 is open
+uint8_t trackedSockets = 0;
 uint8_t MAX_OPEN_SOCKETS = 4;
 uint8_t openSockets = 0;
 
@@ -29,34 +36,53 @@ int hw_net__inuse_stop ();
 #define CC3000_START hw_net__inuse_start();
 #define CC3000_END hw_net__inuse_stop();
 
-static uint8_t track_open_socket() {
-	// returns 0 if we can, 1 if we can't
-	if (openSockets <= MAX_OPEN_SOCKETS){
+static uint8_t track_open_socket(uint8_t socket) {
+	// check if socket is already open
+	if (CHECK_BIT(trackedSockets, socket)) {
+		return 0;
+	}
+
+	// socket is not open
+	// check if we're over the limit
+	if (openSockets <= MAX_OPEN_SOCKETS) {
 		openSockets++;
 #ifdef CC3000_DEBUG
 		TM_DEBUG("currently have %d sockets open", openSockets);
 #endif
+		SET_BIT(trackedSockets, socket);
+		TM_DEBUG("Open socket %d tracked %d", socket, trackedSockets);
 		return 0;
 	}
+
 #ifdef CC3000_DEBUG
 	TM_DEBUG("About to run out of sockets");
 #endif
 	return 1;
 }
 
-static uint8_t track_close_socket() {
-	if (openSockets >= 1) {
-		openSockets--;
+static uint8_t track_close_socket(uint8_t socket) {
+	// check if we have closed the socket already
+	if (CHECK_BIT(trackedSockets, socket)) {
+		// socket is open
+		CLR_BIT(trackedSockets, socket);
+		if (openSockets >= 1) {
+			openSockets--;
 #ifdef CC3000_DEBUG
-		TM_DEBUG("closing. currently have %d sockets open", openSockets);
+			TM_DEBUG("closing. currently have %d sockets open", openSockets);
 #endif
-		return 0;
-	}
+			TM_DEBUG("Close socket %d tracked %d", socket, trackedSockets);
 
+			return 0;
+		} else {
 #ifdef CC3000_DEBUG
-	TM_DEBUG("closing more sockets than are open");
+			TM_DEBUG("closing more sockets than are open");
 #endif
-	return 1;
+			return 1;
+		}
+	} 
+
+	// socket already got closed
+	return 0;
 }
 
 uint32_t tm_hostname_lookup (const uint8_t *hostname)
@@ -87,7 +113,7 @@ tm_socket_t tm_udp_open ()
 	CC3000_END;
 
 	if (sock >= 0) {
-		if (track_open_socket()){
+		if (track_open_socket(sock)){
 			return -EMFILE;
 		}
 	}
@@ -104,7 +130,7 @@ int tm_udp_close (int ulSocket)
 	CC3000_END;
 
 	if (ret == 0 || ret == -CC_ENOTCONN) {
-		if (track_close_socket()) {
+		if (track_close_socket(ulSocket)) {
 			return -EMFILE;
 		}
 	} else {
@@ -215,7 +241,7 @@ tm_socket_t tm_tcp_open ()
 	}
 	CC3000_END;
 	if (ulSocket >= 0) {
-		if (track_open_socket()){
+		if (track_open_socket(ulSocket)){
 			return -EMFILE;
 		}
 	} 
@@ -231,7 +257,7 @@ int tm_tcp_close (tm_socket_t sock)
 	
 	CC3000_END;
 	if (ret == 0 || ret == -CC_ENOTCONN) {
-		if (track_close_socket()) {
+		if (track_close_socket(sock)) {
 			return -EMFILE;
 		}
 	} else {
@@ -366,7 +392,7 @@ tm_socket_t tm_tcp_accept (tm_socket_t sock, uint32_t *addr, uint16_t *port)
 	CC3000_END;
 	// track 
 	if (res >= 0) {
-		if (track_open_socket()){
+		if (track_open_socket(sock)){
 			return -EMFILE;
 		}
 	} 
