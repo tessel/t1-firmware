@@ -26,6 +26,8 @@ uint8_t openSockets = 0;
 int hw_net__inuse_start ();
 int hw_net__inuse_stop ();
 
+uint32_t hw_net_dnsserver() __attribute__((weak));
+
 #define CC3000_START hw_net__inuse_start();
 #define CC3000_END hw_net__inuse_stop();
 
