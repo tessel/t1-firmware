@@ -222,6 +222,12 @@ tm_socket_t tm_tcp_open ()
 	return ulSocket;
 }
 
+uint32_t tm_net_dnsserver() {
+	if (!hw_net_online_status()) return 0;
+
+	return hw_net_dnsserver();
+}
+
 int tm_tcp_close (tm_socket_t sock)
 {
 	// doesn't matter if we have a connection or not, we can still close the socket

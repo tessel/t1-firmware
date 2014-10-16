@@ -280,8 +280,6 @@ void tessel_wifi_smart_config ()
 	StartSmartConfig();
 }
 
-#define TM_BYTE(A, B) ((A >> (B*8)) & 0xFF)
-
 char* tessel_wifi_json(){
 	uint32_t ip_addr = (hw_wifi_ip[3] << 24) | (hw_wifi_ip[2] << 16) | (hw_wifi_ip[1] << 8) | (hw_wifi_ip[0]);
 	TM_DEBUG("IP Address: %ld.%ld.%ld.%ld", TM_BYTE(ip_addr, 3), TM_BYTE(ip_addr, 2), TM_BYTE(ip_addr, 1), TM_BYTE(ip_addr, 0));
