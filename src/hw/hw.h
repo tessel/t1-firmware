@@ -370,7 +370,7 @@ int hw_analog_write (uint32_t ulPin, float ulValue);
 
 // neopixel
 
-void sct_neopixel_IRQHandler (void);
+void sct_neopixel_irq_handler (void);
 
 // sct
 
@@ -388,10 +388,15 @@ typedef enum {
   SCT_NEOPIXEL
 } hw_sct_status_t;
 
+typedef enum {
+  SCT_PULSE_LOW,
+  SCT_PULSE_HIGH
+} hw_sct_pulse_type_t;
+
 extern hw_sct_status_t hw_sct_status;
 
-uint8_t sct_read_pulse (char type, uint32_t timeout);
-void sct_readpulse_IRQHandler (void);
+uint8_t sct_read_pulse (hw_sct_pulse_type_t type, uint32_t timeout);
+void sct_readpulse_irq_handler (void);
 void sct_read_pulse_reset (void);
 
 

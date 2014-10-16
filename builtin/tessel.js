@@ -421,13 +421,13 @@ Pin.prototype.readSync = function(value) {
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
   // make sure the user enters a valid type
-  if (type == '') {
+  if (String(type).toLowerCase() != 'low' && String(type).toLowerCase() != 'high') {
     console.error('SCT input pulse type not set correctly. Must be either "high" or "low"');
     return;
   }
 
   // format the type so C avoids errors (note - default is 'high')
-  type = (type.toLowerCase()[0] == 'l') ? 'l' : 'h';
+  type = (type.toLowerCase()[0] == 'l') ? 0 : 1;
 
   // make sure the user enters a valid timeout
   if (typeof(timeout) != 'number') {

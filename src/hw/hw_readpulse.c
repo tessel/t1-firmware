@@ -61,7 +61,7 @@ LPCLIB_DEFINE_REG_BIT(STATEV,   15, 5);
 
 // Prototypes
 void sct_set_scu_pin(uint8_t pin);
-void sct_driver_configure (char type, uint32_t timeout);
+void sct_driver_configure (hw_sct_pulse_type_t type, uint32_t timeout);
 void sct_driver_start (void);
 void sct_read_pulse_complete ();
 void sct_log_registers (void);
@@ -74,7 +74,7 @@ tm_event sct_read_pulse_complete_event = TM_EVENT_INIT(sct_read_pulse_complete);
 
 
 // Begins waiting for pulse in
-uint8_t sct_read_pulse (char type, uint32_t timeout)
+uint8_t sct_read_pulse (hw_sct_pulse_type_t type, uint32_t timeout)
 {
   // really clear the SCT
   // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
@@ -112,11 +112,11 @@ void sct_set_scu_pin(uint8_t pin)
 
 
 // Configures the driver for the SCT
-void sct_driver_configure (char type, uint32_t timeout)
+void sct_driver_configure (hw_sct_pulse_type_t type, uint32_t timeout)
 {
   // what edge to look for at start and end (rising edge = 1, falling edge = 2)
-  int type_start = (type == 'h') ? 1 : 2;
-  int type_end   = (type == 'h') ? 2 : 1;
+  int type_start = (type == SCT_PULSE_HIGH) ? 1 : 2;
+  int type_end   = (type == SCT_PULSE_HIGH) ? 2 : 1;
 
   // set the config to be a unity 32 bit counter (timeout is a uint32)
   LPC_SCT->CONFIG |= (1 << UNIFY_POS);
@@ -246,7 +246,7 @@ void sct_read_pulse_reset (void)
 
 
 // IRQ handler called if there's an interupt
-void sct_readpulse_IRQHandler (void)
+void sct_readpulse_irq_handler (void)
 {
   // interupt triggered by the end of a pulse (set the pulse length)
   if (LPC_SCT->EVFLAG & (1 << EVENT_END_TIMING))

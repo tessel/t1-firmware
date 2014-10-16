@@ -204,7 +204,7 @@ void LEDDRIVER_start (void)
   LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
 }
 
-void sct_neopixel_IRQHandler (void)
+void sct_neopixel_irq_handler (void)
 {
   /* Acknowledge interrupt */
   if (LPC_SCT->EVFLAG & (1u << COMPLETE_FRAME_EVENT)) {
@@ -402,7 +402,7 @@ void setPinSCTFunc(uint8_t pin) {
 }
 
 int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
-  
+
   // really clear the SCT
   // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
   //       (right now it will not let me link in LPC18xx.h)
