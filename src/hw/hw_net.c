@@ -153,10 +153,10 @@ void tm_net_initialize_dhcp_server (void)
 
   uint8_t pucSubnetMask[4], pucIP_Addr[4], pucIP_DefaultGWAddr[4], pucDNS[4];
 
-  pucDNS[0] = 0x08;
-  pucDNS[1] = 0x08;
-  pucDNS[2] = 0x08;
-  pucDNS[3] = 0x08;
+  pucDNS[0] = 0x0;
+  pucDNS[1] = 0x0;
+  pucDNS[2] = 0x0;
+  pucDNS[3] = 0x0;
 
   pucSubnetMask[0] = 0;
   pucSubnetMask[1] = 0;

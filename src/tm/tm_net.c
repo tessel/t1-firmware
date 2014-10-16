@@ -26,6 +26,8 @@ uint8_t openSockets = 0;
 int hw_net__inuse_start ();
 int hw_net__inuse_stop ();
 
+uint32_t hw_net_dnsserver() __attribute__((weak));
+
 #define CC3000_START hw_net__inuse_start();
 #define CC3000_END hw_net__inuse_stop();
 
@@ -220,6 +222,12 @@ tm_socket_t tm_tcp_open ()
 		}
 	} 
 	return ulSocket;
+}
+
+uint32_t tm_net_dnsserver() {
+	if (!hw_net_online_status()) return 0;
+
+	return hw_net_dnsserver();
 }
 
 int tm_tcp_close (tm_socket_t sock)
