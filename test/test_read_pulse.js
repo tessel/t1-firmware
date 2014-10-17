@@ -1,8 +1,8 @@
 // GPIO bank vars
 var tessel = require('tessel');
 var gpio = tessel.port['GPIO'];
-var pin_output = gpio.pin['G5'];
-var pin_input = gpio.pin['G3'];
+var pinOutput = gpio.pin['G5'];
+var pinInput = gpio.pin['G3'];
 var test = require('tape');
 
 // Neopixel related vars
@@ -16,102 +16,114 @@ var marginOfError = 0.02;
 // make sure type input checks work
 test('testing input validation', function (t) {
   try {
-    pin_input.readPulse(2,5000, function (err,pul) {});
+    pinInput.readPulse(2,5000, function (err,pul) {});
   } catch(e) {
-      t.equal(e.message, 'SCT input pulse type not set correctly. Must be either "high" or "low"', 'pulse type validation');
+    t.equal(e.message, 'SCT input pulse type not set correctly. Must be either "high" or "low"', 'pulse type validation');
   }
   try {
-    pin_input.readPulse('high','high', function (err,pul) {});
+    pinInput.readPulse('high','high', function (err,pul) {});
   } catch(e) {
-      t.equal(e.message, 'SCT input pulse timeout not a number', 'pulse timeout type validation');
+    t.equal(e.message, 'SCT input pulse timeout not a number', 'pulse timeout type validation');
   }
   try {
-    pin_input.readPulse('high',10001, function (err,pul) {});
+    pinInput.readPulse('high',10001, function (err,pul) {});
   } catch(e) {
-      t.equal(e.message, 'SCT input pulse timeout too large, must be less than 10000ms', 'pulse timeout bounds validation');
+    t.equal(e.message, 'SCT input pulse timeout too large, must be less than 10000ms', 'pulse timeout bounds validation');
   }
   t.end();
 });
 
-// make sure timout input checks work
+// The main test
+pinOutput.write(0);
+test('testing readPulse functionality', testReadPulseThenNeopixel);
 
-pin_output.write(0);
-var date = new Date();
-test('testing readPulse functionality', function (t) {
-  // test if a high pulse can be read and that neopixel does not interfere it
-  pin_input.readPulse('high',5000, function (err,pul) {
+// Test if a high pulse can be read and that neopixel does not interfere it
+function testReadPulseThenNeopixel(t) {
+  pinInput.readPulse('high',5000, function (err,pul) {
     t.error(err,'no error when reading 250ms pulse');
     t.equal((Math.abs(250-pul)/250) <= marginOfError, true, 'high 250ms pulse');
   });
-  // this is neopixel trying to interfere with readPulse
   neopixels.animate(numNeopixels, Buffer.concat(tracer(numNeopixels)), function (err) {
     t.equal(err == null,false,'error when animating neopixel');
     t.equal(err.message, 'SCT is already in use by Read Pulse', 'neopixel tried using sct (in use by readPulse)');
   });
   setTimeout( function () {
-    pin_output.write(1);
+    pinOutput.write(1);
     setTimeout( function () {
-      pin_output.write(0);
+      pinOutput.write(0);
       setTimeout( function () {
-        pin_output.write(1);
-        setTimeout( function () {
-          //  test if a low can be read
-          pin_input.readPulse('low',5000, function (err,pul) {
-            t.error(err,'no error when reading pulse');
-            t.equal((Math.abs(350-pul)/350) <= marginOfError, true, 'low 350ms pulse');
-          });
-          setTimeout( function () {
-            pin_output.write(0);
-            setTimeout( function () {
-              pin_output.write(1);
-              setTimeout( function () {
-                pin_output.write(0);
-                setTimeout( function () {
-                  // test that a high pulse can timeout and test that timeouts can happen when a pulse is sent
-                  pin_input.readPulse('high',100, function (err,pul) {
-                    t.equal(err == null,false,'error when reading pulse');
-                    t.equal(err.message, 'SCT timed out while attempting to read pulse', 'high pulse timeout with sent pulse');
-                  });
-                  setTimeout( function () {
-                    pin_output.write(1);
-                    setTimeout( function () {
-                      pin_output.write(0);
-                      setTimeout( function () {
-                        pin_output.write(1);
-                        setTimeout( function () {
-                          // test that readPulse does not interfere with neopixel
-                          neopixels.animate(numNeopixels, Buffer.concat(tracer(numNeopixels)), function (err) {
-                            t.error(err,'no error when animating neopixels');
-                            // test that a low pulse can timeout and test that timeouts can happen when a pulse is not sent
-                            pin_input.readPulse('low',5000, function (err,pul) {
-                              t.equal(err == null,false,'error when reading pulse');
-                              t.equal(err.message, 'SCT timed out while attempting to read pulse', 'low pulse timeout without pulse sent');
-                              t.end();
-                            });
-                            // test that readPulse cannot interfere with another readPulse process
-                            pin_input.readPulse('high',5000, function (err,pul) {
-                              t.equal(err == null,false,'error when reading pulse');
-                              t.equal(err.message, 'SCT is already in use by Read Pulse', 'readPulse tried using sct (in use by readPulse)');
-                            });
-                          });
-                          // this is readPulse trying to interfere with neopixel
-                          pin_input.readPulse('low',5000, function (err,pul) {
-                            t.equal(err == null,false,'error when reading pulse');
-                            t.equal(err.message, 'SCT is already in use by Neopixels', 'readPulse tried using sct (in use by neopixels)');
-                          });
-                        }, 200 );
-                      }, 300 );
-                    }, 450 );
-                  }, 1300 );
-                }, 200 );
-              }, 300 );
-            }, 350 );
-          }, 1300 );
-        }, 200 );
+        pinOutput.write(1);
+        setTimeout( testLowReadPulse, 200, t );
       }, 300 );
     }, 250 );
   }, 1300 );
-});
+}
+
+// Test if a low can be read
+function testLowReadPulse(t) {
+  pinInput.readPulse('low',5000, function (err,pul) {
+    t.error(err,'no error when reading pulse');
+    t.equal((Math.abs(350-pul)/350) <= marginOfError, true, 'low 350ms pulse');
+  });
+  setTimeout( function () {
+    pinOutput.write(0);
+    setTimeout( function () {
+      pinOutput.write(1);
+      setTimeout( function () {
+        pinOutput.write(0);
+        setTimeout( testHighPulseTimeout, 200, t );
+      }, 300 );
+    }, 350 );
+  }, 1300 );
+}
+
+// Test that a high pulse can timeout and test that timeouts can happen when a pulse is sent
+function testHighPulseTimeout(t) {
+  pinInput.readPulse('high',100, function (err,pul) {
+    t.equal(err == null,false,'error when reading pulse');
+    t.equal(err.message, 'SCT timed out while attempting to read pulse', 'high pulse timeout with sent pulse');
+  });
+  setTimeout( function () {
+    pinOutput.write(1);
+    setTimeout( function () {
+      pinOutput.write(0);
+      setTimeout( function () {
+        pinOutput.write(1);
+        setTimeout( testNeopixelThenReadPulse, 200, t );
+      }, 300 );
+    }, 450 );
+  }, 1300 );
+}
+
+// Test that readPulse does not interfere with neopixel
+function testNeopixelThenReadPulse(t) {
+  neopixels.animate(numNeopixels, Buffer.concat(tracer(numNeopixels)), function (err) {
+    t.error(err,'no error when animating neopixels');
+    testLowPulseTimeout(t);
+  });
+  pinInput.readPulse('low',5000, function (err,pul) {
+    t.equal(err == null,false,'error when reading pulse');
+    t.equal(err.message, 'SCT is already in use by Neopixels', 'readPulse tried using sct (in use by neopixels)');
+  });
+}
+
+// Test that a low pulse can timeout and test that timeouts can happen when a pulse is not sent
+function testLowPulseTimeout(t) {
+  pinInput.readPulse('low',5000, function (err,pul) {
+    t.equal(err == null,false,'error when reading pulse');
+    t.equal(err.message, 'SCT timed out while attempting to read pulse', 'low pulse timeout without pulse sent');
+    t.end();
+  });
+  testReadPulseThenReadPulse(t);
+}
+
+// Test that readPulse cannot interfere with another readPulse process
+function testReadPulseThenReadPulse(t) {
+  pinInput.readPulse('high',5000, function (err,pul) {
+    t.equal(err == null,false,'error when reading pulse');
+    t.equal(err.message, 'SCT is already in use by Read Pulse', 'readPulse tried using sct (in use by readPulse)');
+  });
+}
 
 // The animation to run on neopixel strip/ring
 function tracer(numLEDs) {
