@@ -214,11 +214,11 @@ void sct_read_pulse_complete ()
   // the number of milliseconds the pulse was high
   lua_pushnumber(L, (((double)pulse_ticks)/SYSTEM_CORE_CLOCK_MS_F));
 
-  // call _colony_emit to run the JS callback
-  tm_checked_call(L, 2);
-
   // reconfigure the pin back to gpio in
   hw_digital_startup(E_G3);
+
+  // call _colony_emit to run the JS callback
+  tm_checked_call(L, 2);
 }
 
 void sct_read_pulse_reset (void)
