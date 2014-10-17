@@ -301,9 +301,7 @@ void neopixel_reset_animation() {
   // We should make sure the SCT is halted
   LEDDRIVER_haltAfterFrame(true);
 
-  // really clear the SCT
-  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
-  //       (right now it will not let me link in LPC18xx.h)
+  // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
   LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // Make sure the Lua state exists
@@ -403,9 +401,7 @@ void setPinSCTFunc(uint8_t pin) {
 
 int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
 
-  // really clear the SCT
-  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
-  //       (right now it will not let me link in LPC18xx.h)
+  // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
   LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // Bool indicating whether any channels have animations ready

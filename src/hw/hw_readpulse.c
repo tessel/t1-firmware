@@ -19,7 +19,6 @@ extern "C" {
 #include <stdlib.h>
 #include <assert.h>
 #include <variant.h>
-//#include "LPC18xx.h"
 #include <lpc18xx_sct.h>
 
 // Event definitions
@@ -76,9 +75,7 @@ tm_event sct_read_pulse_complete_event = TM_EVENT_INIT(sct_read_pulse_complete);
 // Begins waiting for pulse in
 uint8_t sct_read_pulse (hw_sct_pulse_type_t type, uint32_t timeout)
 {
-  // really clear the SCT
-  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
-  //       (right now it will not let me link in LPC18xx.h)
+  // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
   LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // set the pin configuration
@@ -235,9 +232,7 @@ void sct_read_pulse_reset (void)
   // halt the SCT
   LPC_SCT->CTRL_U = ( 1 << HALT_L_POS );
 
-  // really clear the SCT
-  // TODO: change ( 1 << 5 ) to be RGU_RESET_CTRL1_SCT_RST_Msk
-  //       (right now it will not let me link in LPC18xx.h)
+  // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
   LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // unreference the event
