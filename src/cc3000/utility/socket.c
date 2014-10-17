@@ -247,6 +247,9 @@ socket(long domain, long type, long protocol)
 	#ifdef CC3000_DEBUG
 	TM_DEBUG("Opening socket %d", ret);
 	#endif
+
+	// return -1 so that c-ares can error out properly
+	if (ret < 0) return -1;
 	return(ret);
 }
 
