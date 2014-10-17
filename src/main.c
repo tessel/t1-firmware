@@ -347,6 +347,9 @@ extern unsigned int builtin_tessel_js_len;
 extern char builtin_wifi_cc3000_js[];
 extern unsigned int builtin_wifi_cc3000_js_len;
 
+extern char builtin_neopixels_js[];
+extern unsigned int builtin_neopixels_js_len;
+
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative);
 
 void main_body (void)
@@ -495,6 +498,15 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 		return;
 	}
 	lua_setglobal(L, "_wifi_cc3000_lib");
+
+	res = luaL_loadbuffer(L, builtin_neopixels_js, builtin_neopixels_js_len, "neopixels.js");
+	if (res != 0) {
+		TM_ERR("Error in %s: %d\n", "neopixels.js", res);
+		tm_fs_destroy(tm_fs_root);
+		tm_fs_root = 0;
+		return;
+	}
+	lua_setglobal(L, "_neopixels_lib");
 
 	lua_getglobal(L, "_colony");
 	lua_getfield(L, -1, "global");
