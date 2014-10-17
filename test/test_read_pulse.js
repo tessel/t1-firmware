@@ -13,6 +13,28 @@ var numNeopixels = 24;
 // Percent diff of what's read and what's expected due to setTimeout inaccuracy
 var marginOfError = 0.02;
 
+// make sure type input checks work
+test('testing input validation', function (t) {
+  try {
+    pin_input.readPulse(2,5000, function (err,pul) {});
+  } catch(e) {
+      t.equal(e.message, 'SCT input pulse type not set correctly. Must be either "high" or "low"', 'pulse type validation');
+  }
+  try {
+    pin_input.readPulse('high','high', function (err,pul) {});
+  } catch(e) {
+      t.equal(e.message, 'SCT input pulse timeout not a number', 'pulse timeout type validation');
+  }
+  try {
+    pin_input.readPulse('high',10001, function (err,pul) {});
+  } catch(e) {
+      t.equal(e.message, 'SCT input pulse timeout too large, must be less than 10000ms', 'pulse timeout bounds validation');
+  }
+  t.end();
+});
+
+// make sure timout input checks work
+
 pin_output.write(0);
 var date = new Date();
 test('testing readPulse functionality', function (t) {

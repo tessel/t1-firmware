@@ -374,12 +374,9 @@ void sct_neopixel_irq_handler (void);
 
 // sct
 
-#include <limits.h>
-
 #define SYSTEM_CORE_CLOCK       180000000
 #define SYSTEM_CORE_CLOCK_MS    ( (SYSTEM_CORE_CLOCK) / (1000) )
 #define SYSTEM_CORE_CLOCK_MS_F  ( (SYSTEM_CORE_CLOCK_MS) * (1.0))
-#define SCT_MAX_TIMEOUT         ( ((double)(INT_MAX)) / (SYSTEM_CORE_CLOCK_MS_F) )
 
 typedef enum {
   SCT_INACTIVE,

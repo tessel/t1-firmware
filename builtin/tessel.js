@@ -420,6 +420,9 @@ Pin.prototype.readSync = function(value) {
 
 Pin.prototype.readPulse = function(type, timeout, callback) {
 
+  // the maximum timeout value
+  var maxTimeout = 10000;
+
   // make sure the user enters a valid type
   var typeMode;
   type = String(type).toLowerCase();
@@ -434,18 +437,15 @@ Pin.prototype.readPulse = function(type, timeout, callback) {
   // make sure the user enters a valid timeout
   if (typeof(timeout) != 'number') {
     throw new Error('SCT input pulse timeout not a number');
+  } else if (timeout > maxTimeout) {
+    throw new Error('SCT input pulse timeout too large, must be less than '+String(maxTimeout)+'ms');
   }
 
   // call the read pulse function
   var sctStatus = hw.sct_read_pulse(typeMode, timeout);
 
-  // if there was an issue with the timeout size (too large)
-  if (sctStatus < 0) {
-    err = new Error("SCT timeout value set greater than maximum allowable value");
-    callback(err,0);
-
   // if the SCT was in use by another process
-  } else if(sctStatus) {
+  if (sctStatus) {
     err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
     callback(err,0);
 

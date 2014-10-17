@@ -468,11 +468,6 @@ static int l_sct_read_pulse(lua_State* L)
 	hw_sct_pulse_type_t type = (hw_sct_pulse_type_t)lua_tonumber(L, ARG1);
 	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
 
-	if (timeout >= SCT_MAX_TIMEOUT) {
-		lua_pushnumber(L, -1);
-		return 1;
-	}
-
 	lua_pushnumber(L, sct_read_pulse(type,timeout));
 	return 1;
 }
