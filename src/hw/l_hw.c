@@ -454,6 +454,25 @@ static int l_hw_digital_get_mode(lua_State* L)
 }
 
 
+// SCT
+
+static int l_sct_read_pulse(lua_State* L)
+{
+	if (hw_sct_status != SCT_INACTIVE) {
+		lua_pushnumber(L, hw_sct_status);
+		return 1;
+	}
+
+	hw_sct_status = SCT_READPULSE;
+
+	hw_sct_pulse_type_t type = (hw_sct_pulse_type_t)lua_tonumber(L, ARG1);
+	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
+
+	lua_pushnumber(L, sct_read_pulse(type,timeout));
+	return 1;
+}
+
+
 // interrupts
 
 static int l_hw_interrupts_remaining(lua_State* L)
@@ -743,6 +762,15 @@ static int l_gps_get_speed(lua_State* L) {
 
 static int l_neopixel_animation_buffer(lua_State* L) {
 
+	// if the SCT status is in use it's error time
+	if (hw_sct_status != SCT_INACTIVE) {
+		lua_pushnumber(L,hw_sct_status);
+		return 1;
+	}
+
+	// set the SCT state to be active with pulse read
+	hw_sct_status = SCT_NEOPIXEL;
+
 	size_t frameLength =  lua_tonumber(L, ARG1);
 
 	size_t animationLength = 0;
@@ -782,7 +810,8 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	// Begin the animation
 	writeAnimationBuffers(&channel_animation);
 
-	return 0;
+	lua_pushnumber(L,0);
+	return 1;
 }
 
 /**
@@ -995,6 +1024,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "digital_set_mode", l_hw_digital_set_mode},
 		{ "analog_write", l_hw_analog_write },
 		{ "analog_read", l_hw_analog_read },
+
+		// sct
+		{ "sct_read_pulse", l_sct_read_pulse },
 
 		// external gpio interrupts
 		{ "interrupts_remaining", l_hw_interrupts_remaining },

@@ -117,6 +117,22 @@
     },
 
     {
+      'target_name': 'neopixels-builtin',
+      'type': 'none',
+      'sources': [
+        'builtin/neopixels.js'
+      ],
+      'rules': [
+        {
+          'rule_name': 'build-neopixels',
+          'extension': 'js',
+          'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).c' ],
+          'action': [ './tools/compile_js.sh', '<(RULE_INPUT_PATH)', '<@(_outputs)' ]
+        }
+      ]
+    },
+
+    {
       'target_name': 'cmsis-lpc18xx',
       'type': 'static_library',
       'sources': [
@@ -214,6 +230,7 @@
 
         '<(SHARED_INTERMEDIATE_DIR)/tessel.c',
         '<(SHARED_INTERMEDIATE_DIR)/wifi-cc3000.c',
+        '<(SHARED_INTERMEDIATE_DIR)/neopixels.c',
         'src/variants/lpc18xx/variant.c',
 
         'src/tm/tm_net.c',
@@ -227,6 +244,7 @@
         'src/hw/hw_analog.c',
         'src/hw/hw_highspeedsignal.c',
         'src/hw/hw_digital.c',
+        'src/hw/hw_readpulse.c',
         'src/hw/hw_i2c.c',
         'src/hw/hw_interrupt.c',
         'src/hw/hw_net.c',
@@ -283,6 +301,7 @@
         'cmsis-lpc18xx',
         'tessel-builtin',
         'wifi-cc3000-builtin',
+        'neopixels-builtin',
         'usb',
       ],
       'libraries': [

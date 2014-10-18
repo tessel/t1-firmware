@@ -436,6 +436,60 @@ Pin.prototype.readSync = function(value) {
   return this.read();
 };
 
+Pin.prototype.readPulse = function(type, timeout, callback) {
+
+  // the maximum timeout value
+  var maxTimeout = 10000;
+
+  // make sure the user enters a valid type
+  var typeMode;
+  type = String(type).toLowerCase();
+  if (type === 'low') {
+    typeMode = 0;
+  } else if (type === 'high') {
+    typeMode = 1;
+  } else {
+     throw new Error('SCT input pulse type not set correctly. Must be either "high" or "low"');
+  }
+
+  // make sure the user enters a valid timeout
+  if (typeof(timeout) != 'number') {
+    throw new Error('SCT input pulse timeout not a number');
+  } else if (timeout > maxTimeout) {
+    throw new Error('SCT input pulse timeout too large, must be less than '+String(maxTimeout)+'ms');
+  }
+
+  // call the read pulse function
+  var sctStatus = hw.sct_read_pulse(typeMode, timeout);
+
+  // if the SCT was in use by another process
+  if (sctStatus) {
+    err = new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]);
+    callback(err,0);
+
+  // if there's nothing wrong then trigger event complete
+  } else {
+    process.once('read_pulse_complete', cb_read_pulse_complete);    
+  }
+
+  // calls the provided callback with an error if there was a timeout
+  function cb_read_pulse_complete(pulsetime) {
+    if (callback) {
+      var err;
+      if (!pulsetime) {
+        err = new Error("SCT timed out while attempting to read pulse");
+      }
+      callback(err,pulsetime);
+    }
+  }
+
+}
+
+Pin.prototype.pulseIn = function(type, timeout, callback) {
+  console.warn('pin.pulseIn() is deprecated. Use pin.readPulse() instead.');
+  this.readPulse(type, timeout, callback);
+};
+
 Pin.prototype.write = function (value, next) {
   this.rawWrite(value);
   this.rawDirection(true);

@@ -44,6 +44,8 @@
 #include "bootloader.h"
 #include "utility/wlan.h"
 
+#include <lpc18xx_sct.h>
+
 #include "module_shims/audio-vs1053b.h"
 #include "addons/neopixel.h"
 
@@ -283,6 +285,16 @@ void cc_animation ()
 	add_animation(anim);
 }
 
+/**
+ * SCT interupt handler
+ */
+
+hw_sct_status_t hw_sct_status = SCT_INACTIVE;
+
+void SCT_IRQHandler (void) {
+  if (hw_sct_status == SCT_READPULSE) sct_readpulse_irq_handler();
+  else if (hw_sct_status == SCT_NEOPIXEL) sct_neopixel_irq_handler(); 
+}
 
 /**
  * Main body of Tessel OS
@@ -334,6 +346,9 @@ extern unsigned int builtin_tessel_js_len;
 
 extern char builtin_wifi_cc3000_js[];
 extern unsigned int builtin_wifi_cc3000_js_len;
+
+extern char builtin_neopixels_js[];
+extern unsigned int builtin_neopixels_js_len;
 
 void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculative);
 
@@ -484,6 +499,15 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	}
 	lua_setglobal(L, "_wifi_cc3000_lib");
 
+	res = luaL_loadbuffer(L, builtin_neopixels_js, builtin_neopixels_js_len, "neopixels.js");
+	if (res != 0) {
+		TM_ERR("Error in %s: %d\n", "neopixels.js", res);
+		tm_fs_destroy(tm_fs_root);
+		tm_fs_root = 0;
+		return;
+	}
+	lua_setglobal(L, "_neopixels_lib");
+
 	lua_getglobal(L, "_colony");
 	lua_getfield(L, -1, "global");
 	lua_getfield(L, -1, "process");
@@ -518,6 +542,8 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	audio_reset();
 	// Clean up the neopixel datastructures and lua refs
 	neopixel_reset_animation();
+	// Clean up the readPulse data and lua refs
+	sct_read_pulse_reset();
 
 	initialize_GPIO_interrupts();
 	tessel_gpio_init(0);

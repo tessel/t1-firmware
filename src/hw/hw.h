@@ -368,6 +368,35 @@ int hw_digital_set_mode (uint8_t ulPin, uint8_t mode);
 uint32_t hw_analog_read (uint32_t ulPin);
 int hw_analog_write (uint32_t ulPin, float ulValue);
 
+// neopixel
+
+void sct_neopixel_irq_handler (void);
+
+// sct
+
+#define SYSTEM_CORE_CLOCK       180000000
+#define SYSTEM_CORE_CLOCK_MS    ( (SYSTEM_CORE_CLOCK) / (1000) )
+#define SYSTEM_CORE_CLOCK_MS_F  ( (SYSTEM_CORE_CLOCK_MS) * (1.0))
+
+typedef enum {
+  SCT_INACTIVE,
+  SCT_PWM,
+  SCT_READPULSE,
+  SCT_NEOPIXEL
+} hw_sct_status_t;
+
+typedef enum {
+  SCT_PULSE_LOW,
+  SCT_PULSE_HIGH
+} hw_sct_pulse_type_t;
+
+extern hw_sct_status_t hw_sct_status;
+
+uint8_t sct_read_pulse (hw_sct_pulse_type_t type, uint32_t timeout);
+void sct_readpulse_irq_handler (void);
+void sct_read_pulse_reset (void);
+
+
 #ifdef __cplusplus
 };
 #endif /**CPP**/
