@@ -134,7 +134,7 @@ function Wifi(){
 
   self._failProcedure = function (err, callback){
     setImmediate(function(){
-      self.emit('error', err);
+      self.emit('error', new Error(err));
       if (callback) callback(err);
     });
   } 
