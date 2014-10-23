@@ -233,20 +233,20 @@ tm_socket_t tm_tcp_open ()
 #ifdef CC3000_DEBUG
 	TM_DEBUG("trying to open socket with %d sockets already open", openSockets);
 #endif
-	int ulSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	uint16_t wAccept = SOCK_ON;
-	setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, &wAccept, sizeof(wAccept)); // TODO this is duplicated in tm_tcp_listen
+	setsockopt(sock, SOL_SOCKET, SOCKOPT_ACCEPT_NONBLOCK, &wAccept, sizeof(wAccept)); // TODO this is duplicated in tm_tcp_listen
 	unsigned long wRecvTimeout = 10;
-	if (setsockopt(ulSocket, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &wRecvTimeout, sizeof(wRecvTimeout)) != 0) {
+	if (setsockopt(sock, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &wRecvTimeout, sizeof(wRecvTimeout)) != 0) {
 		TM_LOG("setting recv_timeout failed.");
 	}
 	CC3000_END;
-	if (ulSocket >= 0) {
-		if (track_open_socket(ulSocket)){
+	if (sock >= 0) {
+		if (track_open_socket(sock)){
 			return -EMFILE;
 		}
 	} 
-	return ulSocket;
+	return sock;
 }
 
 uint32_t tm_net_dnsserver() {
