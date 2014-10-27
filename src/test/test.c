@@ -103,7 +103,9 @@ void test_udp_send (void)
 	while (1) {
 		long socket = tm_udp_open();
 		printf("Sending packet...\n");
-		tm_udp_send(socket, (10 << 24) | (1 << 16) | (90 << 8) | (138 << 0), 4444, (uint8_t *) "haha", 4);
+    const char msg[] = "haha";
+    size_t msg_len = sizeof(msg);
+		tm_udp_send(socket, (10 << 24) | (1 << 16) | (90 << 8) | (138 << 0), 4444, (uint8_t *) msg, &msg_len);
 		socket = tm_udp_close(socket);
 		printf("Sent UDP packet.\n");
 	}
@@ -132,6 +134,7 @@ void test_udp_receive (void)
 	hw_digital_write(CC3K_CONN_LED, 1);
 
 	uint8_t buf[255];
+  size_t buf_len = sizeof(buf);
 
 	// Receive UDP packets
 	long socket = tm_udp_open();
@@ -141,7 +144,7 @@ void test_udp_receive (void)
 		hw_net_block_until_readable(socket, 0);
 		uint32_t from = 0;
 		uint16_t port = 0;
-		int received = tm_udp_receive(socket, buf, sizeof(buf), &from, &port);
+		int received = tm_udp_receive(socket, buf, &buf_len, &from, &port);
 		if (received > 0) {
 			hw_digital_write(LED1, 1);
 			hw_wait_ms(200);

@@ -167,7 +167,7 @@ int tm_udp_listen (tm_socket_t sock, int port)
 	return sockStatus;
 }
 
-ssize_t tm_udp_receive (tm_socket_t sock, uint8_t *buf, size_t buf_len, uint32_t *addr, uint16_t *port)
+int tm_udp_receive (tm_socket_t sock, uint8_t *buf, size_t *buf_len, uint32_t *addr, uint16_t *port)
 {
 	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
@@ -175,19 +175,22 @@ ssize_t tm_udp_receive (tm_socket_t sock, uint8_t *buf, size_t buf_len, uint32_t
 	typedef sockaddr_in sockaddr_storage;
 	sockaddr_storage remoteAddr;
 	socklen_t remoteLen = sizeof(remoteAddr);
-	ssize_t ret = recvfrom(sock, buf, buf_len, 0, (sockaddr *) &remoteAddr, &remoteLen);
+	ssize_t res = recvfrom(sock, buf, *buf_len, 0, (sockaddr *) &remoteAddr, &remoteLen);
 	//assert(remoteAddr.ss_family == AF_INET);
 	sockaddr_in* remoteAddr4 = (void *) &remoteAddr;
 	*addr = ntohl(remoteAddr4->sin_addr.s_addr);
 	*port = ntohs(remoteAddr4->sin_port);
 	CC3000_END;
 
-	if (ret <= 0) {
+	if (res < 0) {
 		TM_DEBUG("No data recieved");
+    *buf_len = 0;
+    return errno;
 	} else {
-		TM_DEBUG("Recieved %d UDP bytes", (unsigned int) ret);
+		TM_DEBUG("Recieved %u UDP bytes", (unsigned int) res);
+    *buf_len = res;
+    return 0;
 	}
-	return ret;
 }
 
 int tm_udp_readable (tm_socket_t sock)
@@ -211,7 +214,7 @@ int tm_udp_readable (tm_socket_t sock)
     return flag;
 }
 
-int tm_udp_send (tm_socket_t sock, uint32_t addr, uint16_t port, const uint8_t *buf, size_t buf_len)
+int tm_udp_send (tm_socket_t sock, uint32_t addr, uint16_t port, const uint8_t *buf, size_t *buf_len)
 {
 	if (!hw_net_online_status()) return -ENETUNREACH;
 
@@ -221,9 +224,15 @@ int tm_udp_send (tm_socket_t sock, uint32_t addr, uint16_t port, const uint8_t *
 	remoteSocketAddr.sin_addr.s_addr = htonl(addr);
 
 	CC3000_START;
-	int sent = sendto(sock, buf, buf_len, 0, (sockaddr *) &remoteSocketAddr, sizeof(remoteSocketAddr));
+	int res = sendto(sock, buf, *buf_len, 0, (sockaddr *) &remoteSocketAddr, sizeof(remoteSocketAddr));
 	CC3000_END;
-	return sent;
+  if (res < 0) {
+    *buf_len = 0;
+    return errno;
+  } else {
+    *buf_len = res;
+    return 0;
+  }
 }
 
 tm_socket_t tm_tcp_open ()
@@ -297,29 +306,40 @@ int tm_tcp_connect (tm_socket_t sock, uint32_t addr, uint16_t port)
 
 // http://publib.boulder.ibm.com/infocenter/iseries/v5r3/index.jsp?topic=%2Frzab6%2Frzab6xnonblock.htm
 
-int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t buflen)
+int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t *buf_len)
 {
 	if (!hw_net_online_status()) return -ENETUNREACH;
 	CC3000_START;
-
-	int sentLen = send(sock, buf, buflen, 0);
+	int res = send(sock, buf, *buf_len, 0);
 	CC3000_END;
-	return sentLen;
+  if (res < 0) {
+    *buf_len = 0;
+    return errno;
+  } else {
+    *buf_len = res;
+    return 0;
+  }
 }
 
-int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t buflen)
+int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t *buf_len)
 {
 	if (!hw_net_online_status()) return -ENETUNREACH;
 
 	// Limit buffer limit to 512 bytes to be reliable.
-	if (buflen > 512) {
-		buflen = 512;
+	if (*buf_len > 512) {
+		*buf_len = 512;
 	}
 	
 	CC3000_START;
-	int read = recv(sock, buf, buflen, 0);
+	int res = recv(sock, buf, *buf_len, 0);
 	CC3000_END;
-	return read;
+  if (res < 0) {
+    *buf_len = 0;
+    return errno;
+  } else {
+    *buf_len = res;
+    return 0;
+  }
 }
 
 int tm_tcp_readable (tm_socket_t sock)
