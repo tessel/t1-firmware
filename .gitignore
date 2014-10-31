@@ -11,4 +11,4 @@ node_modules
 out
 Xplorer*.launch
 .idea/
-
+.gdb_history
