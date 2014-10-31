@@ -64,7 +64,7 @@ int tm_entropy_seed ()
 	time_t		t;
 	int			skip = 1;
 	size_t      read;
-	int         status;
+	int         status = 0;
 
 	t = time(NULL);
 
