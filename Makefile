@@ -10,7 +10,7 @@ compile = \
 	AR=arm-none-eabi-ar AR_host=arm-none-eabi-ar AR_target=arm-none-eabi-ar CC=arm-none-eabi-gcc CXX=arm-none-eabi-g++ gyp $(1) --depth=. -f ninja-arm -D builtin_section=.text -D COLONY_STATE_CACHE=$(COLONY_STATE_CACHE) -D COLONY_PRELOAD_ON_INIT=$(COLONY_PRELOAD_ON_INIT) -D enable_luajit=$(ENABLE_LUAJIT) -D enable_ssl=$(ENABLE_TLS) -D enable_net=$(ENABLE_NET) &&\
 	ninja -C out/$(CONFIG)
 
-.PHONY: all
+.PHONY: all clean-luajit-badarch
 
 all:
 
@@ -30,7 +30,11 @@ update:
 
 # Targets
 
-firmware:
+clean-luajit-badarch:
+	arm-none-eabi-objdump -G deps/runtime/deps/colony-luajit/src/libluajit.a > /dev/null || make -C deps/runtime/deps/colony-luajit clean || true
+
+firmware: clean-luajit-badarch
+	touch deps/runtime/deps/colony-luajit/Makefile
 	$(call compile, firmware.gyp)
 
 arm: firmware
