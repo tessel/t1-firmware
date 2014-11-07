@@ -37,7 +37,8 @@ function Wifi(){
     var connectionTimeout;
 
     if (ret != 0) {
-      self._failProcedure("Previous wifi connect is in the middle of a call", callback);
+      var e = new Error("Previous wifi connect is in the middle of a call");
+      self._failProcedure(e, callback);
       return self;
     } else {
       connectionTimeout = setTimeout(function(){
@@ -115,7 +116,8 @@ function Wifi(){
       var ret = hw.wifi_disconnect();
 
       if (ret != 0) {
-        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
+        var e = new Error("Could not disconnect properly, wifi is currently busy.");
+        self._failProcedure(e, callback);
         return self;
       }
 
@@ -126,7 +128,8 @@ function Wifi(){
       });
 
     } else {
-      self._failProcedure("Cannot disconnect. Wifi is not currently connected.", callback);
+      var e = new Error("Cannot disconnect. Wifi is not currently connected.");
+      self._failProcedure(e, callback);
     }
 
     return self;
@@ -134,7 +137,7 @@ function Wifi(){
 
   self._failProcedure = function (err, callback){
     setImmediate(function(){
-      self.emit('error', new Error(err));
+      self.emit('error', err);
       if (callback) callback(err);
     });
   } 
