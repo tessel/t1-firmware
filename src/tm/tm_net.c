@@ -184,12 +184,12 @@ int tm_udp_receive (tm_socket_t sock, uint8_t *buf, size_t *buf_len, uint32_t *a
 
 	if (res < 0) {
 		TM_DEBUG("No data recieved");
-    *buf_len = 0;
-    return errno;
+		*buf_len = 0;
+		return errno;
 	} else {
 		TM_DEBUG("Recieved %u UDP bytes", (unsigned int) res);
-    *buf_len = res;
-    return 0;
+		*buf_len = res;
+		return 0;
 	}
 }
 
@@ -226,13 +226,13 @@ int tm_udp_send (tm_socket_t sock, uint32_t addr, uint16_t port, const uint8_t *
 	CC3000_START;
 	int res = sendto(sock, buf, *buf_len, 0, (sockaddr *) &remoteSocketAddr, sizeof(remoteSocketAddr));
 	CC3000_END;
-  if (res < 0) {
-    *buf_len = 0;
-    return errno;
-  } else {
-    *buf_len = res;
-    return 0;
-  }
+	if (res < 0) {
+		*buf_len = 0;
+		return errno;
+	} else {
+		*buf_len = res;
+		return 0;
+	}
 }
 
 tm_socket_t tm_tcp_open ()
@@ -312,13 +312,13 @@ int tm_tcp_write (tm_socket_t sock, const uint8_t *buf, size_t *buf_len)
 	CC3000_START;
 	int res = send(sock, buf, *buf_len, 0);
 	CC3000_END;
-  if (res < 0) {
-    *buf_len = 0;
-    return errno;
-  } else {
-    *buf_len = res;
-    return 0;
-  }
+	if (res < 0) {
+		*buf_len = 0;
+		return errno;
+	} else {
+		*buf_len = res;
+		return 0;
+	}
 }
 
 int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t *buf_len)
@@ -333,13 +333,13 @@ int tm_tcp_read (tm_socket_t sock, uint8_t *buf, size_t *buf_len)
 	CC3000_START;
 	int res = recv(sock, buf, *buf_len, 0);
 	CC3000_END;
-  if (res < 0) {
-    *buf_len = 0;
-    return errno;
-  } else {
-    *buf_len = res;
-    return 0;
-  }
+	if (res < 0) {
+		*buf_len = 0;
+		return errno;
+	} else {
+		*buf_len = res;
+		return 0;
+	}
 }
 
 int tm_tcp_readable (tm_socket_t sock)
