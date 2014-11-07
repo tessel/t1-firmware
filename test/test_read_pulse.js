@@ -11,7 +11,7 @@ var neopixels = new Neopixels();
 var numNeopixels = 24;
 
 // Percent diff of what's read and what's expected due to setTimeout inaccuracy
-var marginOfError = 0.02;
+var marginOfError = 0.03;
 
 // make sure type input checks work
 test('testing input validation', function (t) {
@@ -64,6 +64,7 @@ function testLowReadPulse(t) {
   pinInput.readPulse('low',5000, function (err,pul) {
     t.error(err,'no error when reading pulse');
     t.equal((Math.abs(350-pul)/350) <= marginOfError, true, 'low 350ms pulse');
+    console.error('# pulse length', pul, 'with margin of error', marginOfError);
   });
   setTimeout( function () {
     pinOutput.write(0);
