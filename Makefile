@@ -30,11 +30,8 @@ update:
 
 # Targets
 
-clean-luajit-badarch:
-	arm-none-eabi-objdump -G deps/runtime/deps/colony-luajit/src/libluajit.a > /dev/null || make -C deps/runtime/deps/colony-luajit clean || true
-
-firmware: clean-luajit-badarch
-	touch deps/runtime/deps/colony-luajit/Makefile
+firmware:
+	make -C deps/runtime prepare-arm
 	$(call compile, firmware.gyp)
 
 arm: firmware
