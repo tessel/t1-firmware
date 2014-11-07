@@ -1,6 +1,6 @@
 {
   "name": "tessel-firmware",
-  "version": "v0.1.20",
+  "version": "1.0.0",
   "scripts": {
     "test": "cd test; npm install; npm test",
     "install": "true"
