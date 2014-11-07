@@ -845,12 +845,12 @@ static int l_clocksync (lua_State* L) {
 
 	uint32_t ip = tm__sync_gethostbyname("pool.ntp.org");
 	tm_udp_listen(sock, 7000);
-  size_t ntpDataLen = sizeof(ntpData);
+	size_t ntpDataLen = sizeof(ntpData);
 	tm_udp_send(sock, ip, 123, ntpData, &ntpDataLen);
 	uint8_t buf[256] = { 0 };
-  size_t buf_len = sizeof(buf);
-	uint32_t retip;
-	uint16_t retpt;
+	size_t buf_len = sizeof(buf);
+	uint32_t retip = 0;
+	uint16_t retpt = 0;
 	int size = tm_udp_receive(sock, buf, &buf_len, &retip, &retpt);
 	(void) size;
 
