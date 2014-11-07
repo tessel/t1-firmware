@@ -46,6 +46,7 @@ char* tessel_board_uuid ()
 const char* version_info = "{" \
 	"\"firmware_git\":" xstr(__TESSEL_FIRMWARE_VERSION__) "," \
 	"\"runtime_git\":" xstr(__TESSEL_RUNTIME_VERSION__) "," \
+	"\"runtime_version\":" xstr(__TESSEL_RUNTIME_SEMVER__) ", " \
 	"\"date\":" xstr(__DATE__) "," \
 	"\"time\":" xstr(__TIME__) \
 	"}";

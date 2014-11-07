@@ -70,6 +70,51 @@ void __attribute__ ((interrupt)) DMA_IRQHandler (void)
 
 
 /*----------------------------------------------------------------------------
+  Fault Handler
+ *---------------------------------------------------------------------------*/
+
+static __inline__ void fault_handler (void)
+{
+	const uint32_t led_next_time = 4e6;
+	volatile uint8_t led_state = 0;
+	volatile uint32_t ticks = 0;
+
+	while (1) {
+		ticks++;
+		if (ticks > led_next_time) {
+			ticks = 0;
+			hw_digital_write(LED1, led_state);
+			hw_digital_write(LED2, led_state);
+			hw_digital_write(CC3K_ERR_LED, led_state);
+			hw_digital_write(CC3K_CONN_LED, led_state);
+			led_state = !led_state;
+		}
+		__NOP();
+	}
+}
+
+void HardFault_Handler(void)
+{
+	fault_handler();
+}
+
+void MemManage_Handler(void)
+{
+	fault_handler();
+}
+
+void BusFault_Handler(void)
+{
+	fault_handler();
+}
+
+void UsageFault_Handler(void)
+{
+	fault_handler();
+}
+
+
+/*----------------------------------------------------------------------------
   Main Program
  *---------------------------------------------------------------------------*/
 

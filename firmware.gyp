@@ -17,6 +17,7 @@
       'COLONY_PRELOAD_ON_INIT=<(COLONY_PRELOAD_ON_INIT)',
       '__TESSEL_FIRMWARE_VERSION__="<!(git log --pretty=format:\'%h\' -n 1)"',
       '__TESSEL_RUNTIME_VERSION__="<!(git --git-dir deps/runtime/.git log --pretty=format:\'%h\' -n 1)"',
+      '__TESSEL_RUNTIME_SEMVER__="<!(node -p \"require(\\\"./deps/runtime/package.json\\\").version")"',
     ],
     'cflags': [
       '-mcpu=cortex-m3',
