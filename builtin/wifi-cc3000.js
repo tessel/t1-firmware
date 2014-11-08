@@ -37,7 +37,8 @@ function Wifi(){
     var connectionTimeout;
 
     if (ret != 0) {
-      self._failProcedure("Previous wifi connect is in the middle of a call", callback);
+      var e = new Error("Previous wifi connect is in the middle of a call");
+      self._failProcedure(e, callback);
       return self;
     } else {
       connectionTimeout = setTimeout(function(){
@@ -66,7 +67,7 @@ function Wifi(){
     });
 
     return self;
-  }
+  };
 
   self._emitConnection = function(next){
     process.on('wifi_connect_complete', function(err, data){
@@ -79,18 +80,18 @@ function Wifi(){
           self.emit('connect', e);
         }
       } else {
-        self.emit('disconnect', err, data)
+        self.emit('disconnect', err, data);
       }
     });
-  }
+  };
 
   self.isConnected = function() {
     return hw.wifi_is_connected() == 1 ? true : false;
-  }
+  };
 
   self.isBusy = function(){
     return hw.wifi_is_busy() == 1 ? true : false;
-  }
+  };
 
   self.connection = function() {
     var data = JSON.parse(hw.wifi_connection());
@@ -98,7 +99,7 @@ function Wifi(){
       return data;
     }
     return null;
-  }
+  };
 
   self.reset = function(callback) {
     // disable and then enable
@@ -106,7 +107,7 @@ function Wifi(){
     self.enable();
     callback && callback();
     return self;
-  }
+  };
 
   self.disconnect = function(callback){
     if (self.isConnected()){
@@ -115,7 +116,8 @@ function Wifi(){
       var ret = hw.wifi_disconnect();
 
       if (ret != 0) {
-        self._failProcedure("Could not disconnect properly, wifi is currently busy.", callback);
+        var e = new Error("Could not disconnect properly, wifi is currently busy.");
+        self._failProcedure(e, callback);
         return self;
       }
 
@@ -126,39 +128,40 @@ function Wifi(){
       });
 
     } else {
-      self._failProcedure("Cannot disconnect. Wifi is not currently connected.", callback);
+      var e = new Error("Cannot disconnect. Wifi is not currently connected.");
+      self._failProcedure(e, callback);
     }
 
     return self;
-  }
+  };
 
   self._failProcedure = function (err, callback){
     setImmediate(function(){
       self.emit('error', err);
       if (callback) callback(err);
     });
-  } 
+  };
 
   self.isEnabled = function() {
     return hw.wifi_is_enabled() == 1 ? true : false;
-  }
+  };
 
   self.disable = function(callback) {
     hw.wifi_disable();
     callback && callback();
     return self;
-  }
+  };
 
   self.enable = function(callback) {
     hw.wifi_enable();
     callback && callback();
     return self;
-  }
+  };
 
   self.macAddress = function() {
     // Gather the mac address
     return hw.wifi_mac_address();
-  }
+  };
 
   self._emitConnection();
 }
