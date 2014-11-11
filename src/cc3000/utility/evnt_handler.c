@@ -114,6 +114,8 @@
 #define GET_SCAN_RESULTS_FRAME_TIME_OFFSET				(10)
 #define GET_SCAN_RESULTS_SSID_MAC_LENGTH				(38)
 
+#define GET_MSS_VAL_RETVAL_OFFSET	(0)
+
 #include "hw.h"
 #include "tessel.h"
 
@@ -343,7 +345,14 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 						STREAM_TO_UINT32((char *)pucReceivedParams
 									,GET_HOST_BY_NAME_ADDR_OFFSET,*(unsigned long *)pRetParams);					
 						break;
-						
+					
+					case HCI_EVNT_GETMSSVALUE:
+
+						STREAM_TO_UINT16((char *)pucReceivedParams
+							,GET_MSS_VAL_RETVAL_OFFSET,*(unsigned long *)pRetParams);					
+
+						break;
+
 					case HCI_EVNT_ACCEPT:
 						{
 							STREAM_TO_UINT32((char *)pucReceivedParams,ACCEPT_SD_OFFSET
@@ -351,7 +360,7 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 							pRetParams = ((char *)pRetParams) + 4;
 							STREAM_TO_UINT32((char *)pucReceivedParams
 										,ACCEPT_RETURN_STATUS_OFFSET,*(unsigned long *)pRetParams);
-              pRetParams = ((char *)pRetParams) + 4; 
+              				pRetParams = ((char *)pRetParams) + 4; 
 							
 							//This argument returns in network order
 							memcpy((unsigned char *)pRetParams, 
@@ -374,8 +383,8 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 							}
 							break;
 						}
-                                                
-                                        case HCI_EVNT_SEND:
+
+					case HCI_EVNT_SEND:
 					case HCI_EVNT_SENDTO:
 						{
 							STREAM_TO_UINT32((char *)pucReceivedParams,SL_RECEIVE_SD_OFFSET ,*(unsigned long *)pRetParams);
@@ -562,6 +571,12 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 						// return CC3K_TIMEOUT_ERR for errored out on timeout
 						*(long *)pRetParams = CC3K_TIMEOUT_ERR;
 						break;
+
+					case HCI_EVNT_GETMSSVALUE:
+						// expects maximal segment size for a socket. if it times out return 0
+						*(long *)pRetParams = 0;				
+
+						break;
 						
 					case HCI_EVNT_BSD_GETHOSTBYNAME:
 						// expects a tBsdGethostbynameParams, set error on retVal and default outputAddress
@@ -691,6 +706,12 @@ hci_unsol_event_handler(char *event_hdr)
 				
 				data = (char*)(event_hdr) + HCI_EVENT_HEADER_SIZE;
 				
+#ifdef MDNS_ADVERTISE_HOST
+				localIP[0] = *(recParams-NETAPP_IPCONFIG_IP_LENGTH);
+				localIP[1] = *(recParams-NETAPP_IPCONFIG_IP_LENGTH + 1);
+				localIP[2] = *(recParams-NETAPP_IPCONFIG_IP_LENGTH + 2);
+				localIP[3] = *(recParams-NETAPP_IPCONFIG_IP_LENGTH + 3);
+#endif
 				//Read IP address
 				STREAM_TO_STREAM(data,recParams,NETAPP_IPCONFIG_IP_LENGTH);
 				data += 4;
@@ -744,8 +765,15 @@ hci_unsol_event_handler(char *event_hdr)
 				}
 			}
 			break;
-			
-		//'default' case which means "event not supported" 	
+		case HCI_EVNT_ASYNC_ARP_DONE:
+        case HCI_EVNT_ASYNC_ARP_WAITING:
+        	if( tSLInformation.sWlanCB )
+			{
+				tSLInformation.sWlanCB(event_type, 0, 0);
+			}
+            break;
+
+			//'default' case which means "event not supported" 	
 		default: 
 			return (0);
 		}

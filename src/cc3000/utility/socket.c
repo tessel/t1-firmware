@@ -78,6 +78,7 @@
 #define SOCKET_RECV_FROM_PARAMS_LEN			(12)
 #define SOCKET_SENDTO_PARAMS_LEN			(24)
 #define SOCKET_MDNS_ADVERTISE_PARAMS_LEN	(12)
+#define SOCKET_GET_MSS_VALUE_PARAMS_LEN		(4)
 
 
 // The legnth of arguments for the SEND command: sd + buff_offset + len + flags, 
@@ -94,6 +95,9 @@
 
 #define MDNS_DEVICE_SERVICE_MAX_LENGTH 	(32)
 
+#ifdef MDNS_ADVERTISE_HOST
+extern unsigned char localIP[4];
+#endif
 
 //*****************************************************************************
 //
@@ -1194,6 +1198,8 @@ sendto(long sd, const void *buf, long len, long flags, const sockaddr *to,
 //
 //*****************************************************************************
 
+#ifndef MDNS_ADVERTISE_HOST
+
 int
 mdnsAdvertiser(unsigned short mdnsEnabled, char * deviceServiceName, unsigned short deviceServiceNameLength)
 {
@@ -1222,4 +1228,302 @@ mdnsAdvertiser(unsigned short mdnsEnabled, char * deviceServiceName, unsigned sh
 	
 	return ret;
 	
+}
+#else
+int mdnsAdvertiser(unsigned int mdnsEnabled, char * deviceServiceName, unsigned int deviceServiceNameLength)
+{
+    sockaddr tSocketAddr;
+    long mdnsSocket = -1;
+    int device_name_len;
+    char mdnsResponse[220];
+    long mdnsResponseLength;
+    char *mdnsResponsePtr;
+
+    if(deviceServiceName != NULL)
+    {
+        device_name_len = strlen(deviceServiceName);
+    }
+    else
+    {
+        return EFAIL;
+    }
+
+    if (deviceServiceNameLength > MDNS_DEVICE_SERVICE_MAX_LENGTH)
+	{
+		return EFAIL;
+	}
+
+    mdnsSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(mdnsSocket < 0)
+    {
+        return -1;
+    }
+
+    //Send mDNS data to 224.0.0.251
+    tSocketAddr.sa_family = AF_INET;
+
+    // the destination port 5353
+    tSocketAddr.sa_data[0] = 0x14;
+    tSocketAddr.sa_data[1] = 0xe9;
+
+    tSocketAddr.sa_data[2] = 0xe0;
+    tSocketAddr.sa_data[3] = 0x00;
+    tSocketAddr.sa_data[4] = 0x00;
+    tSocketAddr.sa_data[5] = 0xfb;
+
+	memset(mdnsResponse, 0, sizeof(mdnsResponse));
+	mdnsResponsePtr = mdnsResponse;
+
+	// mDNS header
+	mdnsResponse[2] = 0x84;	                       // DNS flags
+	mdnsResponse[7] = 0x5;	                       // number of answers
+	mdnsResponsePtr += 12;
+
+	// answer 1 - the device service name
+	*mdnsResponsePtr++ = 12;	                   // size of _device-info
+	memcpy(mdnsResponsePtr, "_device-info", 12);   // _device-info
+	mdnsResponsePtr += 12;
+	*mdnsResponsePtr++ = 4;	                       // size of _udp
+	memcpy(mdnsResponsePtr, "_udp", 4);	           // _udp
+	mdnsResponsePtr += 4;
+	*mdnsResponsePtr++ = 5;	                       // size of local
+	memcpy(mdnsResponsePtr, "local", 5);	       // local
+	mdnsResponsePtr += 7;
+	*mdnsResponsePtr = 0xc;	                       // PTR type
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr = 0x1;	                       // class IN
+	mdnsResponsePtr += 3;
+	*mdnsResponsePtr++ = 0x11;	                       // TTL = 4500 seconds
+	*mdnsResponsePtr = 0x94;	                       // TTL = 4500 seconds
+	mdnsResponsePtr += 4;	                           // domain and its length - filled during invoke of mDNS advertiser
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr++ = 0x0c;	                       // points to rest of the domain
+
+	// answer 2 - the device-info service
+	*mdnsResponsePtr++ = 9;	                           // size of _services
+	memcpy(mdnsResponsePtr, "_services", 9);	       // _services
+	mdnsResponsePtr += 9;
+	*mdnsResponsePtr++ = 7;	                           // size of _dns-sd
+	memcpy(mdnsResponsePtr, "_dns-sd", 7);	           // _dns-sd
+	mdnsResponsePtr += 7;
+	*mdnsResponsePtr++ = 4;	                           // size of _udp
+	memcpy(mdnsResponsePtr, "_udp", 4);	               // _udp
+	mdnsResponsePtr += 4;
+	*mdnsResponsePtr++ = 5;	                           // size of local
+	memcpy(mdnsResponsePtr, "local", 5);	           // local
+	mdnsResponsePtr += 7;
+	*mdnsResponsePtr = 0xc;	                           // PTR type
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr = 0x1;	                           // class IN
+	mdnsResponsePtr += 3;
+	*mdnsResponsePtr++ = 0x11;	                       // TTL = 4500 seconds
+	*mdnsResponsePtr = 0x94;	                       // TTL = 4500 seconds
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 2;	                           // size of PTR
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr++ = 0x0c;	                       // points to rest of the domain
+
+	// answer 3 - TXT record of the service
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr = 0x2f;	                       // points to device service name
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 0x10;	                       // TXT type
+	*mdnsResponsePtr++ = 0x80;	                       // class UNICAST
+	*mdnsResponsePtr = 0x1;	                           // class IN
+	mdnsResponsePtr += 3;
+	*mdnsResponsePtr++ = 0x11;	                       // TTL = 4500 seconds
+	*mdnsResponsePtr = 0x94;	                       // TTL = 4500 seconds
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 36;	                       // size of TXT
+	*mdnsResponsePtr++ = 10;	                       // size of dev=CC3000
+	memcpy(mdnsResponsePtr, "dev=CC3000", 10);	       // _device-info
+	mdnsResponsePtr += 10;
+	*mdnsResponsePtr++ = 24;	                       // size of vendor=Texas-Instruments
+	memcpy(mdnsResponsePtr, "vendor=Texas-Instruments", 24);	// _udp
+	mdnsResponsePtr += 24;
+
+	// answer 4 - SRV record of the service
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr = 0x2f;	                       // points to device service name
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 0x21;	                       // SRV type
+	*mdnsResponsePtr++ = 0x80;	                       // class UNICAST
+	*mdnsResponsePtr = 0x1;	                           // class IN
+	mdnsResponsePtr += 3;
+	*mdnsResponsePtr++ = 0x11;	                       // TTL = 4500 seconds
+	*mdnsResponsePtr = 0x94;	                       // TTL = 4500 seconds
+	mdnsResponsePtr += 2;
+
+	//data length to be filled later in hook_sl_cmd_parser function
+	mdnsResponsePtr += 5;
+	*mdnsResponsePtr++ = 0x4;	                       // high portion of port 1234
+	*mdnsResponsePtr++ = 0xd2;	                       // low portion of port 1234
+
+	//size should be according to device_name (input parameter from API)
+	mdnsResponsePtr += 1;                              //leave free slot for device_name length
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr++ = 0x1e;	                       // points to local
+
+	// answer 5 - ADDRESS record of the service
+	*mdnsResponsePtr++ = 0xc0;
+	*mdnsResponsePtr =
+	  (UINT16)(mdnsResponsePtr - mdnsResponse) - 4; //adding the required offset in hook_sl_cmd_parser function
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 0x1;	                       // Address type
+	*mdnsResponsePtr++ = 0x80;	                       // class UNICAST
+	*mdnsResponsePtr = 0x1;	                       // class IN
+	mdnsResponsePtr += 3;
+	*mdnsResponsePtr++ = 0x11;	                       // TTL = 4500 seconds
+	*mdnsResponsePtr = 0x94;	                       // TTL = 4500 seconds
+	mdnsResponsePtr += 2;
+	*mdnsResponsePtr++ = 4;	                       // size of Address
+
+	mdnsResponseLength = (UINT16)(mdnsResponsePtr - mdnsResponse);
+
+	//
+	// Move to the domain and its length
+	//
+	mdnsResponsePtr = &mdnsResponse[46];
+
+	//
+	// Domain length
+	//
+	*mdnsResponsePtr++ = 3 + device_name_len;
+
+	//
+	// Size of device service name
+	//
+	*mdnsResponsePtr++ = device_name_len;
+
+	//
+	// Now we need to insert the device service name here
+	// (so push the rest accordingly).
+	//
+	memmove(mdnsResponsePtr + device_name_len,
+			mdnsResponsePtr,
+			mdnsResponseLength - 48);
+
+	//
+	// Device service name.
+	//
+	memcpy(mdnsResponsePtr, deviceServiceName, device_name_len);
+
+	//
+	// Start handling Host Domain Name (Type = 1)
+	// DNS IE starts at constant offset: 62
+	// First answer starts at constant offset: 74
+	// Second answer starts at offset which depends on device_name length:
+	//     112 + device_name length
+
+	// Third answer starts at offset which depends on device_name length:
+	//     154 + device_name length
+
+	// Forth answer starts at offset which depends on device_name length:
+	//     202 + device_name length
+
+	// Fifth answer starts at offset which depends on device_name length
+	//     +SRV target: 223 + device_name length * 2 */
+
+	//
+	// Fill SRV Data Length -> Fourth answer,
+	// 10 bytes offset (Domain Name, Type, Class, TTL) + 1 byte (Fill LSB bits)
+	// => (202 + device_name length + 11) - 62 (base offset) = 151 +
+	// device_name length.
+	//
+	// Move to data length
+	//
+	mdnsResponsePtr = &mdnsResponse[151 + device_name_len];
+
+	//
+	//Data Length: Priority (2 bytes) + Weight (2 bytes) + Port (2 bytes) +
+	//Target size (1 byte) + 2 bytes (PTR + Offset of .local) = 9 bytes
+	//
+	*mdnsResponsePtr = 9 + device_name_len;
+
+	//
+	//Fill SRV Target -> 7 bytes offset from Data Length.
+	//Derived from: (Priority 2 bytes, Weight 2 bytes, Port 2 bytes)
+	//
+	mdnsResponsePtr =
+	  &mdnsResponse[158 + device_name_len];// Move to the domain and its length
+	*mdnsResponsePtr++ = device_name_len;  // Domain length
+
+	/*now we need to insert the device service name here
+	(so push the rest accordingly)*/
+	memmove(mdnsResponsePtr + device_name_len,
+			mdnsResponsePtr,
+			mdnsResponseLength - 158);
+	//
+	// Device service name
+	//
+	memcpy(mdnsResponsePtr,
+		   ((char *)deviceServiceName),
+		   device_name_len);
+	//
+	// Move to the end of the packet
+	//
+	mdnsResponsePtr =
+	  &mdnsResponse[mdnsResponseLength + device_name_len + device_name_len];
+
+	//
+	//End handling Host Domain Name (Type = 1)
+	//
+	*mdnsResponsePtr++ = localIP[3];
+	*mdnsResponsePtr++ = localIP[2];
+	*mdnsResponsePtr++ = localIP[1];
+	*mdnsResponsePtr++ = localIP[0];
+
+	//
+	// Add the length of the device name to the ADDRESS record
+	//
+	*(mdnsResponsePtr - 15) += device_name_len;
+
+	mdnsResponseLength = (UINT16)(mdnsResponsePtr - mdnsResponse);
+
+	//
+	// Send the mDNS response packet.
+	//
+	sendto(mdnsSocket,
+		   mdnsResponse,
+		   sizeof(mdnsResponse),
+		   0,
+		   (const sockaddr*)&tSocketAddr,
+		   mdnsResponseLength);
+
+    closesocket(mdnsSocket);
+    mdnsSocket = 0xFFFFFFFF;
+
+    return mdnsSocket;
+}
+#endif
+
+//*****************************************************************************
+//
+//!  getmssvalue
+//!
+//!  @param[in] sd         socket descriptor
+//!
+//!  @return   On success, returns the MSS value of a TCP connection
+//!
+//!  @brief    Returns the MSS value of a TCP connection according to the socket descriptor
+//
+//*****************************************************************************
+unsigned short getmssvalue (long sd)
+{
+	unsigned char *ptr, *args;
+	unsigned short ret;
+
+	ptr = tSLInformation.pucTxCommandBuffer;
+	args = (ptr + HEADERS_SIZE_CMD);
+
+	// Fill in temporary command buffer
+	args = UINT32_TO_STREAM(args, sd);
+
+	// Initiate a HCI command
+	hci_command_send(HCI_CMND_GETMSSVALUE, ptr, SOCKET_GET_MSS_VALUE_PARAMS_LEN);
+
+	// Since we are in blocking state - wait for event complete
+	SimpleLinkWaitEvent(HCI_EVNT_GETMSSVALUE, &ret);
+
+	return ret;
 }
