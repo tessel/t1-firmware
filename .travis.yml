@@ -1,0 +1,19 @@
+description: ARM Cortex-M
+badge_token: QsFQ9CsYegvj7x78qiit
+
+language: objective-c
+before_install:
+  - brew update
+  - mkdir -p ~/Library/Python/2.7/lib/python/site-packages
+  - echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
+  - brew tap tessel/tools
+  - brew install gyp ninja gcc-arm node || true
+  - git config credential.helper store
+  - npm config set spin=false
+install:
+  - make update
+script:
+  - make arm
+
+git:
+  submodules: false
