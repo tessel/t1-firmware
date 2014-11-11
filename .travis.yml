@@ -1,0 +1,19 @@
+description: ARM Cortex-M
+badge_token: QsFQ9CsYegvj7x78qiit
+
+language: objective-c
+before_install:
+  - brew update
+  - brew tap tcr/tcr
+  - brew install python gyp ninja gcc-arm
+  - brew install node || true
+  - git config credential.helper store
+  - git clone https://tmTestUser:tmTestUser1@github.com/tessel/runtime.git deps/runtime
+  - git clone https://tmTestUser:tmTestUser1@github.com/tessel/colony-lua.git deps/runtime/deps/colony-lua
+install:
+  - make update
+script:
+  - make arm
+
+git:
+  submodules: false
