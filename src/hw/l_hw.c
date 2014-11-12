@@ -85,8 +85,8 @@ static int l_hw_sleep_ms(lua_State* L)
 
 static int l_hw_spi_initialize(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t clockspeed = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t clockspeed = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 	uint8_t spimode = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	uint8_t cpol = (uint8_t)lua_tonumber(L, ARG1 + 3);
 	uint8_t cpha = (uint8_t)lua_tonumber(L, ARG1 + 4);
@@ -98,7 +98,7 @@ static int l_hw_spi_initialize(lua_State* L)
 
 static int l_hw_spi_enable(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_spi_enable(port);
 	return 0;
 }
@@ -106,7 +106,7 @@ static int l_hw_spi_enable(lua_State* L)
 
 static int l_hw_spi_disable(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_spi_disable(port);
 	return 0;
 }
@@ -122,7 +122,7 @@ static int l_hw_spi_transfer(lua_State* L)
 		return 1;
 	}
 	// Grab the spi port number
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	// Create the tx/rx buffers
 	size_t buffer_length = (size_t)lua_tonumber(L, ARG1 + 1);
 	size_t buffer_check = 0;
@@ -152,9 +152,9 @@ static int l_hw_spi_transfer(lua_State* L)
 
 
 	size_t chunk_size = (size_t) lua_tonumber(L, ARG1 + 4);
-	uint32_t repeat = (uint32_t) lua_tonumber(L, ARG1 + 5);
+	uint32_t repeat = TM_TO_UINT32(lua_tointeger(L, ARG1 + 5));
 	int8_t chip_select = (int8_t) lua_tonumber(L, ARG1 + 6);
-	uint32_t cs_delay_us = (uint32_t) lua_tonumber(L, ARG1 + 7);
+	uint32_t cs_delay_us = TM_TO_UINT32(lua_tointeger(L, ARG1 + 7));
 	// Begin the transfer
 	hw_spi_transfer(port, buffer_length, txbuf, rxbuf, txref, rxref, chunk_size, repeat, chip_select, cs_delay_us, NULL);
 	// Push a success code onto the stack
@@ -166,7 +166,7 @@ static int l_hw_spi_transfer(lua_State* L)
 
 static int l_hw_i2c_initialize (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_i2c_initialize(port);
 	return 0;
 }
@@ -174,7 +174,7 @@ static int l_hw_i2c_initialize (lua_State* L)
 
 static int l_hw_i2c_enable (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	uint8_t mode = (uint8_t)lua_tonumber(L, ARG1 + 1);
 
 	hw_i2c_enable(port, mode);
@@ -183,7 +183,7 @@ static int l_hw_i2c_enable (lua_State* L)
 
 static int l_hw_i2c_disable (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 
 	hw_i2c_disable(port);
 	return 0;
@@ -193,8 +193,8 @@ static int l_hw_i2c_disable (lua_State* L)
 
 static int l_hw_i2c_set_slave_addr (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t address = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t address = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	hw_i2c_set_slave_addr(port, address);
 	return 0;
@@ -204,7 +204,7 @@ static int l_hw_i2c_set_slave_addr (lua_State* L)
 static int l_hw_i2c_slave_transfer (lua_State* L)
 {
 	// int hw_i2c_slave_request_blocking(uint32_t port, const uint8_t *txbuf, size_t txbuf_len, uint8_t *rxbuf, size_t rxbuf_len)
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	// uint32_t address = (uint32_t) lua_tonumber(L, ARG1+1);
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 2);
 
@@ -223,7 +223,7 @@ static int l_hw_i2c_slave_transfer (lua_State* L)
 static int l_hw_i2c_slave_send (lua_State* L)
 {
 	// port, length,
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	//  uint32_t address = (uint32_t) lua_tonumber(L, ARG1+1);
 
 	size_t buf_len = 0;
@@ -238,7 +238,7 @@ static int l_hw_i2c_slave_send (lua_State* L)
 static int l_hw_i2c_slave_receive (lua_State* L)
 {
 	// port, length,
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 1);
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
@@ -256,8 +256,8 @@ static int l_hw_i2c_slave_receive (lua_State* L)
 
 static int l_hw_i2c_master_transfer (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t address = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t address = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 3);
 
 	size_t txbuf_len = 0;
@@ -275,8 +275,8 @@ static int l_hw_i2c_master_transfer (lua_State* L)
 
 static int l_hw_i2c_master_receive (lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t address = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t address = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 	size_t rxbuf_len = (size_t)lua_tonumber(L, ARG1 + 2);
 
 	uint8_t* rxbuf = colony_createbuffer(L, rxbuf_len);
@@ -292,8 +292,8 @@ static int l_hw_i2c_master_receive (lua_State* L)
 static int l_hw_i2c_master_send (lua_State* L)
 {
 	// port, address, length,
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t address = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t address = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 2, &buf_len);
@@ -308,14 +308,14 @@ static int l_hw_i2c_master_send (lua_State* L)
 
 static int l_hw_uart_enable(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_uart_enable(port);
 	return 0;
 }
 
 static int l_hw_uart_disable(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_uart_disable(port);
 	return 0;
 }
@@ -323,8 +323,8 @@ static int l_hw_uart_disable(lua_State* L)
 
 static int l_hw_uart_initialize(lua_State* L)
 {
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t baudrate = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t baudrate = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 	UART_DATABIT_Type databits = (UART_DATABIT_Type)lua_tonumber(L, ARG1 + 2);
 	UART_PARITY_Type parity = (UART_PARITY_Type)lua_tonumber(L, ARG1 + 3);
 	UART_STOPBIT_Type stopbits = (UART_STOPBIT_Type)lua_tonumber(L, ARG1 + 4);
@@ -336,7 +336,7 @@ static int l_hw_uart_initialize(lua_State* L)
 static int l_hw_uart_send(lua_State* L)
 {
 
-	uint32_t port = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t port = TM_TO_UINT32(lua_tointeger(L, ARG1));
 
 	size_t buf_len = 0;
 	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &buf_len);
@@ -379,14 +379,14 @@ static int l_hw_swuart_disable(lua_State* L)
 
 static int l_hw_digital_output(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_digital_output(pin);
 	return 0;
 }
 
 static int l_hw_digital_input(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	hw_digital_input(pin);
 	return 0;
 }
@@ -395,7 +395,7 @@ static int l_hw_digital_input(lua_State* L)
 
 static int l_hw_analog_read(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
 
 	lua_pushnumber(L, hw_analog_read(pin));
 
@@ -405,8 +405,8 @@ static int l_hw_analog_read(lua_State* L)
 
 static int l_hw_analog_write(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t level = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t level = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	hw_analog_write(pin, level);
 
@@ -416,7 +416,7 @@ static int l_hw_analog_write(lua_State* L)
 
 static int l_hw_digital_read(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
 
 	lua_pushnumber(L, hw_digital_read(pin));
 
@@ -426,8 +426,8 @@ static int l_hw_digital_read(lua_State* L)
 
 static int l_hw_digital_write(lua_State* L)
 {
-	uint32_t pin = (uint32_t)lua_tonumber(L, ARG1);
-	uint32_t level = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t pin = TM_TO_UINT32(lua_tointeger(L, ARG1));
+	uint32_t level = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	hw_digital_write(pin, level);
 
@@ -466,7 +466,7 @@ static int l_sct_read_pulse(lua_State* L)
 	hw_sct_status = SCT_READPULSE;
 
 	hw_sct_pulse_type_t type = (hw_sct_pulse_type_t)lua_tonumber(L, ARG1);
-	uint32_t timeout = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t timeout = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	lua_pushnumber(L, sct_read_pulse(type,timeout));
 	return 1;
@@ -595,7 +595,7 @@ static int l_hw_device_id(lua_State* L)
 
 // pwm
 static int l_hw_pwm_port_period(lua_State *L) {
-	uint32_t period = (uint32_t)lua_tonumber(L, ARG1);
+	uint32_t period = TM_TO_UINT32(lua_tointeger(L, ARG1));
 	int ret = hw_pwm_port_period(period);
 	lua_pushnumber(L, ret);
 	return 1;
@@ -604,7 +604,7 @@ static int l_hw_pwm_port_period(lua_State *L) {
 static int l_hw_pwm_pin_pulsewidth(lua_State* L)
 {
 	size_t pin = (size_t)lua_tonumber(L, ARG1);
-	uint32_t pulsewidth = (uint32_t)lua_tonumber(L, ARG1 + 1);
+	uint32_t pulsewidth = TM_TO_UINT32(lua_tointeger(L, ARG1 + 1));
 
 	int ret = hw_pwm_pin_pulsewidth(pin, pulsewidth);
 	lua_pushnumber(L, ret);
