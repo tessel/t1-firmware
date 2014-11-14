@@ -313,6 +313,9 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   // Set DREQ as an input
   hw_digital_input(new_buf->dreq);
 
+  // Initialize SPI to the correct settings
+  hw_spi_initialize(SPI_PORT, 4000000, HW_SPI_MASTER, HW_SPI_LOW, HW_SPI_FIRST, HW_SPI_FRAME_NORMAL);
+  
   // If we have an existing operating buffer
   if (operating_buf) {
     #ifdef DEBUG
