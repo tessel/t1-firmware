@@ -21,19 +21,20 @@ function Wifi(){
     //   , timeout: defaults to 20s
     // }
 
-    if (!options || !options.ssid) {
+    self.opts = options;
+    if (!self.opts || !self.opts.ssid) {
       throw Error("No SSID given");
     }
 
-    options.security = (options.security && options.security.toLowerCase()) || "wpa2";
-    options.timeout = options.timeout || 20;
+    self.opts.security = (self.opts.security && self.opts.security.toLowerCase()) || "wpa2";
+    self.opts.timeout = self.opts.timeout || 20;
 
-    if (!options.password && options.security != "unsecured") {
-      throw Error("No password given for a network with security type", options.security);
+    if (!self.opts.password && self.opts.security != "unsecured") {
+      throw Error("No password given for a network with security type", self.opts.security);
     }
 
     // initiate connection
-    var ret = hw.wifi_connect(options.ssid, options.password, options.security);
+    var ret = hw.wifi_connect(self.opts.ssid, self.opts.password, self.opts.security);
     var connectionTimeout;
 
     if (ret != 0) {
@@ -44,7 +45,7 @@ function Wifi(){
       connectionTimeout = setTimeout(function(){
         self.emit('timeout', null);
         callback && callback("Connection timed out");
-      }, options.timeout * 1000);
+      }, self.opts.timeout * 1000);
     }
 
     if (callback) {
@@ -69,10 +70,9 @@ function Wifi(){
     return self;
   };
 
-  self._emitConnection = function(next){
-    process.on('wifi_connect_complete', function(err, data){
+  self._connectionCallback = function(err, data, next){
+    process.nextTick(function(){
       next && next();
-
       if (!err) {
         try {
           self.emit('connect', err, JSON.parse(data));
@@ -82,6 +82,20 @@ function Wifi(){
       } else {
         self.emit('disconnect', err, data);
       }
+    });
+  };
+
+  self._emitConnection = function(next){
+    // remove previous listener, add this listener
+
+    process.removeAllListeners('wifi_connect_complete');
+    process.on('wifi_connect_complete', function(err, data) {
+      self._connectionCallback(err, data, next);
+    });
+
+    process.removeAllListeners('wifi_disconnect_complete');
+    process.on('wifi_disconnect_complete', function(){
+      self._connectionCallback("Wifi disconnected", null, next);
     });
   };
 
@@ -163,9 +177,26 @@ function Wifi(){
     return hw.wifi_mac_address();
   };
 
-  self._emitConnection();
+  if (self.isConnected()) {
+    // go ahead and emit a connected event once the script runs
+    process.once('_script_running', function(){
+      self.emit('connect', null, self.connection());
+    });
+  } else if (!self.isConnected() && !self.isBusy()) {
+    // we're not connected and not trying to connect, probably a disconnect
+    process.once('_script_running', function(){
+      self.emit('disconnect');
+    });
+  } else {
+    // emit the connected event whenever we're ready
+    self._emitConnection();
+  }
+  
 }
 
 util.inherits(Wifi, EventEmitter);
 
 module.exports = new Wifi();
+
+// keep process open
+process.ref();
