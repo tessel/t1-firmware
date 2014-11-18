@@ -79,15 +79,15 @@ function Wifi(){
   };
 
   self._connectionCallback = function(err, data, next){
-    next && next();
+    next && next(err, data);
     if (!err) {
       try {
-        self.emit('connect', err, JSON.parse(data));
+        self.emit('connect', JSON.parse(data));
       } catch (e) {
-        self.emit('connect', e);
+        self.emit('error', e);
       }
     } else {
-      self.emit('disconnect', err, data);
+      self.emit('disconnect', data);
     }
   };
 
@@ -101,7 +101,7 @@ function Wifi(){
 
     process.removeAllListeners('wifi_disconnect_complete');
     process.on('wifi_disconnect_complete', function(){
-      self._connectionCallback("Wifi disconnected", null, next);
+      self._connectionCallback(null, "Wifi disconnected", next);
     });
   };
 
@@ -142,9 +142,11 @@ function Wifi(){
       }
 
       process.once('wifi_disconnect_complete', function(err, data){
-        self.emit('disconnect', err, data);
+        if (err) self.emit('error', "Wifi disconnect error");
 
-        callback && callback();
+        self.emit('disconnect', data);
+
+        callback && callback(err, data);
       });
 
     } else {
@@ -186,7 +188,7 @@ function Wifi(){
   if (self.isConnected()) {
     // go ahead and emit a connected event once the script runs
     process.once('_script_running', function(){
-      self.emit('connect', null, self.connection());
+      self.emit('connect', self.connection());
     });
   } else if (!self.isConnected() && !self.isBusy()) {
     // we're not connected and not trying to connect, probably a disconnect
