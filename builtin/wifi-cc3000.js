@@ -2,6 +2,7 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 
 var hw = process.binding('hw');
+var SECURITY_TYPES = ['wpa2', 'wpa', 'wep', 'unsecured'];
 
 function Wifi(){
   var self = this;
@@ -21,16 +22,23 @@ function Wifi(){
     //   , timeout: defaults to 20s
     // }
 
+    if (typeof(options) != 'object') {
+      throw new Error("connect function takes in {ssid: '', password: '', security: ''}");
+    }
     self.opts = options;
     if (!self.opts || !self.opts.ssid) {
-      throw Error("No SSID given");
+      throw new Error("No SSID given");
     }
 
     self.opts.security = (self.opts.security && self.opts.security.toLowerCase()) || "wpa2";
-    self.opts.timeout = self.opts.timeout || 20;
+    if (SECURITY_TYPES.indexOf(self.opts.security) == -1) {
+      throw new Error(self.opts.security + " is not a supported security type. Supported types are 'wpa2', 'wpa', 'wep', and 'unsecured'");
+    }
+
+    self.opts.timeout = parseInt(self.opts.timeout) || 20;
 
     if (!self.opts.password && self.opts.security != "unsecured") {
-      throw Error("No password given for a network with security type", self.opts.security);
+      throw new Error("No password given for a network with security type "+ self.opts.security);
     }
 
     // initiate connection
@@ -71,18 +79,16 @@ function Wifi(){
   };
 
   self._connectionCallback = function(err, data, next){
-    process.nextTick(function(){
-      next && next();
-      if (!err) {
-        try {
-          self.emit('connect', err, JSON.parse(data));
-        } catch (e) {
-          self.emit('connect', e);
-        }
-      } else {
-        self.emit('disconnect', err, data);
+    next && next();
+    if (!err) {
+      try {
+        self.emit('connect', err, JSON.parse(data));
+      } catch (e) {
+        self.emit('connect', e);
       }
-    });
+    } else {
+      self.emit('disconnect', err, data);
+    }
   };
 
   self._emitConnection = function(next){
