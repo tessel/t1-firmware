@@ -55,6 +55,7 @@ static void freeRecordingResources();
 
 // Methods for controlling the device
 static void softReset();
+static void setGPIOAsOutput();
 static void writeSciRegister16(uint8_t address_byte, uint16_t data);
 static uint16_t readSciRegister16(uint8_t address_byte);
 
@@ -710,6 +711,9 @@ void RIT_IRQHandler(void)
 }
 
 static void softReset() {
+  // Save the GPIO state
+  writeSciRegister16(VS1053_REG_WRAMADDR, VS1053_GPIO_IDATA);
+  uint16_t gpioState = readSciRegister16(VS1053_REG_WRAM);
   // Soft reset
   writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
   // Wait for the reset to finish
@@ -718,6 +722,20 @@ static void softReset() {
   while (!hw_digital_read(operating_buf->dreq)) {
     continue;
   }
+
+  // Place the GPIOs as outputs once again
+  setGPIOAsOutput();
+
+  // Set the gpio state back to how it was
+  writeSciRegister16(VS1053_REG_WRAMADDR, gpioState);
+  writeSciRegister16(VS1053_REG_WRAM, VS1053_GPIO_ODATA);
+
+}
+
+static void setGPIOAsOutput() {
+  // Set the GPIOs back to outputs
+  writeSciRegister16(VS1053_REG_WRAMADDR, VS1053_GPIO_DDR);
+  writeSciRegister16(VS1053_REG_WRAM, (1 << INPUT_GPIO) + (1 << OUTPUT_GPIO));
 }
 
 static void freeRecordingResources() {
