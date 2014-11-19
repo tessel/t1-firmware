@@ -522,11 +522,11 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   writeSciRegister16(VS1053_SCI_AICTRL0, 1024);
 
   /* Enable the AGC */
-  writeSciRegister16(VS1053_SCI_AICTRL1, 0);
+  writeSciRegister16(VS1053_SCI_AICTRL1, 1024);
 
   /* Set the maximum gain amplification to midrange */
   /* (1024 = 1×, 65535 = 64×) */
-  writeSciRegister16(VS1053_SCI_AICTRL2, 0x4000);
+  writeSciRegister16(VS1053_SCI_AICTRL2, 0);
 
   /* Turn off run-time controls */
   writeSciRegister16(VS1053_SCI_AICTRL3, 0);
