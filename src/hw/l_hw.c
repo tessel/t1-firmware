@@ -660,7 +660,7 @@ static int l_audio_queue_buffer(lua_State* L) {
 }
 
 static int l_audio_stop_buffer(lua_State* L) {
-	int r = audio_stop_buffer();
+	int r = audio_stop_buffer(true);
 	lua_pushnumber(L, r);
 
 	return 1;

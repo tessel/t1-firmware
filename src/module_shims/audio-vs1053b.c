@@ -42,6 +42,7 @@ static void audio_watch_dreq();
 static void audio_emit_completion(uint16_t stream_id);
 static uint16_t generate_stream_id();
 static void audio_flush_buffer();
+static void sendEndFillBytes(uint32_t num_fill);
 
 // Internal Recording methods
 static uint16_t loadPlugin(const char *plugin_dir);
@@ -122,7 +123,7 @@ static void shift_buffer() {
       #ifdef DEBUG
       TM_DEBUG("Final item in the queue complete. Flushing all buffers"); 
       #endif
-      audio_stop_buffer();
+      audio_stop_buffer(false);
     }
     else {
       #ifdef DEBUG
@@ -249,7 +250,7 @@ int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dr
 
 
   if (operating_buf && current_state != STOPPED && current_state != RECORDING) {
-    audio_stop_buffer();
+    audio_stop_buffer(true);
   }
 
   return audio_queue_buffer(command_select, data_select, dreq, buffer, buf_len);
@@ -367,7 +368,35 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   return stream_id;
 }
 
-int8_t audio_stop_buffer() {
+static void sendEndFillBytes(uint32_t num_fill) {
+  uint8_t chunk_size = 32;
+  writeSciRegister16(VS1053_REG_WRAMADDR, VS1053_FILL_BYTE_ADDR);
+  // Read the fill byte word and then chop off the high bytes
+  uint8_t fill_byte = (uint8_t)readSciRegister16(VS1053_REG_WRAM);
+
+  uint8_t *bytes = malloc(chunk_size * sizeof(uint8_t));
+
+  for (uint8_t i = 0; i < chunk_size; i++) {
+    bytes[i] = fill_byte;
+  }
+
+  uint32_t sent = 0;
+  // While dreq is held high and we have more bytes to send
+  while (sent < num_fill) {
+    // Pull chip select low
+    hw_digital_write(operating_buf->data_select, 0);
+    // Transfer the data
+    hw_spi_transfer_sync(SPI_PORT, bytes, NULL, chunk_size, NULL);
+    // Pull chip select back up
+    hw_digital_write(operating_buf->data_select, 1);
+
+    sent+=chunk_size;
+  }
+}
+
+// The force parameter indicates whether the final packet should
+// be stopped right away or be allowed to complete streaming. 
+int8_t audio_stop_buffer(bool immediately) {
 
   #ifdef DEBUG
   TM_DEBUG("Stopping buffer. Current state:%d", current_state); 
@@ -377,22 +406,43 @@ int8_t audio_stop_buffer() {
     return -1;
   }
 
+  // Remove interrupts
   audio_pause_buffer();
 
-  uint16_t mode = readSciRegister16(VS1053_REG_MODE);
+  if (immediately) {
 
-  writeSciRegister16(VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
+    // Send 2052 fill bytes
+    // (see section 9.11 of datasheet)
+    sendEndFillBytes(2052);
+
+    // Set the cancel bit
+    uint16_t mode = readSciRegister16(VS1053_REG_MODE);
+    writeSciRegister16(VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
+
+    // Send 32 more fill bytes
+    sendEndFillBytes(32);
+
+    uint16_t fill_sent = 0;
+    // Continue sending fill bytes until SM_ANCEL bit is cleared or we need to soft reset
+    // Section 9.5.1 of the datasheet
+    while (readSciRegister16(VS1053_REG_MODE) & VS1053_MODE_SM_CANCEL) {
+      sendEndFillBytes(32);
+      fill_sent += 32;
+      if (fill_sent >= 2048) {
+        softReset();
+        break;
+      }
+    }
+
+    // While for the stream to finish
+    while (readSciRegister16(VS1053_REG_HDAT0) != 0 && readSciRegister16(VS1053_REG_HDAT1) != 0){};
 
     // Stop SPI
-  hw_spi_async_cleanup();
+    hw_spi_async_cleanup();
 
-  // Clean out the buffer
-  audio_flush_buffer();
-
-  // Soft reset
-  writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
-  // Wait for the reset to finish
-  hw_wait_us(2);
+    // Clean out the buffer
+    audio_flush_buffer();
+  }
 
   current_state = STOPPED;
 
@@ -896,7 +946,7 @@ void audio_reset() {
   // If we are playing audio
   if (current_state == PAUSED || current_state == PLAYING) {
     // Stop it
-    audio_stop_buffer();
+    audio_stop_buffer(true);
   }
   // If we are recording audio
   else if (current_state == RECORDING || current_state == CANCELLING) {

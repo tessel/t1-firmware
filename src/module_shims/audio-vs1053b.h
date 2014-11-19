@@ -53,6 +53,8 @@
 #define VS1053_MODE_SM_LINE1 0x4000
 #define VS1053_MODE_SM_CLKRANGE 0x8000
 
+#define VS1053_FILL_BYTE_ADDR 0x1e06
+
 
 #define VS1053_SCI_AIADDR 0x0A
 #define VS1053_SCI_AICTRL0 0x0C
@@ -74,7 +76,7 @@ int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dr
 // The same as play except it will append the buffer to a currently playing buffer if there is one (used for streams)
 int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len);
 // Stops any audio playing and frees memory
-int8_t audio_stop_buffer();
+int8_t audio_stop_buffer(bool immediately);
 // Stops music playback
 int8_t audio_pause_buffer();
 // Resumes music playback after pause
