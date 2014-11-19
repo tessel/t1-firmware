@@ -6,6 +6,7 @@ var SECURITY_TYPES = ['wpa2', 'wpa', 'wep', 'unsecured'];
 
 function Wifi(){
   var self = this;
+  self.tryConnect = false;
 
   if (Wifi.instance) {
     return Wifi.instance;
@@ -75,6 +76,13 @@ function Wifi(){
       clearTimeout(connectionTimeout);
     });
 
+
+    if (!self.tryConnect) {
+      // keep process open
+      process.ref();
+      self.tryConnect = true;
+    }
+    
     return self;
   };
 
@@ -190,6 +198,3 @@ function Wifi(){
 util.inherits(Wifi, EventEmitter);
 
 module.exports = new Wifi();
-
-// keep process open
-process.ref();
