@@ -130,26 +130,19 @@ function Wifi(){
   };
 
   self.disconnect = function(callback){
-    if (self.isConnected()){
-      
-      // disconnect
-      var ret = hw.wifi_disconnect();
+    // disconnect
+    var ret = hw.wifi_disconnect();
 
-      if (ret != 0) {
-        var e = new Error("Could not disconnect properly, wifi is currently busy.");
-        self._failProcedure(e, callback);
-        return self;
-      }
-
-      process.removeAllListeners('wifi_disconnect_complete');
-      process.on('wifi_disconnect_complete', function(){
-        self._connectionCallback("Wifi disconnected", null, callback);
-      });
-
-    } else {
-      var e = new Error("Cannot disconnect. Wifi is not currently connected.");
+    if (ret != 0) {
+      var e = new Error("Could not disconnect properly, wifi is currently busy.");
       self._failProcedure(e, callback);
+      return self;
     }
+
+    process.removeAllListeners('wifi_disconnect_complete');
+    process.on('wifi_disconnect_complete', function(){
+      self._connectionCallback("Wifi disconnected", null, callback);
+    });
 
     return self;
   };

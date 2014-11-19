@@ -886,11 +886,11 @@ static int l_wifi_connect(lua_State* L)
 {
 
 	// if we're currently in the middle of something, don't continue
-	if (hw_net_inuse() || tessel_wifi_is_connecting()) {
-		// push error code onto the stack
-		lua_pushnumber(L, 1);
-		return 1;
-	}
+	// if (hw_net_inuse() || tessel_wifi_is_connecting()) {
+	// 	// push error code onto the stack
+	// 	lua_pushnumber(L, 1);
+	// 	return 1;
+	// }
 
 	size_t ssidlen = 0;
 	size_t passlen = 0;
@@ -954,10 +954,10 @@ static int l_wifi_is_enabled(lua_State* L) {
 static int l_wifi_disconnect(lua_State* L) {
 
 	// if we're not connected return an error
-	if (hw_net_inuse() || tessel_wifi_is_connecting() || !hw_net_is_connected()) {
-		lua_pushnumber(L, 1);
-		return 1;
-	}
+	// if (hw_net_inuse() || tessel_wifi_is_connecting() || !hw_net_is_connected()) {
+	// 	lua_pushnumber(L, 1);
+	// 	return 1;
+	// }
 
 	int disconnect = tessel_wifi_disconnect();
 	lua_pushnumber(L, disconnect);
