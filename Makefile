@@ -1,18 +1,29 @@
+CONFIG ?= Release
 ENABLE_TLS ?= 1
 ENABLE_NET ?= 1
 ENABLE_LUAJIT ?= 1
 COLONY_STATE_CACHE ?= 0
 COLONY_PRELOAD_ON_INIT ?= 0
 
-CONFIG ?= Release
+# ifeq ($(ARM),1)
+	CCENV = AR=arm-none-eabi-ar AR_host=arm-none-eabi-ar AR_target=arm-none-eabi-ar CC=arm-none-eabi-gcc CXX=arm-none-eabi-g++
+	GYPTARGET = ninja-arm
+# else
+# 	CCENV =
+# 	GYPTARGET = ninja
+# endif
 
 compile = \
-	AR=arm-none-eabi-ar AR_host=arm-none-eabi-ar AR_target=arm-none-eabi-ar CC=arm-none-eabi-gcc CXX=arm-none-eabi-g++ gyp $(1) --depth=. -f ninja-arm -D builtin_section=.text -D COLONY_STATE_CACHE=$(COLONY_STATE_CACHE) -D COLONY_PRELOAD_ON_INIT=$(COLONY_PRELOAD_ON_INIT) -D enable_luajit=$(ENABLE_LUAJIT) -D enable_ssl=$(ENABLE_TLS) -D enable_net=$(ENABLE_NET) &&\
+	$(CCENV) gyp $(join config/, $(1)) --depth=. -f $(GYPTARGET) -D builtin_section=.text \
+	 -D COLONY_STATE_CACHE=$(COLONY_STATE_CACHE) \
+	 -D COLONY_PRELOAD_ON_INIT=$(COLONY_PRELOAD_ON_INIT) \
+	 -D enable_luajit=$(ENABLE_LUAJIT) -D enable_ssl=$(ENABLE_TLS) \
+	 -D enable_net=$(ENABLE_NET) &&\
 	ninja -C out/$(CONFIG)
 
 .PHONY: all clean-luajit-badarch
 
-all:
+all: arm
 
 clean:
 	ninja -v -C out/Debug -t clean
