@@ -377,15 +377,14 @@ int8_t audio_stop_buffer() {
     return -1;
   }
 
+  audio_pause_buffer();
+
   uint16_t mode = readSciRegister16(VS1053_REG_MODE);
 
   writeSciRegister16(VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
 
     // Stop SPI
   hw_spi_async_cleanup();
-
-  // Clear Interrupts
-  hw_interrupt_unwatch(operating_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
 
   // Clean out the buffer
   audio_flush_buffer();
