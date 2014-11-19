@@ -2,9 +2,11 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 
 var hw = process.binding('hw');
+var SECURITY_TYPES = ['wpa2', 'wpa', 'wep', 'unsecured'];
 
 function Wifi(){
   var self = this;
+  self.tryConnect = false;
 
   if (Wifi.instance) {
     return Wifi.instance;
@@ -21,19 +23,27 @@ function Wifi(){
     //   , timeout: defaults to 20s
     // }
 
-    if (!options || !options.ssid) {
-      throw Error("No SSID given");
+    if (typeof(options) != 'object') {
+      throw new Error("connect function takes in {ssid: '', password: '', security: ''}");
+    }
+    self.opts = options;
+    if (!self.opts || !self.opts.ssid) {
+      throw new Error("No SSID given");
     }
 
-    options.security = (options.security && options.security.toLowerCase()) || "wpa2";
-    options.timeout = options.timeout || 20;
+    self.opts.security = (self.opts.security && self.opts.security.toLowerCase()) || "wpa2";
+    if (SECURITY_TYPES.indexOf(self.opts.security) == -1) {
+      throw new Error(self.opts.security + " is not a supported security type. Supported types are 'wpa2', 'wpa', 'wep', and 'unsecured'");
+    }
 
-    if (!options.password && options.security != "unsecured") {
-      throw Error("No password given for a network with security type", options.security);
+    self.opts.timeout = parseInt(self.opts.timeout) || 20;
+
+    if (!self.opts.password && self.opts.security != "unsecured") {
+      throw new Error("No password given for a network with security type "+ self.opts.security);
     }
 
     // initiate connection
-    var ret = hw.wifi_connect(options.ssid, options.password, options.security);
+    var ret = hw.wifi_connect(self.opts.ssid, self.opts.password, self.opts.security);
     var connectionTimeout;
 
     if (ret != 0) {
@@ -44,7 +54,7 @@ function Wifi(){
       connectionTimeout = setTimeout(function(){
         self.emit('timeout', null);
         callback && callback("Connection timed out");
-      }, options.timeout * 1000);
+      }, self.opts.timeout * 1000);
     }
 
     if (callback) {
@@ -66,22 +76,40 @@ function Wifi(){
       clearTimeout(connectionTimeout);
     });
 
+
+    if (!self.tryConnect) {
+      // keep process open
+      process.ref();
+      self.tryConnect = true;
+    }
+    
     return self;
   };
 
-  self._emitConnection = function(next){
-    process.on('wifi_connect_complete', function(err, data){
-      next && next();
-
-      if (!err) {
-        try {
-          self.emit('connect', err, JSON.parse(data));
-        } catch (e) {
-          self.emit('connect', e);
-        }
-      } else {
-        self.emit('disconnect', err, data);
+  self._connectionCallback = function(err, data, next){
+    next && next(err, data);
+    if (!err) {
+      try {
+        self.emit('connect', JSON.parse(data));
+      } catch (e) {
+        self.emit('error', e);
       }
+    } else {
+      self.emit('disconnect', data);
+    }
+  };
+
+  self._emitConnection = function(next){
+    // remove previous listener, add this listener
+
+    process.removeAllListeners('wifi_connect_complete');
+    process.on('wifi_connect_complete', function(err, data) {
+      self._connectionCallback(err, data, next);
+    });
+
+    process.removeAllListeners('wifi_disconnect_complete');
+    process.on('wifi_disconnect_complete', function(){
+      self._connectionCallback("Wifi disconnected", null, next);
     });
   };
 
@@ -110,27 +138,19 @@ function Wifi(){
   };
 
   self.disconnect = function(callback){
-    if (self.isConnected()){
-      
-      // disconnect
-      var ret = hw.wifi_disconnect();
+    // disconnect
+    var ret = hw.wifi_disconnect();
 
-      if (ret != 0) {
-        var e = new Error("Could not disconnect properly, wifi is currently busy.");
-        self._failProcedure(e, callback);
-        return self;
-      }
-
-      process.once('wifi_disconnect_complete', function(err, data){
-        self.emit('disconnect', err, data);
-
-        callback && callback();
-      });
-
-    } else {
-      var e = new Error("Cannot disconnect. Wifi is not currently connected.");
+    if (ret != 0) {
+      var e = new Error("Could not disconnect properly, wifi is currently busy.");
       self._failProcedure(e, callback);
+      return self;
     }
+
+    process.removeAllListeners('wifi_disconnect_complete');
+    process.on('wifi_disconnect_complete', function(){
+      self._connectionCallback("Wifi disconnected", null, callback);
+    });
 
     return self;
   };
@@ -163,7 +183,16 @@ function Wifi(){
     return hw.wifi_mac_address();
   };
 
-  self._emitConnection();
+  if (self.isConnected()) {
+    // go ahead and emit a connected event once the script runs
+    process.once('_script_running', function(){
+      self.emit('connect', self.connection());
+    });
+  } else {
+    // emit the connected event whenever we're ready
+    self._emitConnection();
+  }
+  
 }
 
 util.inherits(Wifi, EventEmitter);
