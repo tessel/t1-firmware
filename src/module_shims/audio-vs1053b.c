@@ -43,7 +43,7 @@ tm_event buffer_shift_event = TM_EVENT_INIT(shift_buffer);
 // Internal Playback methods
 static void audio_watch_dreq();
 static void audio_emit_completion(uint16_t stream_id);
-static uint16_t generate_stream_id();
+static uint32_t generate_stream_id();
 static void audio_flush_buffer();
 static void sendEndFillBytes(uint32_t num_fill);
 
@@ -242,12 +242,12 @@ static void audio_emit_completion(uint16_t stream_id) {
   tm_checked_call(L, 3);
 }
 
-static uint16_t generate_stream_id() {
+static uint32_t generate_stream_id() {
   return ++master_id_gen;
 }
 
 // SPI.initialize MUST be initialized before calling this func
-int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
+int32_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
 
   #ifdef DEBUG
   TM_DEBUG("Playing buffer, Current state:%d", current_state); 
@@ -262,7 +262,7 @@ int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dr
 }
 
 // SPI.initialize MUST be initialized before calling this func
-int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
+int32_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
 
   // If we are in the midst of recording, and play/queue is called, return an error
   if (current_state == RECORDING) {
@@ -357,7 +357,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   // Generate an ID for this stream so we know when it's complete
   // We have to assign it to a local value before the struct
   // because the struct may be dealloc'ed before _queue_buffer returns
-  uint8_t stream_id = generate_stream_id();
+  uint32_t stream_id = generate_stream_id();
   new_buf->stream_id = stream_id;
 
   current_state = PLAYING;
