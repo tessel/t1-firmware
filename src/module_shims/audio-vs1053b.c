@@ -35,7 +35,10 @@ static void audio_continue_spi();
 
 // Linked List queueing methods
 static void queue_buffer(AudioBuffer *buffer);
-static void shift_buffer();
+
+// TM_Event for shifting the queue
+static void shift_buffer(tm_event* event);
+tm_event buffer_shift_event = TM_EVENT_INIT(shift_buffer);
 
 // Internal Playback methods
 static void audio_watch_dreq();
@@ -105,7 +108,7 @@ static void queue_buffer(AudioBuffer *buffer) {
   }
 }
 
-static void shift_buffer() {
+static void shift_buffer(tm_event* event) {
   #ifdef DEBUG
   TM_DEBUG("SHIFT: %d items in the queue", --queue_length);
   #endif
@@ -201,7 +204,7 @@ static void audio_continue_spi() {
     // If there are no bytes left
     if (operating_buf->remaining_bytes <= 0) {
       // Shift the buffer and emit the finished event
-      shift_buffer();
+      tm_event_trigger(&buffer_shift_event);
     }
     else {
       // Wait for dreq to go high again
