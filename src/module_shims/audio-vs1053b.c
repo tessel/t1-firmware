@@ -438,13 +438,12 @@ int8_t audio_stop_buffer(bool immediately) {
         break;
       }
     }
-
-    // Stop SPI
-    hw_spi_async_cleanup();
-
-    // Clean out the buffer
-    audio_flush_buffer();
   }
+    // Stop SPI
+  hw_spi_async_cleanup();
+
+  // Clean out the buffer
+  audio_flush_buffer();
 
   current_state = STOPPED;
 

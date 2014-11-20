@@ -1011,6 +1011,9 @@ _asyncSPIQueue._deregisterLock = function(lock, callback) {
   // Remove this lock from the queue
   self.locks.shift();
 
+  // Remove the reference
+  lock = undefined;
+
   // Set immediate to ready the next lock
   if (self.locks.length) {
     setImmediate(function() {
