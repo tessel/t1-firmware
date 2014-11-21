@@ -72,9 +72,9 @@
 #define OUTPUT_GPIO 7
 
 // Play a buffer. Will stop any currently playing buffer first.
-int32_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len);
+int32_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, int32_t ref, uint32_t buf_len);
 // The same as play except it will append the buffer to a currently playing buffer if there is one (used for streams)
-int32_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, uint32_t buf_len);
+int32_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buf, int32_t ref, uint32_t buf_len);
 // Stops any audio playing and frees memory
 int8_t audio_stop_buffer(bool immediately);
 // Stops music playback
@@ -85,7 +85,7 @@ int8_t audio_resume_buffer();
 uint8_t audio_get_state();
 // Load a plugin and start recording sound
 int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *plugin_dir, uint8_t *fill_buf, uint32_t fill_buf_len, uint32_t buf_ref);
-// Stop recording sound
+// // Stop recording sound
 int8_t audio_stop_recording(bool flush);
 
 // Stop all playback and recording (used after ctrl+c)
