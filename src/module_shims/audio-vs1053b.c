@@ -37,7 +37,7 @@ static void audio_continue_spi();
 static void queue_buffer(AudioBuffer *buffer);
 
 // TM_Event for shifting the queue
-static void shift_buffer(tm_event* event);
+static void shift_buffer(tm_event *event);
 tm_event buffer_shift_event = TM_EVENT_INIT(shift_buffer);
 
 // Internal Playback methods
@@ -108,7 +108,9 @@ static void queue_buffer(AudioBuffer *buffer) {
   }
 }
 
-static void shift_buffer(tm_event* event) {
+static void shift_buffer(tm_event *event) {
+  (void) event;
+
   #ifdef DEBUG
   TM_DEBUG("SHIFT: %d items in the queue", --queue_length);
   #endif
@@ -436,9 +438,6 @@ int8_t audio_stop_buffer(bool immediately) {
         break;
       }
     }
-
-    // While for the stream to finish
-    while (readSciRegister16(VS1053_REG_HDAT0) != 0 && readSciRegister16(VS1053_REG_HDAT1) != 0){};
 
     // Stop SPI
     hw_spi_async_cleanup();
