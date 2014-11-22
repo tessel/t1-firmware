@@ -11,37 +11,59 @@
 
 #define DEBUG
 
-// TODO: refactor this
-// I'm using the same struct for both playback
-// and recording data
-typedef struct AudioBuffer{
-  struct AudioBuffer *next;
-  uint8_t *buffer;
-  uint32_t remaining_bytes;
-  uint32_t buffer_position;
+// The hardware pins being used (changes based on port)
+typedef struct IO {
   uint8_t command_select;
   uint8_t data_select;
   uint8_t dreq;
+} IO;
+
+// The struct for keeping track of audio playback
+typedef struct PlaybackStatus {
+  struct PlaybackStatus *next;
+  const uint8_t *buffer;
+  uint32_t remaining_bytes;
+  uint32_t buffer_position;
   uint8_t interrupt;
   uint16_t stream_id;
-  int32_t buffer_ref;
-} AudioBuffer;
+  int32_t ref;
+  IO io;
+} PlaybackStatus;
+
+// The struct for keeping track of recording
+typedef struct RecordingStatus {
+  uint8_t *buffer;
+  int32_t ref;
+  uint32_t bytes_available;
+  IO io;
+} RecordingStatus;
+
+
+PlaybackStatus *operating_playback_buf = NULL;
+RecordingStatus *operating_recording_buf = NULL;
 
 // State definitions
-enum State { PLAYING, STOPPED, PAUSED, RECORDING, CANCELLING };
+enum GlobalState { PLAYING, STOPPED, PAUSED, RECORDING, CANCELLING };
+
+// The current state of the mp3 player
+enum GlobalState current_state = STOPPED;
 
 // Callbacks for SPI and GPIO Interrupt
 static void audio_continue_spi();
 
 // Linked List queueing methods
-static void queue_buffer(AudioBuffer *buffer);
-static void shift_buffer();
+static void queue_buffer(PlaybackStatus *buffer);
+
+// TM_Event for shifting the queue
+static void shift_buffer(tm_event *event);
+tm_event buffer_shift_event = TM_EVENT_INIT(shift_buffer);
 
 // Internal Playback methods
 static void audio_watch_dreq();
 static void audio_emit_completion(uint16_t stream_id);
-static uint16_t generate_stream_id();
+static uint32_t generate_stream_id();
 static void audio_flush_buffer();
+static void sendEndFillBytes(uint32_t num_fill);
 
 // Internal Recording methods
 static uint16_t loadPlugin(const char *plugin_dir);
@@ -54,28 +76,27 @@ static size_t read_recorded_data(uint8_t *data, size_t len);
 static void freeRecordingResources();
 
 // Methods for controlling the device
-static void softReset();
-static void writeSciRegister16(uint8_t address_byte, uint16_t data);
-static uint16_t readSciRegister16(uint8_t address_byte);
+static void softReset(IO io);
+static void setGPIOAsOutput(IO io);
+static void writeSciRegister16(IO io, uint8_t address_byte, uint16_t data);
+static uint16_t readSciRegister16(IO io, uint8_t address_byte);
 
 // Buffer for loading data into before passing into runtime
 uint8_t *double_buff = NULL;
 
-AudioBuffer *operating_buf = NULL;
 // Generates "unique" values for each pending stream
 uint16_t master_id_gen = 0;
-// The current state of the mp3 player
-enum State current_state = STOPPED;
 
+// Variable for debugging
 uint32_t queue_length = 0;
 
-static void queue_buffer(AudioBuffer *buffer) {
+static void queue_buffer(PlaybackStatus *buffer) {
 
   #ifdef DEBUG
   TM_DEBUG("ADD: %d items in the queue", ++queue_length);
   #endif
 
-  AudioBuffer **next = &operating_buf;
+  PlaybackStatus **next = &(operating_playback_buf);
   // If we don't have an operating buffer already
   if (!(*next)) {
     // Assign this buffer to the head
@@ -103,37 +124,43 @@ static void queue_buffer(AudioBuffer *buffer) {
   }
 }
 
-static void shift_buffer() {
+static void shift_buffer(tm_event *event) {
+  (void) event;
+
   #ifdef DEBUG
   TM_DEBUG("SHIFT: %d items in the queue", --queue_length);
   #endif
 
   // If the head is already null
-  if (!operating_buf) {
+  if (!operating_playback_buf) {
     // Just return
     return;
   }
   else {
     // Save the stream id for our event emission
-    uint16_t stream_id = operating_buf->stream_id;
+    uint16_t stream_id = operating_playback_buf->stream_id;
 
-    if (!operating_buf->next) {
+    if (!operating_playback_buf->next) {
       #ifdef DEBUG
       TM_DEBUG("Final item in the queue complete. Flushing all buffers"); 
       #endif
-      audio_stop_buffer();
+      audio_stop_buffer(false);
     }
     else {
       #ifdef DEBUG
       TM_DEBUG("Loading next buffer"); 
       #endif
       // Save the ref to the head
-      AudioBuffer *old = operating_buf;
+      PlaybackStatus *old = operating_playback_buf;
 
       // Set the new head to the next
-      operating_buf = old->next;
+      operating_playback_buf = old->next;
       // Clean any references to the previous transfer
-      free(old->buffer);
+        if (tm_lua_state != 0) {
+        // Unreference our buffers so they can be garbage collected
+        luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_playback_buf->ref);
+      }
+      // Free the old buffer data
       free(old);
 
       #ifdef DEBUG
@@ -154,14 +181,14 @@ static void audio_flush_buffer() {
   TM_DEBUG("Flushing buffer."); 
   #endif
 
-  uint16_t mode = readSciRegister16(VS1053_REG_MODE);
+  uint16_t mode = readSciRegister16(operating_playback_buf->io, VS1053_REG_MODE);
 
-  writeSciRegister16(VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
+  writeSciRegister16(operating_playback_buf->io, VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
 
   // Free our entire queue 
-  for (AudioBuffer **curr = &operating_buf; *curr;) {
+  for (PlaybackStatus **curr = &operating_playback_buf; *curr;) {
     // Save previous as the current linked list item
-    AudioBuffer *prev = *curr;
+    PlaybackStatus *prev = *curr;
 
     // Current is now the next item
     *curr = prev->next;
@@ -171,35 +198,35 @@ static void audio_flush_buffer() {
   }
 
   master_id_gen = 0;
-  operating_buf = NULL;
+  // operating_playback_buf = NULL;
   queue_length = 0;
 }
 
 // Called when DREQ goes low. Data is available to be sent over SPI
 static void audio_continue_spi() {
   // If we have an operating buffer
-  if (operating_buf != NULL) {
+  if (operating_playback_buf != NULL) {
 
     // While dreq is held high and we have more bytes to send
-    while (hw_digital_read(operating_buf->dreq) && operating_buf->remaining_bytes > 0) {
+    while (hw_digital_read(operating_playback_buf->io.dreq) && operating_playback_buf->remaining_bytes > 0) {
       // Figure out how many bytes we're sending next
-      uint8_t to_send = operating_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
+      uint8_t to_send = operating_playback_buf->remaining_bytes < AUDIO_CHUNK_SIZE ? operating_playback_buf->remaining_bytes : AUDIO_CHUNK_SIZE;
       // Pull chip select low
-      hw_digital_write(operating_buf->data_select, 0);
+      hw_digital_write(operating_playback_buf->io.data_select, 0);
       // Transfer the data
-      hw_spi_transfer_sync(SPI_PORT, &(operating_buf->buffer[operating_buf->buffer_position]), NULL, to_send, NULL);
+      hw_spi_transfer_sync(SPI_PORT, &(operating_playback_buf->buffer[operating_playback_buf->buffer_position]), NULL, to_send, NULL);
       // Update our buffer position
-      operating_buf->buffer_position += to_send;
+      operating_playback_buf->buffer_position += to_send;
       // Reduce the number of bytes remaining
-      operating_buf->remaining_bytes -= to_send;
+      operating_playback_buf->remaining_bytes -= to_send;
       // Pull chip select back up
-      hw_digital_write(operating_buf->data_select, 1);
+      hw_digital_write(operating_playback_buf->io.data_select, 1);
     }
 
     // If there are no bytes left
-    if (operating_buf->remaining_bytes <= 0) {
+    if (operating_playback_buf->remaining_bytes <= 0) {
       // Shift the buffer and emit the finished event
-      shift_buffer();
+      tm_event_trigger(&buffer_shift_event);
     }
     else {
       // Wait for dreq to go high again
@@ -210,14 +237,14 @@ static void audio_continue_spi() {
 
 static void audio_watch_dreq() {
   // Start watching dreq for a low signal
-  if (hw_digital_read(operating_buf->dreq)) {
+  if (hw_digital_read(operating_playback_buf->io.dreq)) {
     // Continue sending data
     audio_continue_spi();
   }
   // If not
   else {
     // Wait for dreq to go high
-    hw_interrupt_watch(operating_buf->dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, audio_continue_spi);
+    hw_interrupt_watch(operating_playback_buf->io.dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_playback_buf->interrupt, audio_continue_spi);
   }
 }
 
@@ -235,27 +262,27 @@ static void audio_emit_completion(uint16_t stream_id) {
   tm_checked_call(L, 3);
 }
 
-static uint16_t generate_stream_id() {
+static uint32_t generate_stream_id() {
   return ++master_id_gen;
 }
 
 // SPI.initialize MUST be initialized before calling this func
-int8_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
+int32_t audio_play_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, int32_t ref, uint32_t buf_len) {
 
   #ifdef DEBUG
   TM_DEBUG("Playing buffer, Current state:%d", current_state); 
   #endif
 
 
-  if (operating_buf && current_state != STOPPED && current_state != RECORDING) {
-    audio_stop_buffer();
+  if (operating_playback_buf && current_state != STOPPED && current_state != RECORDING) {
+    audio_stop_buffer(true);
   }
 
-  return audio_queue_buffer(command_select, data_select, dreq, buffer, buf_len);
+  return audio_queue_buffer(command_select, data_select, dreq, buffer, ref, buf_len);
 }
 
 // SPI.initialize MUST be initialized before calling this func
-int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, uint32_t buf_len) {
+int32_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t dreq, const uint8_t *buffer, int32_t ref, uint32_t buf_len) {
 
   // If we are in the midst of recording, and play/queue is called, return an error
   if (current_state == RECORDING) {
@@ -266,63 +293,55 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   TM_DEBUG("Queueing buffer, Args %d %d %d %d", command_select, data_select, dreq, buf_len); 
   #endif
   // Create a new buffer struct
-  AudioBuffer *new_buf = malloc(sizeof(AudioBuffer));
+  PlaybackStatus *new_buf = malloc(sizeof(PlaybackStatus));
+
   // Set the next field
   new_buf->next = NULL;
-  // Malloc the space for the txbuf
-  new_buf->buffer = malloc(buf_len);
+  // Set the buffer
+  new_buf->buffer = buffer;
+  // Save the lua reference
+  new_buf->ref = ref;
 
   #ifdef DEBUG
   TM_DEBUG("Buffer Address %p", new_buf->buffer); 
   #endif
 
-  // If the malloc failed, return an error
-  if (new_buf->buffer == NULL) {
-    free(new_buf);
-    return -3;
-  }
-
-  // Copy over the bytes from the provided buffer
-  memcpy(new_buf->buffer, buffer, buf_len);
   // Set the length field
   new_buf->remaining_bytes = buf_len;
   new_buf->buffer_position = 0;
 
   // Set the chip select field
-  new_buf->data_select = data_select;
+  new_buf->io.data_select = data_select;
   // Write the data select as high initially
   // if we don't have an operation going on already 
-  if (!operating_buf) {
-    hw_digital_write(new_buf->data_select, 1);  
+  if (!operating_playback_buf) {
+    hw_digital_write(new_buf->io.data_select, 1);  
   }
   // Set the chip select pin as an output
-  hw_digital_output(new_buf->data_select);
+  hw_digital_output(new_buf->io.data_select);
 
   // Set the command select field
-  new_buf->command_select = command_select;
+  new_buf->io.command_select = command_select;
   // Write the command select as high initially
   // if we don't have an operation going on already 
-  if (!operating_buf) {
-    hw_digital_write(new_buf->command_select, 1);  
+  if (!operating_playback_buf) {
+    hw_digital_write(new_buf->io.command_select, 1);  
   }
   // Set the command select pin as an output
-  hw_digital_output(new_buf->command_select);
+  hw_digital_output(new_buf->io.command_select);
   
   // Set the dreq field
-  new_buf->dreq = dreq;
+  new_buf->io.dreq = dreq;
   // Set DREQ as an input
-  hw_digital_input(new_buf->dreq);
-
-  // Initialize SPI to the correct settings
-  hw_spi_initialize(SPI_PORT, 4000000, HW_SPI_MASTER, HW_SPI_LOW, HW_SPI_FIRST, HW_SPI_FRAME_NORMAL);
+  hw_digital_input(new_buf->io.dreq);
   
   // If we have an existing operating buffer
-  if (operating_buf) {
+  if (operating_playback_buf) {
     #ifdef DEBUG
-    TM_DEBUG("Using same interrupt %d", operating_buf->interrupt); 
+    TM_DEBUG("Using same interrupt %d", new_buf->interrupt); 
     #endif
     // Use the same interrupt 
-    new_buf->interrupt = operating_buf->interrupt;
+    new_buf->interrupt = operating_playback_buf->interrupt;
   }
   // If this is the first audio buffer
   else {
@@ -335,7 +354,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
       TM_DEBUG("Error: Unable to generate new interrupt!"); 
       #endif
       // If not, free the allocated memory
-      free(new_buf->buffer);
+      // free(new_buf->buffer);
       free(new_buf);
       // Return an error code
       return -2;
@@ -353,7 +372,7 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   // Generate an ID for this stream so we know when it's complete
   // We have to assign it to a local value before the struct
   // because the struct may be dealloc'ed before _queue_buffer returns
-  uint8_t stream_id = generate_stream_id();
+  uint32_t stream_id = generate_stream_id();
   new_buf->stream_id = stream_id;
 
   current_state = PLAYING;
@@ -366,33 +385,77 @@ int8_t audio_queue_buffer(uint8_t command_select, uint8_t data_select, uint8_t d
   return stream_id;
 }
 
-int8_t audio_stop_buffer() {
+static void sendEndFillBytes(uint32_t num_fill) {
+  uint8_t chunk_size = 32;
+  writeSciRegister16(operating_playback_buf->io, VS1053_REG_WRAMADDR, VS1053_FILL_BYTE_ADDR);
+  // Read the fill byte word and then chop off the high bytes
+  uint8_t fill_byte = (uint8_t)readSciRegister16(operating_playback_buf->io, VS1053_REG_WRAM);
+
+  uint8_t *bytes = malloc(chunk_size * sizeof(uint8_t));
+
+  for (uint8_t i = 0; i < chunk_size; i++) {
+    bytes[i] = fill_byte;
+  }
+
+  uint32_t sent = 0;
+  // While dreq is held high and we have more bytes to send
+  while (sent < num_fill) {
+    // Pull chip select low
+    hw_digital_write(operating_playback_buf->io.data_select, 0);
+    // Transfer the data
+    hw_spi_transfer_sync(SPI_PORT, bytes, NULL, chunk_size, NULL);
+    // Pull chip select back up
+    hw_digital_write(operating_playback_buf->io.data_select, 1);
+
+    sent+=chunk_size;
+  }
+}
+
+// The force parameter indicates whether the final packet should
+// be stopped right away or be allowed to complete streaming. 
+int8_t audio_stop_buffer(bool immediately) {
 
   #ifdef DEBUG
   TM_DEBUG("Stopping buffer. Current state:%d", current_state); 
   #endif
 
-  if (!operating_buf || current_state == RECORDING) {
+  if (!operating_playback_buf || current_state == RECORDING) {
     return -1;
   }
 
-  uint16_t mode = readSciRegister16(VS1053_REG_MODE);
+  // Remove interrupts
+  audio_pause_buffer();
 
-  writeSciRegister16(VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
+  if (immediately) {
 
+    // Send 2052 fill bytes
+    // (see section 9.11 of datasheet)
+    sendEndFillBytes(2052);
+
+    // Set the cancel bit
+    uint16_t mode = readSciRegister16(operating_playback_buf->io, VS1053_REG_MODE);
+    writeSciRegister16(operating_playback_buf->io, VS1053_REG_MODE, mode | (VS1053_MODE_SM_CANCEL));
+
+    // Send 32 more fill bytes
+    sendEndFillBytes(32);
+
+    uint16_t fill_sent = 0;
+    // Continue sending fill bytes until SM_ANCEL bit is cleared or we need to soft reset
+    // Section 9.5.1 of the datasheet
+    while (readSciRegister16(operating_playback_buf->io, VS1053_REG_MODE) & VS1053_MODE_SM_CANCEL) {
+      sendEndFillBytes(32);
+      fill_sent += 32;
+      if (fill_sent >= 2048) {
+        softReset(operating_playback_buf->io);
+        break;
+      }
+    }
+  }
     // Stop SPI
   hw_spi_async_cleanup();
 
-  // Clear Interrupts
-  hw_interrupt_unwatch(operating_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
-
   // Clean out the buffer
   audio_flush_buffer();
-
-  // Soft reset
-  writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
-  // Wait for the reset to finish
-  hw_wait_us(2);
 
   current_state = STOPPED;
 
@@ -406,12 +469,12 @@ int8_t audio_pause_buffer() {
   TM_DEBUG("Pausing buffer"); 
   #endif
 
-  if (!operating_buf || current_state == STOPPED) {
+  if (!operating_playback_buf || current_state == STOPPED) {
     return -1;
   }
 
   // Stop watching for DREQ (so SPI will stop continuing)
-  hw_interrupt_unwatch(operating_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
+  hw_interrupt_unwatch(operating_playback_buf->interrupt, 1 << TM_INTERRUPT_MODE_HIGH);
 
   current_state = PAUSED;
 
@@ -424,13 +487,13 @@ int8_t audio_resume_buffer() {
   #endif
 
   // Start watching for dreq going low
-  if (!operating_buf || current_state != PAUSED ) {
+  if (!operating_playback_buf || current_state != PAUSED ) {
     return -1;
   }
 
   current_state = PLAYING;
 
-  hw_interrupt_watch(operating_buf->dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_buf->interrupt, audio_continue_spi);
+  hw_interrupt_watch(operating_playback_buf->io.dreq, 1 << TM_INTERRUPT_MODE_HIGH, operating_playback_buf->interrupt, audio_continue_spi);
 
   return 0;
 }
@@ -450,14 +513,14 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   #endif
 
   // Create a new buffer struct
-  AudioBuffer *recording = malloc(sizeof(AudioBuffer));
+  RecordingStatus *recording = malloc(sizeof(RecordingStatus));
+
   // Set the next field
-  recording->next = NULL;
   recording->buffer = NULL;
-  recording->remaining_bytes = 0;
+  recording->bytes_available = 0;
   recording->buffer = fill_buf;
-  recording->buffer_ref = buf_ref;
-  recording->remaining_bytes = fill_buf_len;
+  recording->ref = buf_ref;
+  recording->bytes_available = fill_buf_len;
   double_buff = malloc(fill_buf_len);
 
   if (double_buff == NULL) {
@@ -466,37 +529,37 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   }
 
   // Set the chip select field
-  recording->data_select = 0;
+  recording->io.data_select = 0;
 
   // Set the command select field
-  recording->command_select = command_select;
+  recording->io.command_select = command_select;
   // Set the command select pin as an output
-  hw_digital_output(recording->command_select);
+  hw_digital_output(recording->io.command_select);
   // Write the command select as high initially
-  hw_digital_write(recording->command_select, 1);  
+  hw_digital_write(recording->io.command_select, 1);  
   
   // Set the dreq field
-  recording->dreq = dreq;
+  recording->io.dreq = dreq;
   // Set DREQ as an input
-  hw_digital_input(recording->dreq);
+  hw_digital_input(recording->io.dreq);
 
-  operating_buf = recording;
+  operating_recording_buf = recording;
 
   // Set the maximum clock rate
-  writeSciRegister16(VS1053_REG_CLOCKF, 0xC000);
+  writeSciRegister16(recording->io, VS1053_REG_CLOCKF, 0xC000);
 
   // Clear the bass channel
-  writeSciRegister16(VS1053_REG_BASS, 0x00);
+  writeSciRegister16(recording->io, VS1053_REG_BASS, 0x00);
   
   // Soft reset
-  softReset();
+  softReset(recording->io);
 
   // Set our application address to 0
-  writeSciRegister16(VS1053_SCI_AIADDR, 0x00);
+  writeSciRegister16(recording->io, VS1053_SCI_AIADDR, 0x00);
 
   // // disable all interrupts except SCI
-  writeSciRegister16(VS1053_REG_WRAMADDR, VS1053_INT_ENABLE);
-  writeSciRegister16(VS1053_REG_WRAM, 0x02);
+  writeSciRegister16(recording->io, VS1053_REG_WRAMADDR, VS1053_INT_ENABLE);
+  writeSciRegister16(recording->io, VS1053_REG_WRAM, 0x02);
 
   #ifdef DEBUG
   TM_DEBUG("Loading plugin...");
@@ -515,25 +578,25 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
   }
 
   // Set the recording input to Line In (always)
-  writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
+  writeSciRegister16(recording->io, VS1053_REG_MODE, VS1053_MODE_SM_ADPCM | VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_LINE1);
 
   /* Set Maximum Signal Level */
-  writeSciRegister16(VS1053_SCI_AICTRL0, 1024);
+  writeSciRegister16(recording->io, VS1053_SCI_AICTRL0, 1024);
 
   /* Enable the AGC */
-  writeSciRegister16(VS1053_SCI_AICTRL1, 0);
+  writeSciRegister16(recording->io, VS1053_SCI_AICTRL1, 1024);
 
   /* Set the maximum gain amplification to midrange */
   /* (1024 = 1×, 65535 = 64×) */
-  writeSciRegister16(VS1053_SCI_AICTRL2, 0x4000);
+  writeSciRegister16(recording->io, VS1053_SCI_AICTRL2, 0);
 
   /* Turn off run-time controls */
-  writeSciRegister16(VS1053_SCI_AICTRL3, 0);
+  writeSciRegister16(recording->io, VS1053_SCI_AICTRL3, 0);
 
   // Start the recording!
-  writeSciRegister16(VS1053_SCI_AIADDR, addr);
+  writeSciRegister16(recording->io, VS1053_SCI_AIADDR, addr);
 
-  while (!hw_digital_read(recording->dreq));
+  while (!hw_digital_read(recording->io.dreq));
 
   // Start a timer to read data every so often
   startRIT();
@@ -545,7 +608,7 @@ int8_t audio_start_recording(uint8_t command_select, uint8_t dreq, const char *p
 
 int8_t audio_stop_recording(bool flush) {
 
-  if (!operating_buf || current_state != RECORDING) {
+  if (!operating_recording_buf || current_state != RECORDING) {
     return -1;
   }
 
@@ -554,7 +617,7 @@ int8_t audio_stop_recording(bool flush) {
   #endif
 
   // Tell the vs1053 to stop recording
-  writeSciRegister16(VS1053_SCI_AICTRL3, readSciRegister16(VS1053_SCI_AICTRL3) | 1);
+  writeSciRegister16(operating_recording_buf->io, VS1053_SCI_AICTRL3, readSciRegister16(operating_recording_buf->io, VS1053_SCI_AICTRL3) | 1);
 
   // If we are not flushing the rest of the buffer
   // perhaps because the script was cancelled
@@ -564,7 +627,7 @@ int8_t audio_stop_recording(bool flush) {
     stopRIT();
 
     // Reset the vs1053
-    softReset();
+    softReset(operating_recording_buf->io);
 
     // Free our buffers and lua references
     freeRecordingResources();
@@ -588,14 +651,14 @@ static void audio_recording_stop_complete() {
   stopRIT();
 
   // Get the number of words to iterate through. Only the last one matters
-  uint32_t wordsLeft = readSciRegister16(VS1053_REG_HDAT1);
+  uint32_t wordsLeft = readSciRegister16(operating_recording_buf->io, VS1053_REG_HDAT1);
   // By default we will write both bytes of the last word
   uint8_t toWrite = 2;
   uint16_t w;
   // While there are words to read
   while (wordsLeft--) {
     // Read the word
-    w = readSciRegister16(VS1053_REG_HDAT0);
+    w = readSciRegister16(operating_recording_buf->io, VS1053_REG_HDAT0);
     // Set it to the same two bytes
     double_buff[0] = (uint8_t)(w >> 8);
     double_buff[1] = (uint8_t)(w & 0xFF);
@@ -604,8 +667,8 @@ static void audio_recording_stop_complete() {
   // When there are no more words left
   if (!wordsLeft) {
     // Read the register twice
-    readSciRegister16(VS1053_SCI_AICTRL3);
-    w = readSciRegister16(VS1053_SCI_AICTRL3);
+    readSciRegister16(operating_recording_buf->io, VS1053_SCI_AICTRL3);
+    w = readSciRegister16(operating_recording_buf->io, VS1053_SCI_AICTRL3);
     // If the 2 bit is 1
     if (w & 4) {
       // Don't read the second byte of the last word
@@ -614,10 +677,10 @@ static void audio_recording_stop_complete() {
   }
 
   // Copy the last byte or two into the buffer
-  memcpy(operating_buf->buffer, double_buff, toWrite);
+  memcpy(operating_recording_buf->buffer, double_buff, toWrite);
 
   // Reset the chip
-  softReset();
+  softReset(operating_recording_buf->io);
 
   // Free our buffers and lua references
   freeRecordingResources();
@@ -637,13 +700,13 @@ static void audio_recording_stop_complete() {
 
 static void recording_register_check(void) {
 
-  if (operating_buf) {
+  if (operating_recording_buf) {
     // Read as many bytes as possible (or length of buffer)
-    uint32_t num_read = read_recorded_data(double_buff, operating_buf->remaining_bytes);
+    uint32_t num_read = read_recorded_data(double_buff, operating_recording_buf->bytes_available);
     // If we read anything
     if (num_read && num_read != 0xFFFF) {
       // Copy the data into our fill buffer
-      memcpy(operating_buf->buffer, double_buff, num_read);
+      memcpy(operating_recording_buf->buffer, double_buff, num_read);
 
       lua_State* L = tm_lua_state;
       if (!L) return;
@@ -654,7 +717,7 @@ static void recording_register_check(void) {
       tm_checked_call(L, 2);
     }
     // Check if we're attempting to cancel and the cancel is complete
-    else if (current_state == CANCELLING && (readSciRegister16(VS1053_SCI_AICTRL3) & (1 << 1))) {
+    else if (current_state == CANCELLING && (readSciRegister16(operating_recording_buf->io, VS1053_SCI_AICTRL3) & (1 << 1))) {
       // Clean up
       audio_recording_stop_complete();
     }
@@ -670,14 +733,14 @@ size_t read_recorded_data(uint8_t *data, size_t len) {
   uint32_t wordsWaiting;
 
   /* See if there is some data available */
-  if ((wordsWaiting = readSciRegister16(VS1053_REG_HDAT1)) > dataNeededInBuffer) {
+  if ((wordsWaiting = readSciRegister16(operating_recording_buf->io, VS1053_REG_HDAT1)) > dataNeededInBuffer) {
 
     /* Always leave at least one word unread if Ogg Vorbis format */
     wordsWaiting = ((wordsWaiting-1) < (len/2) ? (wordsWaiting-1) : (len/2));
 
     // Gather the read data
     for (uint32_t i=0; i<wordsWaiting; i++) {
-      uint16_t w = readSciRegister16(VS1053_REG_HDAT0);
+      uint16_t w = readSciRegister16(operating_recording_buf->io, VS1053_REG_HDAT0);
       data[totalBytesRead++] = (uint8_t)(w >> 8);
       data[totalBytesRead++] = (uint8_t)(w & 0xFF);
     }
@@ -709,31 +772,48 @@ void RIT_IRQHandler(void)
   recording_register_check();
 }
 
-static void softReset() {
+static void softReset(IO io) {
+  // Save the GPIO state
+  writeSciRegister16(io, VS1053_REG_WRAMADDR, VS1053_GPIO_IDATA);
+  uint16_t gpioState = readSciRegister16(io, VS1053_REG_WRAM);
   // Soft reset
-  writeSciRegister16(VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
+  writeSciRegister16(io, VS1053_REG_MODE, VS1053_MODE_SM_SDINEW | VS1053_MODE_SM_RESET);
   // Wait for the reset to finish
   hw_wait_us(2);
   // Wait for dreq to come high again
-  while (!hw_digital_read(operating_buf->dreq)) {
+  while (!hw_digital_read(io.dreq)) {
     continue;
   }
+
+  // Place the GPIOs as outputs once again
+  setGPIOAsOutput(io);
+
+  // Set the gpio state back to how it was
+  writeSciRegister16(io, VS1053_REG_WRAMADDR, gpioState);
+  writeSciRegister16(io, VS1053_REG_WRAM, VS1053_GPIO_ODATA);
+
+}
+
+static void setGPIOAsOutput(IO io) {
+  // Set the GPIOs back to outputs
+  writeSciRegister16(io, VS1053_REG_WRAMADDR, VS1053_GPIO_DDR);
+  writeSciRegister16(io, VS1053_REG_WRAM, (1 << INPUT_GPIO) + (1 << OUTPUT_GPIO));
 }
 
 static void freeRecordingResources() {
   // If we have an operating buf
-  if (operating_buf) {
+  if (operating_recording_buf) {
     // Free the lua reference
-    if (operating_buf->buffer_ref != LUA_NOREF) {
-      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_buf->buffer_ref);
+    if (operating_recording_buf->ref != LUA_NOREF) {
+      luaL_unref(tm_lua_state, LUA_REGISTRYINDEX, operating_recording_buf->ref);
     }
 
     // Clean up any SPI references
     hw_spi_async_cleanup();
 
     // Free the operating buffer
-    free(operating_buf);
-    operating_buf = NULL;
+    free(operating_recording_buf);
+    operating_recording_buf = NULL;
 
     // Free the fill buffer
     free(double_buff);
@@ -742,7 +822,7 @@ static void freeRecordingResources() {
 // Code modified from Adafruit's lib
 static uint16_t loadPlugin(const char *plugin_dir) {
 
-  if (operating_buf) {
+  if (operating_recording_buf) {
 
     // Generate a file handle for the plugin
     tm_fs_file_handle fd;
@@ -803,14 +883,14 @@ static uint16_t loadPlugin(const char *plugin_dir) {
       }
 
       // set address
-      writeSciRegister16(VS1053_REG_WRAMADDR, addr + offsets[type]);
+      writeSciRegister16(operating_recording_buf->io, VS1053_REG_WRAMADDR, addr + offsets[type]);
 
       // write data
       do {
         uint16_t data;
         data = *plugin++;    data <<= 8;
         data |= *plugin++;
-        writeSciRegister16(VS1053_REG_WRAM, data);
+        writeSciRegister16(operating_recording_buf->io, VS1053_REG_WRAM, data);
       } while ((len -=2));
     }
 
@@ -819,16 +899,16 @@ static uint16_t loadPlugin(const char *plugin_dir) {
   return 0xFFFF;
 }
 
-static uint16_t readSciRegister16(uint8_t address_byte) {
+static uint16_t readSciRegister16(IO io, uint8_t address_byte) {
   uint16_t reg_val = 0;
 
-  if (operating_buf) {
+  if (io.dreq && io.command_select) {
 
     //Wait for DREQ to go high indicating IC is available
-    while (!hw_digital_read(operating_buf->dreq)) ; 
+    while (!hw_digital_read(io.dreq)) ; 
 
     // Assert the control line
-    hw_digital_write(operating_buf->command_select, 0);
+    hw_digital_write(io.command_select, 0);
 
     //SCI consists of instruction byte, address byte, and 16-bit data word.
 
@@ -839,10 +919,10 @@ static uint16_t readSciRegister16(uint8_t address_byte) {
     hw_spi_transfer_sync(SPI_PORT, tx, rx, sizeof(tx), NULL);
 
     // Wait for DREQ to go high indicating command is complete
-    while (!hw_digital_read(operating_buf->dreq));
+    while (!hw_digital_read(io.dreq));
 
      // De-assert the control line
-    hw_digital_write(operating_buf->command_select, 1);
+    hw_digital_write(io.command_select, 1);
 
     // Return the last two bytes as a 16 bit number
     reg_val = (rx[2] << 8) | rx[3];
@@ -852,14 +932,14 @@ static uint16_t readSciRegister16(uint8_t address_byte) {
   return reg_val;
 }
 
-static void writeSciRegister16(uint8_t address_byte, uint16_t data) {
+static void writeSciRegister16(IO io, uint8_t address_byte, uint16_t data) {
 
-  if (operating_buf) {
+  if (io.dreq && io.command_select) {
     // Wait for DREQ to go high indicating IC is available
-    while (!hw_digital_read(operating_buf->dreq)) ; 
+    while (!hw_digital_read(io.dreq)) ; 
 
     // Assert the control line
-    hw_digital_write(operating_buf->command_select, 0);
+    hw_digital_write(io.command_select, 0);
 
     //SCI consists of instruction byte, address byte, and 16-bit data word.
     const uint8_t tx[] = {VS1053_SCI_WRITE, address_byte, data >> 8, data & 0xFF};
@@ -868,10 +948,10 @@ static void writeSciRegister16(uint8_t address_byte, uint16_t data) {
     hw_spi_transfer_sync(SPI_PORT, tx, NULL, sizeof(tx), NULL);
 
     // Wait for DREQ to go high indicating command is complete
-    while (!hw_digital_read(operating_buf->dreq));
+    while (!hw_digital_read(io.dreq));
 
      // De-assert the control line
-    hw_digital_write(operating_buf->command_select, 1);
+    hw_digital_write(io.command_select, 1);
   }
 }
 
@@ -879,7 +959,7 @@ void audio_reset() {
   // If we are playing audio
   if (current_state == PAUSED || current_state == PLAYING) {
     // Stop it
-    audio_stop_buffer();
+    audio_stop_buffer(true);
   }
   // If we are recording audio
   else if (current_state == RECORDING || current_state == CANCELLING) {

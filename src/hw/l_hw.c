@@ -630,11 +630,15 @@ static int l_audio_play_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
+
+	uint32_t ref = LUA_NOREF;
 	const uint8_t* buf = colony_toconstdata(L, ARG1 + 3, &buf_len);
+	lua_pushvalue(L, ARG1 + 3);
+	ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
 	int r;
 	if (buf_len) {
-		r = audio_play_buffer(xcs, dcs, dreq, buf, buf_len);
+		r = audio_play_buffer(xcs, dcs, dreq, buf, ref, buf_len);
 	}
 	else {
 		r = audio_resume_buffer();
@@ -650,9 +654,12 @@ static int l_audio_queue_buffer(lua_State* L) {
 	uint8_t dcs = (uint8_t)lua_tonumber(L, ARG1 + 1);
 	uint8_t dreq = (uint8_t)lua_tonumber(L, ARG1 + 2);
 	size_t buf_len = 0;
-	const uint8_t* buf = colony_toconstdata(L, ARG1+3, &buf_len);
+	uint32_t ref = LUA_NOREF;
+	const uint8_t* buf = colony_toconstdata(L, ARG1 + 3, &buf_len);
+	lua_pushvalue(L, ARG1 + 3);
+	ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	int r = audio_queue_buffer(xcs, dcs, dreq, buf, buf_len);
+	int r = audio_queue_buffer(xcs, dcs, dreq, buf, ref, buf_len);
 
 	lua_pushnumber(L, r);
 
@@ -660,7 +667,7 @@ static int l_audio_queue_buffer(lua_State* L) {
 }
 
 static int l_audio_stop_buffer(lua_State* L) {
-	int r = audio_stop_buffer();
+	int r = audio_stop_buffer(true);
 	lua_pushnumber(L, r);
 
 	return 1;
