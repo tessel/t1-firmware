@@ -131,7 +131,8 @@ extern "C" {
 /* Maximum time to wait for an event in microseconds
 */
 
-#define CC3000_CLOSE_SOCKET_WAIT   (1e6 * 3) // 3s to close a socket
+#define CC3000_SELECT_SOCKET_WAIT (1e6 * 5) // 5s for bsd select
+#define CC3000_CLOSE_SOCKET_WAIT   (1e6 * 5) // 10s to close a socket
 #define CC3000_MAX_WAIT   (1e6 * 10) // 10s for longer feedback loops like AP connections
 #define CC3000_BUFFER_WAIT   (1e6 * 5)
 #define CC3000_EVENT_WAIT (1e6) // 1s for CC3k comms

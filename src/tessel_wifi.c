@@ -157,6 +157,9 @@ void _cc3000_cb_animation_tick (size_t frame)
 				cc_bootup = -1;
 				wifi_is_connecting = 0;
 
+				TM_DEBUG("tessel wifi done tick %d", tessel_wifi_is_connecting());
+
+
 			}
 		}
 	}
@@ -175,6 +178,9 @@ void _cc3000_cb_error (int connected)
 	TM_COMMAND('W', "{\"event\": \"error\", \"error\": %d, \"when\": \"acquire\"}", connected);
 	cc_blink = 0;
 	wifi_is_connecting = 0;
+
+	TM_DEBUG("cb_error %d", tessel_wifi_is_connecting());
+
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
 }
@@ -185,6 +191,9 @@ void _cc3000_cb_wifi_connect ()
 	// only dhcp events that come after this are valid
 	wifi_status.post_connect = true;
 	cc_blink = 1;
+	wifi_is_connecting = 0;
+	TM_DEBUG("cb_wifi_connect %d", tessel_wifi_is_connecting());
+
 	hw_digital_write(CC3K_ERR_LED, 0);
 	hw_digital_write(CC3K_CONN_LED, 0);
 }
@@ -194,6 +203,9 @@ void _cc3000_cb_wifi_disconnect ()
 	TM_COMMAND('W', "{\"event\": \"disconnect\"}");
 	cc_blink = 0;
 	wifi_is_connecting = 0;
+
+	TM_DEBUG("cb_wifi_disconnect %d", tessel_wifi_is_connecting());
+
 	hw_digital_write(CC3K_ERR_LED, 1);
 	hw_digital_write(CC3K_CONN_LED, 0);
 
@@ -205,6 +217,8 @@ void _cc3000_cb_dhcp_failed ()
 	TM_DEBUG("DHCP failed. Try reconnecting.");
 	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
 	wifi_is_connecting = 0;
+	TM_DEBUG("dhcp failed %d", tessel_wifi_is_connecting());
+
 	cc_blink = 0;
 	cc_bootup = -1;
 	tessel_wifi_check(1);
@@ -216,6 +230,8 @@ void _cc3000_cb_dhcp_success ()
 {
 	hw_digital_write(CC3K_CONN_LED, 1);
 	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
+	TM_DEBUG("dhcp success %d", tessel_wifi_is_connecting());
+
 	wifi_is_connecting = 0;
 	tessel_wifi_check(1);
 	cc_blink = 0;
@@ -244,6 +260,7 @@ int tessel_wifi_disconnect(){
 	// wlan_ioctl_set_connection_policy(0, 0, 1);
 	// prevent a connection from taking place before we can get a response
 	wifi_is_connecting = 1; 
+	TM_DEBUG("tessel_wifi_disconnect %d", tessel_wifi_is_connecting());
 	return hw_net_disconnect();
 }
 
@@ -260,6 +277,8 @@ void tessel_wifi_enable ()
 		hw_net_initialize();
 		wifi_initialized = 1;
 		wifi_is_connecting = 1;
+		TM_DEBUG("tessel_wifi_enable %d", tessel_wifi_is_connecting());
+
 		cc_bootup = 0;
 		tm_net_initialize_dhcp_server();
 	} else {
@@ -385,6 +404,9 @@ int tessel_wifi_connect(char * wifi_security, char * wifi_ssid, size_t ssidlen, 
 	// Connect to given network.
 	hw_net_connect(wifi_security, wifi_ssid, ssidlen, wifi_pass, passlen); // use this for using tessel wifi from command line
 	wifi_is_connecting = 1;
+
+	TM_DEBUG("tessel_wifi_connect %d", tessel_wifi_is_connecting());
+
 	return 0;
 }
 
@@ -396,5 +418,7 @@ void tessel_wifi_fastconnect() {
 	hw_net_initialize();
 	wifi_initialized = 1;
 	wifi_is_connecting = 1;
+	TM_DEBUG("tessel_wifi_fastconnect %d", tessel_wifi_is_connecting());
+
 	cc_bootup = 0;
 }

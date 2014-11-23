@@ -271,6 +271,14 @@ int tm_tcp_close (tm_socket_t sock)
 
 	int ret = closesocket(sock);
 	
+	// for (int i = 0; i<3; i++){
+	// 	if (ret == CC3K_TIMEOUT_ERR) {
+	// 		// try again on timeout error
+	// 		TM_DEBUG("retry #%d to close socket %d", i, sock);
+	// 		ret = closesocket(sock);
+	// 	}
+	// }
+
 	CC3000_END;
 	if (ret == 0 || ret == -CC_ENOTCONN) {
 		if (track_close_socket(sock)) {

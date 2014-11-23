@@ -366,6 +366,7 @@ int hw_net_disconnect (void)
 {
 	CC3000_START;
 	int disconnect = wlan_disconnect();
+	TM_DEBUG("disconnect triggered %d", disconnect);
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
 	CC3000_END;

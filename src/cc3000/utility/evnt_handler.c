@@ -512,9 +512,17 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 				// give HCI_EVNT_CLOSE_SOCKET more time
 				 || ( tSLInformation.usRxEventOpcode == HCI_EVNT_CLOSE_SOCKET 
 				 	&& tm_uptime_micro() - ccStartTime >= CC3000_CLOSE_SOCKET_WAIT) 
+				// give HCI_EVNT_SELECT more time
+				 || ( tSLInformation.usRxEventOpcode == HCI_EVNT_SELECT 
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_SELECT_SOCKET_WAIT) 
+				// give HCI_EVNT_CONNECT more time
+				  || ( tSLInformation.usRxEventOpcode == HCI_EVNT_CONNECT 
+				 	&& tm_uptime_micro() - ccStartTime >= CC3000_SELECT_SOCKET_WAIT) 
 				 || (tSLInformation.usRxEventOpcode > HCI_CMND_WLAN_CONFIGURE_PATCH
 				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_CLOSE_SOCKET
 				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_SOCKET
+				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_SELECT
+				 	&& tSLInformation.usRxEventOpcode != HCI_EVNT_CONNECT
 				 	&& tm_uptime_micro() - ccStartTime >= CC3000_EVENT_WAIT)
 				) {
 
