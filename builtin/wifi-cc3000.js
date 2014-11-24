@@ -148,8 +148,15 @@ function Wifi(){
     }
 
     process.removeAllListeners('wifi_disconnect_complete');
+
+    if (callback) {
+      process.once('wifi_disconnect_complete', function(){
+        callback();
+      });
+    }
+
     process.on('wifi_disconnect_complete', function(){
-      self._connectionCallback("Wifi disconnected", null, callback);
+      self._connectionCallback("Wifi disconnected", null);
     });
 
     return self;
