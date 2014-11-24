@@ -292,6 +292,9 @@ void hw_net_disable (void)
 	// clear out all wifi data
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
+	// reset connection
+	ulCC3000Connected = 0;
+	ulCC3000DHCP = 0;
 	hw_digital_write(CC3K_CONN_LED, 0);
 	hw_digital_write(CC3K_ERR_LED, 0);
 	CC3000_END;
@@ -368,6 +371,10 @@ int hw_net_disconnect (void)
 	int disconnect = wlan_disconnect();
 	memset(hw_wifi_ip, 0, sizeof hw_wifi_ip);
 	memset(hw_wifi_ip, 0, sizeof hw_cc_ver);
+	// reset connection
+	ulCC3000Connected = 0;
+	ulCC3000DHCP = 0;
+
 	CC3000_END;
 
 	return disconnect;
