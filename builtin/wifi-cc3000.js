@@ -148,8 +148,15 @@ function Wifi(){
     }
 
     process.removeAllListeners('wifi_disconnect_complete');
+
+    if (callback) {
+      process.once('wifi_disconnect_complete', function(){
+        callback();
+      });
+    }
+
     process.on('wifi_disconnect_complete', function(){
-      self._connectionCallback("Wifi disconnected", null, callback);
+      self._connectionCallback("Wifi disconnected", null);
     });
 
     return self;
@@ -183,16 +190,15 @@ function Wifi(){
     return hw.wifi_mac_address();
   };
 
-  if (self.isConnected()) {
-    // go ahead and emit a connected event once the script runs
-    process.once('_script_running', function(){
+  process.once('_script_running', function(){
+    if (self.isConnected()) {
+      // go ahead and emit a connected event once the script runs
       self.emit('connect', self.connection());
-    });
-  } else {
-    // emit the connected event whenever we're ready
-    self._emitConnection();
-  }
-  
+    } else {
+      // emit the connected event whenever we're ready
+      self._emitConnection();
+    }
+  });
 }
 
 util.inherits(Wifi, EventEmitter);
