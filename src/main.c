@@ -586,7 +586,7 @@ void load_script(uint8_t* script_buf, unsigned script_buf_size, uint8_t speculat
 	// Stop any audio playback/recording and clean up memory
 	audio_reset();
 	// Clean up the neopixel datastructures and lua refs
-	neopixel_reset_animation();
+	neopixel_reset_animation(true);
 	// Clean up the readPulse data and lua refs
 	sct_read_pulse_reset();
 

@@ -49,7 +49,7 @@ typedef struct {
 
 int8_t writeAnimationBuffers (neopixel_animation_status_t channel_animation, uint8_t pin);
 
-void neopixel_reset_animation ();
+void neopixel_reset_animation (bool force);
 
 void LEDDRIVER_open (neopixel_sct_status_t sct_channel);
 
@@ -59,10 +59,10 @@ void LEDDRIVER_open (neopixel_sct_status_t sct_channel);
 void LEDDRIVER_writeNextRGBValue (neopixel_sct_status_t sct_channel);
 
 /* Activate or deactivate HALT after next frame. */
-void LEDDRIVER_haltAfterFrame (int on);
+void LEDDRIVER_haltAfterFrame (int on, neopixel_sct_status_t sct_channel);
 
 /* Start a block transmission */
-void LEDDRIVER_start (void);
+void LEDDRIVER_start (neopixel_sct_status_t sct_channel);
 
 #define MAX_SCT_CHANNELS 2
 
@@ -83,6 +83,13 @@ LPCLIB_DefineRegBit(SCT_CONFIG_NORELOAD_H,              8,  1);
 LPCLIB_DefineRegBit(SCT_CONFIG_INSYNC,                  9,  8);
 LPCLIB_DefineRegBit(SCT_CONFIG_AUTOLIMIT_L,             17, 1);
 LPCLIB_DefineRegBit(SCT_CONFIG_AUTOLIMIT_H,             18, 1);
+
+LPCLIB_DefineRegBit(SCT_CTRL_DOWN,                    0,  1);
+LPCLIB_DefineRegBit(SCT_CTRL_STOP,                    1,  1);
+LPCLIB_DefineRegBit(SCT_CTRL_HALT,                    2,  1);
+LPCLIB_DefineRegBit(SCT_CTRL_CLRCTR,                  3,  1);
+LPCLIB_DefineRegBit(SCT_CTRL_BIDIR,                   4,  1);
+LPCLIB_DefineRegBit(SCT_CTRL_PRE,                     5,  8);
 
 LPCLIB_DefineRegBit(SCT_CTRL_DOWN_L,                    0,  1);
 LPCLIB_DefineRegBit(SCT_CTRL_STOP_L,                    1,  1);
