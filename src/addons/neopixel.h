@@ -34,10 +34,15 @@ Struct containing an SCT channel's
 current status
 */
 typedef struct {
-  neopixel_animation_status_t *animationStatus;
   uint32_t pin;
+  uint8_t sctRegOffset;
+  neopixel_animation_status_t *animationStatus;
+  uint8_t periodEventNum;
+  uint8_t t1hEventNum;
+  uint8_t t0hEventNum;
   uint8_t sctOutputBuffer;
   uint8_t sctAuxBuffer;
+  uint8_t completeFrameEvent;
   uint8_t sctOutputChannel;
   uint8_t sctAuxChannel;
 } neopixel_sct_status_t;
@@ -59,7 +64,7 @@ void LEDDRIVER_haltAfterFrame (int on);
 /* Start a block transmission */
 void LEDDRIVER_start (void);
 
-#define MAX_SCT_CHANNELS 1
+#define MAX_SCT_CHANNELS 2
 
 /** Macro to define register bits and mask in CMSIS style */
 #define LPCLIB_DefineRegBit(name,pos,width)    \

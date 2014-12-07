@@ -783,11 +783,21 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	size_t animationLength = 0;
 	size_t numFrames = 0;
 	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &animationLength);
+
+
+	uint8_t pin = lua_tonumber(L, ARG1);
+		// If this isn't a valid sct pin, return an error;
+	if (pin != E_G4 && pin != E_G5) {
+		lua_pushnumber(L, -1);
+		return 1;
+	}
+
+
 	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
 	// Allocate memory for an animation
 	neopixel_animation_status_t *channel_animation;
-
+	
 	// If there are frames for this channel
 	if (frameLength != 0 && animationLength != 0) {
 

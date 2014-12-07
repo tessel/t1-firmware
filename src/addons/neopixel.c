@@ -10,21 +10,45 @@
 #define T0H_EVENT_NUM                       13
 #define CHAN_A_OUTPUT_BUFFER_EVENT_NUM      12
 #define CHAN_A_AUX_BUFFER_EVENT_NUM         11
-#define COMPLETE_FRAME_EVENT                6
+#define COMPLETE_FRAME_EVENT                10
+
+#define CHAN_B_PERIOD_EVENT_NUM             9
+#define CHAN_B_T1H_EVENT_NUM                8
+#define CHAN_B_T0H_EVENT_NUM                7
+#define CHAN_B_OUTPUT_BUFFER_EVENT_NUM      6
+#define CHAN_B_AUX_BUFFER_EVENT_NUM         5
+#define CHAN_B_COMPLETE_FRAME_EVENT         4
 
 neopixel_animation_status_t channel_a_animation;
+neopixel_animation_status_t channel_b_animation;
 
 const neopixel_sct_status_t sct_animation_channels[MAX_SCT_CHANNELS] = {
   {
     .pin = E_G4,
+    .sctRegOffset = 0,
     .animationStatus = &channel_a_animation,
+    .periodEventNum = PERIOD_EVENT_NUM,
+    .t1hEventNum = T1H_EVENT_NUM,
+    .t0hEventNum = T0H_EVENT_NUM,
     .sctOutputBuffer = CHAN_A_OUTPUT_BUFFER_EVENT_NUM,
     .sctAuxBuffer = CHAN_A_AUX_BUFFER_EVENT_NUM,
+    .completeFrameEvent = COMPLETE_FRAME_EVENT,
     .sctOutputChannel = 8,
     .sctAuxChannel = 1,
+  },
+  {
+  .pin = E_G5,
+  .sctRegOffset = 2,
+  .animationStatus = &channel_b_animation,
+  .t1hEventNum = CHAN_B_T1H_EVENT_NUM,
+  .t0hEventNum = CHAN_B_T0H_EVENT_NUM,
+  .sctOutputBuffer = CHAN_B_OUTPUT_BUFFER_EVENT_NUM,
+  .sctAuxBuffer = CHAN_B_AUX_BUFFER_EVENT_NUM,
+  .completeFrameEvent = CHAN_B_COMPLETE_FRAME_EVENT,
+  .sctOutputChannel = 4,
+  .sctAuxChannel = 2,
   }
 };
-
 
 void beginAnimationAtCurrentFrame();
 void continueAnimation();
@@ -208,8 +232,6 @@ void sct_neopixel_irq_handler (void)
 {
   /* Acknowledge interrupt */
   if (LPC_SCT->EVFLAG & (1u << COMPLETE_FRAME_EVENT)) {
-    // Unset IRQ flag
-    LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
 
     // Bool to track if all animations are complete
     bool complete = true;
@@ -228,6 +250,9 @@ void sct_neopixel_irq_handler (void)
       // Trigger the callback
       tm_event_trigger(&animation_complete_event);
     }
+
+    // Unset IRQ flag
+    LPC_SCT->EVFLAG = (1u << COMPLETE_FRAME_EVENT);
   }
 }
 
@@ -402,13 +427,13 @@ void setPinSCTFunc(uint8_t pin) {
 int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
 
   // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
-  LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
+  // LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
   // Bool indicating whether any channels have animations ready
   bool animationsReady = false;
 
   // For each SCT channel
-  for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
+  for (int i = 0; i < 1; i++) {
 
     // If this channel has animation frames
     if (channel_animations[i]->animation.frames != NULL) {
