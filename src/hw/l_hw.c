@@ -785,8 +785,13 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	const uint8_t* txbuf = colony_toconstdata(L, ARG1 + 1, &animationLength);
 
 
-	uint8_t pin = lua_tonumber(L, ARG1);
-		// If this isn't a valid sct pin, return an error;
+	uint8_t pin = lua_tonumber(L, ARG1 + 2);
+
+	// If no pin was provided, use G4 by default
+	if (pin == 0) {
+		pin = E_G4;
+	}
+	// If this isn't a valid sct pin, return an error;
 	if (pin != E_G4 && pin != E_G5) {
 		lua_pushnumber(L, -1);
 		return 1;
@@ -796,15 +801,12 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
 	// Allocate memory for an animation
-	neopixel_animation_status_t *channel_animation;
+	neopixel_animation_status_t channel_animation;
 	
 	// If there are frames for this channel
 	if (frameLength != 0 && animationLength != 0) {
 
 		numFrames = animationLength/frameLength;
-
-		// Allocate memory for an animation
-		channel_animation = malloc(sizeof(neopixel_animation_status_t));
 
 		// Allocate memory for the frame pointers
 		const uint8_t **frames = malloc(sizeof(uint8_t *) * numFrames);
@@ -816,18 +818,21 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 			frames[i] = (uint8_t *)&(txbuf[i * frameLength]);
 		}
 
-		channel_animation->animation.frames = frames;
-		channel_animation->animation.frameLength = frameLength;
-		channel_animation->animation.frameRef = frameRef;
-		channel_animation->animation.numFrames = numFrames;
-		channel_animation->bytesSent = 0;
-		channel_animation->framesSent = 0;
+		channel_animation.animation.frames = frames;
+		channel_animation.animation.frameLength = frameLength;
+		channel_animation.animation.frameRef = frameRef;
+		channel_animation.animation.numFrames = numFrames;
+		channel_animation.bytesSent = 0;
+		channel_animation.framesSent = 0;
+
+		// Begin the animation
+		writeAnimationBuffers(channel_animation, pin);
+		lua_pushnumber(L,0);
+	}
+	else {
+		lua_pushnumber(L,-2);
 	}
 
-	// Begin the animation
-	writeAnimationBuffers(&channel_animation);
-
-	lua_pushnumber(L,0);
 	return 1;
 }
 

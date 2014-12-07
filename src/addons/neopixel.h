@@ -47,11 +47,11 @@ typedef struct {
   uint8_t sctAuxChannel;
 } neopixel_sct_status_t;
 
-int8_t writeAnimationBuffers (neopixel_animation_status_t **channel_animations);
+int8_t writeAnimationBuffers (neopixel_animation_status_t channel_animation, uint8_t pin);
 
 void neopixel_reset_animation ();
 
-void LEDDRIVER_open (void);
+void LEDDRIVER_open (neopixel_sct_status_t sct_channel);
 
 /* Simple function to write to a transmit buffer.
  * NOTE: Application must keep track of how many data words have been sent!

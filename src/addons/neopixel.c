@@ -57,9 +57,11 @@ void animation_complete();
 
 tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
 
-void LEDDRIVER_open (void)
+void LEDDRIVER_open (neopixel_sct_status_t sct_channel)
 {
   uint32_t clocksPerBit;
+
+  sct_channel = sct_channel;
 
   /* Halt H timer, and configure counting mode and prescaler.
    */
@@ -388,22 +390,22 @@ void continueAnimation() {
   LPC_SCT->CTRL_H &= ~SCT_CTRL_H_HALT_H_Msk;
 }
 
-void beginAnimation() {
+void beginAnimation(neopixel_sct_status_t sct_channel) {
 
   // Initialize the LEDDriver
-  LEDDRIVER_open();
+  LEDDRIVER_open(sct_channel);
 
   // Fill the double buffer with the first two bytes
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
     // Reset struct status vars
-    sct_animation_channels[i].animationStatus->bytesPending = 0;
-    sct_animation_channels[i].animationStatus->bytesSent = 0;
+    sct_channel.animationStatus->bytesPending = 0;
+    sct_channel.animationStatus->bytesSent = 0;
     // Write the first bytes to the output
-    LEDDRIVER_writeNextRGBValue((sct_animation_channels[i]));
+    LEDDRIVER_writeNextRGBValue(sct_channel);
     // Toggle the AUX Output so the next write will go to Aux
-    LPC_SCT->OUTPUT &= ~(1u << sct_animation_channels[i].sctAuxChannel);
+    LPC_SCT->OUTPUT &= ~(1u << sct_channel.sctAuxChannel);
     // Write the next bytes to Aux
-    LEDDRIVER_writeNextRGBValue((sct_animation_channels[i]));
+    LEDDRIVER_writeNextRGBValue(sct_channel);
   }
 
   // Allow SCT IRQs (which update the relevant data byte)
@@ -424,38 +426,32 @@ void setPinSCTFunc(uint8_t pin) {
     g_APinDescription[pin].alternate_func);
 }
 
-int8_t writeAnimationBuffers(neopixel_animation_status_t **channel_animations) {
+int8_t writeAnimationBuffers(neopixel_animation_status_t channel_animation, uint8_t pin) {
 
   // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
   // LPC_RGU->RESET_CTRL1 = ( 1 << 5 );
 
-  // Bool indicating whether any channels have animations ready
-  bool animationsReady = false;
-
-  // For each SCT channel
-  for (int i = 0; i < 1; i++) {
-
-    // If this channel has animation frames
-    if (channel_animations[i]->animation.frames != NULL) {
-      // Assign the data buffers to the memory struct
-      *sct_animation_channels[i].animationStatus = *channel_animations[i];
+  uint8_t animationReady = false;
+  for (uint8_t i = 0; i < MAX_SCT_CHANNELS; i++) {
+    if (pin == sct_animation_channels[i].pin) {
+      // Set the animations
+      memcpy(sct_animation_channels[i].animationStatus, &channel_animation, sizeof(neopixel_animation_status_t));
 
       // Set up the pin as SCT
       setPinSCTFunc(sct_animation_channels[i].pin);
 
-      animationsReady = true;
+      // Then start transmission 
+      beginAnimation(sct_animation_channels[i]);
+
+      // Hold the event queue open until we're done with this event
+      tm_event_ref(&animation_complete_event);
+
+      animationReady = true;
     }
   }
-
-  if (!animationsReady) {
+  if (!animationReady) {
     return -1;
   }
-
-  /* Then start transmission */
-  beginAnimation();
-
-  // Hold the event queue open until we're done with this event
-  tm_event_ref(&animation_complete_event);
 
   return 0;
 }

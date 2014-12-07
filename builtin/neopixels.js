@@ -8,8 +8,8 @@ var events = require('events');
 */
 
 function Neopixels() {
-  this.animate = function(numPixels, animationData, callback) {
-    var sctStatus = hw.neopixel_animation_buffer(numPixels * 3, animationData);
+  this.animate = function(numPixels, animationData, pin, callback) {
+    var sctStatus = hw.neopixel_animation_buffer(numPixels * 3, animationData, pin);
     if (sctStatus) {
       callback && callback(new Error("SCT is already in use by "+['Inactive','PWM','Read Pulse','Neopixels'][sctStatus]));
     } else {
@@ -17,11 +17,9 @@ function Neopixels() {
       process.once('neopixel_animation_complete', function animationComplete() {
         // Emit an end event
         this.emit('end');
-        // If there is a callback
-        if (callback) {
-          // Call it
-          callback();
-        }
+        // If there is a callback, call it
+        callback && callback();
+
       }.bind(this));
     }
   }
