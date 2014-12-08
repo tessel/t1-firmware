@@ -823,6 +823,7 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 		channel_animation.animation.numFrames = numFrames;
 		channel_animation.bytesSent = 0;
 		channel_animation.framesSent = 0;
+		channel_animation.currentState = CONFIGURING;
 
 		// Begin the animation
 		writeAnimationBuffers(channel_animation, pin);

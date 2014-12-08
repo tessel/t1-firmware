@@ -55,8 +55,8 @@ void beginAnimationAtCurrentFrame();
 void continueAnimation();
 bool updateChannelAnimation(neopixel_sct_status_t channel);
 void emit_complete(uint8_t channel);
-void animation_a_complete();
-void animation_b_complete();
+void animation_a_complete(tm_event *event);
+void animation_b_complete(tm_event *event);
 
 tm_event animation_a_complete_event = TM_EVENT_INIT(animation_a_complete); 
 tm_event animation_b_complete_event = TM_EVENT_INIT(animation_b_complete); 
@@ -240,21 +240,25 @@ void sct_neopixel_irq_handler (void)
 {
   for (uint8_t i = 0; i < MAX_SCT_CHANNELS; i++) {
 
-    if (LPC_SCT->EVFLAG & (1u << sct_animation_channels[i].completeFrameEvent)) {
+    if (LPC_SCT->EVFLAG & (1u << sct_animation_channels[i].completeFrameEvent)
+      && sct_animation_channels[i].animationStatus->currentState == RUNNING) {
+
+       // Unset IRQ flag
+      LPC_SCT->EVFLAG = (1u << sct_animation_channels[i].completeFrameEvent);
+      
       // Attempt to update their channel
       if (!updateChannelAnimation((sct_animation_channels[i]))) {
 
         // Trigger the callback
         if (i == 0) {
-          tm_event_trigger(&animation_a_complete_event);
+          TM_DEBUG("TA");
+          // tm_event_trigger(&animation_a_complete_event);
         } 
         else if (i == 1) {
-          tm_event_trigger(&animation_b_complete_event);
+          TM_DEBUG("TB");
+          // tm_event_trigger(&animation_b_complete_event);
         }
       }
-
-      // Unset IRQ flag
-      LPC_SCT->EVFLAG = (1u << sct_animation_channels[i].completeFrameEvent);
     }
   }
 }
@@ -264,9 +268,6 @@ void sct_neopixel_irq_handler (void)
 bool updateChannelAnimation(neopixel_sct_status_t sct_channel) {
 
   bool byteSent = false;
-
-  // If this channel doesn't have an animation, then we can return
-  if (sct_channel.animationStatus->animation.frames == NULL) return byteSent;
 
   sct_channel.animationStatus->bytesSent+=3;
 
@@ -300,6 +301,7 @@ bool updateChannelAnimation(neopixel_sct_status_t sct_channel) {
         sct_channel.animationStatus->bytesPending = 0;
         // If we have now sent all of them
         if (sct_channel.animationStatus->framesSent == sct_channel.animationStatus->animation.numFrames) {
+          sct_channel.animationStatus->currentState = EMITTING;
           // Trigger the end
           byteSent = false;
         }
@@ -339,12 +341,9 @@ void neopixel_reset_animation(bool force) {
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
     // This one finished!
-    // TM_DEBUG("Testing... %d %d %d", i, sct_animation_channels[i].animationStatus->animation.numFrames, sct_animation_channels[i].animationStatus->framesSent);
-    if ((sct_animation_channels[i].animationStatus->animation.numFrames > 0 && 
-        sct_animation_channels[i].animationStatus->framesSent == sct_animation_channels[i].animationStatus->animation.numFrames) ||
-        force) {
+    TM_DEBUG("Testing... %d %d %d", i, sct_animation_channels[i].animationStatus->animation.numFrames, sct_animation_channels[i].animationStatus->framesSent);
+    if (sct_animation_channels[i].animationStatus->currentState == EMITTING || force) {
 
-      // TM_DEBUG("Complete with %d", i);
       (&LPC_SCT->HALT_L)[sct_animation_channels[i].sctRegOffset] = sct_animation_channels[i].completeFrameEvent;
 
 
@@ -358,6 +357,7 @@ void neopixel_reset_animation(bool force) {
       sct_animation_channels[i].animationStatus->animation.frameLength = 0;
       sct_animation_channels[i].animationStatus->animation.numFrames = 0;
       sct_animation_channels[i].animationStatus->animation.frameRef = -1;
+      sct_animation_channels[i].animationStatus->currentState = IDLE;
     }
 
     if (i == 0) {
@@ -372,17 +372,19 @@ void neopixel_reset_animation(bool force) {
   }
 }
 
-void animation_a_complete() {
+void animation_a_complete(tm_event *event) {
+  (void) event;
   // Reset all of our variables
-  // TM_DEBUG("triggered a");
+  TM_DEBUG("trig a");
   neopixel_reset_animation(false);
   // Emit the event
   emit_complete(1);
 }
 
-void animation_b_complete() {
+void animation_b_complete(tm_event *event) {
+  (void) event;
   // Reset all of our variables
-  // TM_DEBUG("triggered b");
+  TM_DEBUG("trig b");
   neopixel_reset_animation(false);
   // Emit the event
   emit_complete(2);
@@ -442,6 +444,8 @@ void beginAnimation(neopixel_sct_status_t sct_channel) {
 
   // Start the operation
   LEDDRIVER_start(sct_channel);
+
+  sct_channel.animationStatus->currentState = RUNNING;
 }
 
 void setPinSCTFunc(uint8_t pin) {

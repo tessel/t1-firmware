@@ -18,6 +18,9 @@ typedef struct {
   uint32_t numFrames;
 } neopixel_animation_t;
 
+// State definitions
+enum AnimationState { IDLE, CONFIGURING, RUNNING, EMITTING };
+
 /*
 Struct containing animation's
 current completion status
@@ -27,6 +30,7 @@ typedef struct {
   uint32_t bytesSent;
   uint32_t bytesPending;
   uint32_t framesSent;
+  enum AnimationState currentState;
 } neopixel_animation_status_t;
 
 /*
