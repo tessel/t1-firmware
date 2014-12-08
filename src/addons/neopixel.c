@@ -54,9 +54,12 @@ const neopixel_sct_status_t sct_animation_channels[MAX_SCT_CHANNELS] = {
 void beginAnimationAtCurrentFrame();
 void continueAnimation();
 bool updateChannelAnimation(neopixel_sct_status_t channel);
-void animation_complete();
+void emit_complete(uint8_t channel);
+void animation_a_complete();
+void animation_b_complete();
 
-tm_event animation_complete_event = TM_EVENT_INIT(animation_complete); 
+tm_event animation_a_complete_event = TM_EVENT_INIT(animation_a_complete); 
+tm_event animation_b_complete_event = TM_EVENT_INIT(animation_b_complete); 
 
 void LEDDRIVER_open (neopixel_sct_status_t sct_channel)
 {
@@ -109,7 +112,7 @@ void LEDDRIVER_open (neopixel_sct_status_t sct_channel)
       ;
 
   // POTENTIAL PROBLEM
-  LPC_SCT->RES = 0;
+  // LPC_SCT->RES = 0;
 
   if (sct_channel.animationStatus->animation.frames != NULL) {
 
@@ -174,7 +177,6 @@ void LEDDRIVER_open (neopixel_sct_status_t sct_channel)
   LPC_SCT->EVENT[sct_channel.completeFrameEvent].STATE = 0x00000001; /* Only in state 0 */
 
   /* Default is to halt the block transfer after the next frame */
-  // (&LPC_SCT->HALT_L)[sct_channel.sctRegOffset] = (1u << sct_channel.completeFrameEvent);
   LEDDRIVER_haltAfterFrame(1, sct_channel);           /* Complete Event halts the transfer */
 
   // Clear pending interrupts on period completion
@@ -225,7 +227,7 @@ void LEDDRIVER_start (neopixel_sct_status_t sct_channel)
   /* TODO: Check whether timer is really in HALT mode */
 
   /* Set reset time */
-  LPC_SCT->COUNT_U = - (&LPC_SCT->MATCHREL_L[0])[sct_channel.sctRegOffset * 2 * COUNTER_REG_SIZE] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
+  LPC_SCT->COUNT_U = -(&LPC_SCT->MATCHREL_L[0])[sct_channel.sctRegOffset * 2 * COUNTER_REG_SIZE] * 50;     /* TODO: Modify this to guarantee 50 µs min in both modes! */
 
   /* Start state */
   (&LPC_SCT->STATE_L)[sct_channel.sctRegOffset] = BITS_PER_INTERRUPT;
@@ -243,7 +245,12 @@ void sct_neopixel_irq_handler (void)
       if (!updateChannelAnimation((sct_animation_channels[i]))) {
 
         // Trigger the callback
-        tm_event_trigger(&animation_complete_event);
+        if (i == 0) {
+          tm_event_trigger(&animation_a_complete_event);
+        } 
+        else if (i == 1) {
+          tm_event_trigger(&animation_b_complete_event);
+        }
       }
 
       // Unset IRQ flag
@@ -311,21 +318,15 @@ bool updateChannelAnimation(neopixel_sct_status_t sct_channel) {
   return byteSent;
 }
 
-uint8_t neopixel_reset_animation(bool force) {
+void neopixel_reset_animation(bool force) {
 
-  uint8_t finishedAnimationsMask = 0;
-
+  // POTENTIAL PROBLEM
   // Disable the SCT IRQ
-  NVIC_DisableIRQ(SCT_IRQn);
+  // NVIC_DisableIRQ(SCT_IRQn);
 
-  // if (force) {
-  //   for (uint8_t i = 0; i < MAX_SCT_CHANNELS; i++) {
-  //     (&LPC_SCT->HALT_L)[sct_animation_channels[i].sctRegOffset] = sct_animation_channels[i].completeFrameEvent;
-  //   }
-  // }
-
+  // POTENTIAL PROBLEM
   // set the SCT state back to inactive
-  hw_sct_status = SCT_INACTIVE;
+  // hw_sct_status = SCT_INACTIVE;
 
   // POTENTIAL PROBLEM
   // really clear the SCT: ( 1 << 5 ) is an LPC18xx.h include workaround
@@ -333,15 +334,17 @@ uint8_t neopixel_reset_animation(bool force) {
 
   // Make sure the Lua state exists
   lua_State* L = tm_lua_state;
-  if (!L) return 0;
+  if (!L) return;
 
   for (int i = 0; i < MAX_SCT_CHANNELS; i++) {
 
     // This one finished!
+    // TM_DEBUG("Testing... %d %d %d", i, sct_animation_channels[i].animationStatus->animation.numFrames, sct_animation_channels[i].animationStatus->framesSent);
     if ((sct_animation_channels[i].animationStatus->animation.numFrames > 0 && 
         sct_animation_channels[i].animationStatus->framesSent == sct_animation_channels[i].animationStatus->animation.numFrames) ||
         force) {
 
+      // TM_DEBUG("Complete with %d", i);
       (&LPC_SCT->HALT_L)[sct_animation_channels[i].sctRegOffset] = sct_animation_channels[i].completeFrameEvent;
 
 
@@ -355,20 +358,37 @@ uint8_t neopixel_reset_animation(bool force) {
       sct_animation_channels[i].animationStatus->animation.frameLength = 0;
       sct_animation_channels[i].animationStatus->animation.numFrames = 0;
       sct_animation_channels[i].animationStatus->animation.frameRef = -1;
-
-      finishedAnimationsMask |= (1 << sct_animation_channels[i].sctRegOffset);
     }
 
-  }
-  // Unreference the event
-  tm_event_unref(&animation_complete_event);
+    if (i == 0) {
+      // Unreference the event
+      tm_event_unref(&animation_a_complete_event);
 
-  return finishedAnimationsMask;
+    }
+    else {
+      // Unreference the event
+      tm_event_unref(&animation_b_complete_event);
+    }
+  }
 }
 
-void animation_complete() {
+void animation_a_complete() {
   // Reset all of our variables
-  uint8_t finishedAnimationsMask = neopixel_reset_animation(false);
+  // TM_DEBUG("triggered a");
+  neopixel_reset_animation(false);
+  // Emit the event
+  emit_complete(1);
+}
+
+void animation_b_complete() {
+  // Reset all of our variables
+  // TM_DEBUG("triggered b");
+  neopixel_reset_animation(false);
+  // Emit the event
+  emit_complete(2);
+}
+
+void emit_complete(uint8_t channel) {
   lua_State* L = tm_lua_state;
   if (!L) return;
   // Push the _colony_emit helper function onto the stack
@@ -376,7 +396,7 @@ void animation_complete() {
   // The process message identifier
   lua_pushstring(L, "neopixel_animation_complete");
   // Emit the completed animations
-  lua_pushnumber(L, finishedAnimationsMask);
+  lua_pushnumber(L, channel);
   // Call _colony_emit to run the JS callback
   tm_checked_call(L, 2);
 }
@@ -390,7 +410,7 @@ void continueAnimation(neopixel_sct_status_t sct_channel) {
   LEDDRIVER_haltAfterFrame(0, sct_channel);
 
   // Set the flag to get an interrupt when byte transfer is complete
-  LPC_SCT->EVEN |= (1u << sct_channel.completeFrameEvent);            /* Complete Event */
+  LPC_SCT->EVEN |= (1u << sct_channel.completeFrameEvent);
 
    /* Set reset time */
   LEDDRIVER_start(sct_channel);
@@ -441,7 +461,7 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t channel_animation, uint
   uint8_t animationReady = false;
   for (uint8_t i = 0; i < MAX_SCT_CHANNELS; i++) {
     if (pin == sct_animation_channels[i].pin) {
-      TM_DEBUG("Yep, found a match %d", sct_animation_channels[i].sctRegOffset);
+
       // Set the animations
       memcpy(sct_animation_channels[i].animationStatus, &channel_animation, sizeof(neopixel_animation_status_t));
 
@@ -452,7 +472,12 @@ int8_t writeAnimationBuffers(neopixel_animation_status_t channel_animation, uint
       beginAnimation(sct_animation_channels[i]);
 
       // Hold the event queue open until we're done with this event
-      tm_event_ref(&animation_complete_event);
+      if (i == 0) {
+        tm_event_ref(&animation_a_complete_event);
+      }
+      else if (i == 1) {
+        tm_event_ref(&animation_b_complete_event);
+      }
 
       animationReady = true;
     }

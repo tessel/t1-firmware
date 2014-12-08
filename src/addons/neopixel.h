@@ -49,7 +49,7 @@ typedef struct {
 
 int8_t writeAnimationBuffers (neopixel_animation_status_t channel_animation, uint8_t pin);
 
-uint8_t neopixel_reset_animation (bool force);
+void neopixel_reset_animation (bool force);
 
 void LEDDRIVER_open (neopixel_sct_status_t sct_channel);
 
