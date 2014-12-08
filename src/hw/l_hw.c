@@ -797,6 +797,8 @@ static int l_neopixel_animation_buffer(lua_State* L) {
 		return 1;
 	}
 
+	TM_DEBUG("PIn %d", pin);
+
 
 	uint32_t frameRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
