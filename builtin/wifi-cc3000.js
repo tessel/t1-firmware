@@ -58,24 +58,9 @@ function Wifi(){
     }
 
     if (callback) {
-      process.once('wifi_connect_complete', function(err, data){
-        clearTimeout(connectionTimeout);
-        if (!err) {
-          try {
-            callback(err, JSON.parse(data));
-          } catch (e) {
-            callback(e);
-          }
-        } else {
-          callback(err, data);
-        }
-      });
-    }
-    
-    self._emitConnection(function(){
+      self.once('connect', callback);
       clearTimeout(connectionTimeout);
-    });
-
+    }
 
     if (!self.tryConnect) {
       // keep process open
@@ -97,20 +82,6 @@ function Wifi(){
     } else {
       self.emit('disconnect', data);
     }
-  };
-
-  self._emitConnection = function(next){
-    // remove previous listener, add this listener
-
-    process.removeAllListeners('wifi_connect_complete');
-    process.on('wifi_connect_complete', function(err, data) {
-      self._connectionCallback(err, data, next);
-    });
-
-    process.removeAllListeners('wifi_disconnect_complete');
-    process.on('wifi_disconnect_complete', function(){
-      self._connectionCallback("Wifi disconnected", null, next);
-    });
   };
 
   self.isConnected = function() {
@@ -147,17 +118,11 @@ function Wifi(){
       return self;
     }
 
-    process.removeAllListeners('wifi_disconnect_complete');
-
     if (callback) {
-      process.once('wifi_disconnect_complete', function(){
+      self.once('disconnect', function(){
         callback();
       });
-    }
-
-    process.on('wifi_disconnect_complete', function(){
-      self._connectionCallback("Wifi disconnected", null);
-    });
+    } 
 
     return self;
   };
@@ -190,14 +155,34 @@ function Wifi(){
     return hw.wifi_mac_address();
   };
 
-  process.once('_script_running', function(){
+  // Once the script starts
+  process.once('_script_running', function() {
+
+    // If the Tessel is already connected
     if (self.isConnected()) {
-      // go ahead and emit a connected event once the script runs
+      // go ahead and emit a connected event
       self.emit('connect', self.connection());
-    } else {
-      // emit the connected event whenever we're ready
-      self._emitConnection();
-    }
+    } 
+
+    // When we receive wifi_connect events, emit the 'connect' or 'error'
+    // event to the user
+    process.once('wifi_connect_complete', function(err, data){
+        if (!err) {
+          try {
+            self._connectionCallback(err, data);
+
+          } catch (e) {
+            self.emit('error', e);
+          }
+        } else {
+          self.emit('error', err);
+        }
+      });
+
+    // When we receive a wifi_disconnect event, emit the 'disconnect' event to the user
+    process.on('wifi_disconnect_complete', function(){
+        self._connectionCallback("WiFi Disconnected");
+      });
   });
 }
 
