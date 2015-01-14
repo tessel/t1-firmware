@@ -38,17 +38,16 @@ process.send = function (msg) {
  * util
  */
 
-function propertySetWithDefault (provided, possibility, defaultProp) {
-  if (!provided) {
-    return defaultProp;
-  } 
-  else {
-    if (possibility[provided] != undefined) {
-      return provided;
-    } else {
-      throw new Error('Invalid property value');
-    }
+function propertySetWithDefault (provided, possibility, defaultKey) {
+  if (typeof provided === 'undefined') { return possibility[defaultKey]; }
+
+  var key = String(provided).toLowerCase();
+
+  if (possibility.hasOwnProperty(key) === false) {
+    throw new Error('Invalid property value: ' + key);
   }
+
+  return possibility[key];
 }
 
 /**
@@ -760,8 +759,8 @@ var UARTParity = {
   none : hw.UART_PARITY_NONE,
   odd : hw.UART_PARITY_ODD,
   even : hw.UART_PARITY_EVEN,
-  oneStick : hw.UART_PARITY_ONE_STICK,
-  zeroStick : hw.UART_PARITY_ZERO_STICK
+  onestick : hw.UART_PARITY_ONE_STICK,
+  zerostick : hw.UART_PARITY_ZERO_STICK
 };
 
 var UARTDataBits = {
@@ -788,13 +787,13 @@ function UART(params, port) {
   this.baudrate = (params.baudrate ? params.baudrate : 9600);
 
   // Default databits is eight
-  this.dataBits = propertySetWithDefault(params.dataBits, UARTDataBits, UARTDataBits[8]);
+  this.dataBits = propertySetWithDefault(params.dataBits, UARTDataBits, 8);
 
   // Default parity is none
-  this.parity = propertySetWithDefault(params.parity, UARTParity, UARTParity["none"]);
+  this.parity = propertySetWithDefault(params.parity, UARTParity, 'none');
 
   // Default stopbits is one
-  this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, UARTStopBits[1]);
+  this.stopBits = propertySetWithDefault(params.stopBits, UARTStopBits, 1);
 
   this.bufferedData = [];
 
@@ -1180,7 +1179,7 @@ function SPI (params)
   this.role = params.role == 'slave' ? 'slave': 'master';
 
   // MSB vs LSB Needs testing
-  this.bitOrder = propertySetWithDefault(params.bitOrder, SPIBitOrder, SPIBitOrder.MSB);
+  this.bitOrder = propertySetWithDefault(params.bitOrder, SPIBitOrder, 'MSB');
 
   // chip Select is user wants us to toggle it for them
   this.chipSelect = params.chipSelect || null;
@@ -1334,8 +1333,8 @@ SPI.prototype.lock = function(callback)
 
 
 var SPIBitOrder = {
-  MSB : 0,
-  LSB : 1
+  msb : 0,
+  lsb : 1
 };
 
 /* 
