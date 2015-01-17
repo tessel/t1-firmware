@@ -235,13 +235,13 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		char* networkcountptr = (char*) &results[0];
 		uint32_t networkcount = *((uint32_t*) networkcountptr);
 			
-		if (networkcount >0 && first) {
+		if (networkcount > 0 && first) {
 			tm_logf('V', "Currently visible networks (%ld):", networkcount);
 		} else {
 			tm_logf('V', "No networks are currently visible");
 		}
 		
-		while ((res == !0 || networkcount > 0 ) && (current_network <= network_discovery_cap)){
+		while ((res == !0 || networkcount > 0 ) && (current_network <= network_discovery_cap) && (current_network <= networkcount)){
 			int rssi = 0;
 			if (results[8] & 0x1) {
 				rssi = results[8] >> 1;
@@ -251,6 +251,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 			unsigned char namebuf[33] = { 0 };
 			memcpy(namebuf, nameptr, 32);
 			tm_logf('V', "\t%s (%i/127)", namebuf, rssi);
+			current_network++;
 		}
 
 		if (hw_net_is_connected()) {
