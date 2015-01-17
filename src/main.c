@@ -131,7 +131,7 @@ uint8_t *script_buf = 0;
 size_t script_buf_size = 0;
 uint8_t script_buf_flash = false;
 
-unti8_t *network_discovery_cap = 20;
+uint8_t network_discovery_cap = 20;
 
 /**
  * command interface
@@ -229,7 +229,7 @@ void tessel_cmd_process (uint8_t cmd, uint8_t* buf, unsigned size)
 		uint8_t results[64];
 		int res = 0;
 		int first = 1;
-		int current_network = 0;
+		uint8_t current_network = 0;
 		
 		res = wlan_ioctl_get_scan_results(0, results);
 		char* networkcountptr = (char*) &results[0];
