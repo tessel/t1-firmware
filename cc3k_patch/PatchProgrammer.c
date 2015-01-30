@@ -294,7 +294,7 @@ initDriver(unsigned short cRequestPatch)
 	wlan_init( CC3000_Patch_UsynchCallback, sendWLFWPatch, sendDriverPatch, sendBootLoaderPatch,
 		ReadWlanInterruptPin, WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
 	
-	hw_wait_ms(100);
+	hw_wait_ms(500);
 	// Trigger a WLAN device
 
 	wlan_start(cRequestPatch);
@@ -307,7 +307,7 @@ initDriver(unsigned short cRequestPatch)
 	
 	// Turn on the LED 5 to indicate that we are active and initiated WLAN successfully
 	
-	hw_wait_ms(100);
+	hw_wait_ms(500);
 	
 	//
 	// Mask out all non-required events from CC3000
