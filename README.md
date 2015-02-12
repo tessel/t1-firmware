@@ -29,11 +29,12 @@ brew tap tessel/tools
 brew install gcc-arm gyp ninja
 ```
 
-#### Ubuntu 14.04
+#### Ubuntu 14.04, 14.10
 
-All dependencies are in the Ubuntu 14.04 repositories:
+Use the [gcc-arm-embedded PPA](https://launchpad.net/~terry.guo/+archive/ubuntu/gcc-arm-embedded):
 
 ```
+sudo add-apt-repository ppa:terry.guo/gcc-arm-embedded && sudo apt-get update
 sudo apt-get install git nodejs npm nodejs-legacy gcc-arm-none-eabi gyp ninja-build
 ```
 
