@@ -11,7 +11,7 @@ var neopixels = new Neopixels();
 var numNeopixels = 24;
 
 // Percent diff of what's read and what's expected due to setTimeout inaccuracy
-var marginOfError = 0.04;
+var marginOfError = 0.25;
 
 // make sure type input checks work
 test('testing input validation', function (t) {
