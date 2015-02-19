@@ -93,12 +93,15 @@ void CC_BLOCKS () {
 	#define TM_DEBUG(...)
 #endif
 
+#define MAX_CC_KICK 5 // max number of times we can kick out of a spi write
+
 // TODO remove this line, fix these definitions
 //#define delayMicroseconds(x)			tm_sleep_us(x)
 
 
 unsigned char tSpiReadHeader[] = {READ, 0, 0, 0, 0};
 
+int cc_kick_num = 0;
 //foor spi bus loop
 int loc = 0; 
 
@@ -215,7 +218,7 @@ void SpiInit(uint32_t clock_speed) {
 	hw_digital_output(HOST_VBAT_SW_EN);
 	//Initialize SPI
 	hw_spi_initialize(TESSEL_SPI_1, clock_speed, HW_SPI_MASTER, 0, 1, HW_SPI_FRAME_NORMAL);
-	
+	cc_kick_num = 0;
 	csn(HW_HIGH);
 }
 
@@ -297,12 +300,6 @@ long SpiFirstWrite(unsigned char *ucBuf, unsigned short usLength)
 	//
     // workaround for first transaction
     //
-	if (DEBUG_MODE)
-	{
-//		TM_DEBUG("SpiFirstWrite");
-	}
-
-  // hw_digital_write(HOST_nCS, 0);
 	csn(HW_LOW);
 	fakeWait(1100);
 	
@@ -313,40 +310,22 @@ long SpiFirstWrite(unsigned char *ucBuf, unsigned short usLength)
 	while(SSP_GetStatus(LPC_SSP1, SSP_STAT_BUSY)){
 		CC_BLOCKS();
 	};
-//	 unsigned char testData[6];
-//	 testData[0] = (unsigned char)0x00;
-//	 testData[1] = (unsigned char)0x01;
-//	 testData[2] = (unsigned char)0x00;
-//	 testData[3] = (unsigned char)0x40;
-//	 testData[4] = (unsigned char)0x0E;
-//	 testData[5] = (unsigned char)0x04;
 
 	SpiWriteDataSynchronous(ucBuf + 4, usLength - 4);
-//	 SpiWriteDataSynchronous(testData, usLength - 4);
-	//while(SSP_GetStatus(LPC_SSP1, SSP_STAT_BUSY)){};
 
 	// From this point on - operate in a regular way
 	sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
-//	fakeWait(1100);
-//	fakeWait(450);
-//	fakeWait(10);
-//	fakeWait(20);
 
-
-
-//	 hw_digital_write(HOST_nCS, 1);
 	csn(HW_HIGH);
 	return(0);
 }
 
+__attribute__((weak)) void _cc3000_cb_hang () { 
+	// noop
+}
 
 long SpiWrite(unsigned char *pUserBuffer, unsigned short usLength)
 {
-//	 if (DEBUG_MODE)
-//	 {
-//	 	TM_DEBUG("SpiWrite");
-//	 }
-
 	unsigned char ucPad = 0;
 
 	//
@@ -444,20 +423,34 @@ long SpiWrite(unsigned char *pUserBuffer, unsigned short usLength)
 //	TM_DEBUG("waiting for sSpiInformation.ulSpiState");
 #ifdef CC3K_TIMEOUT
 	uint32_t ccStartTime = tm_uptime_micro();
+	bool kickFlag = false;
 #endif
 	while (eSPI_STATE_IDLE != sSpiInformation.ulSpiState) {
 #ifdef CC3K_TIMEOUT
 		// wait the max of all of our timeouts
 		if (tm_uptime_micro() - ccStartTime >= CC3000_BLOCKS_WAIT) {
 			TM_DEBUG("Kicking out of CC_BLOCKS");
+			kickFlag = true;
+			// if we keep having to kick out, it probably means the cc3k died
+			if (cc_kick_num >= MAX_CC_KICK) {
+				_cc3000_cb_hang();
+			} else {
+				cc_kick_num++;
+			}
 			break;
 		}
 #endif
-
-
 		CC_BLOCKS();
 		continue;
 	}
+
+#ifdef CC3K_TIMEOUT
+	// if we don't kick out consecutively, reset the counter
+	if (!kickFlag) {
+		cc_kick_num = 0;
+	}
+#endif
+
 //	TM_DEBUG("done waiting for sSpiInformation.ulSpiState");
 //	if (haswritten > 0) {
 ////		TM_DEBUG("pulling CSN high");

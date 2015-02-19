@@ -181,8 +181,13 @@ function Wifi(){
 
     // When we receive a wifi_disconnect event, emit the 'disconnect' event to the user
     process.on('wifi_disconnect_complete', function(){
-        self._connectionCallback("WiFi Disconnected");
-      });
+      self._connectionCallback("WiFi Disconnected");
+    });
+
+    // check for hangs
+    process.on('wifi_hang', function(){
+      self.emit('error', "Wifi chip is hanging");
+    });
   });
 }
 

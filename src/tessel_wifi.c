@@ -44,10 +44,12 @@ struct wifi_status_t {
 
 void wifi_connection_callback();
 void wifi_disconnect_callback();
+void wifi_hang_callback();
 
 /// The event triggered by the cc callback
 tm_event wifi_connect_event = TM_EVENT_INIT(wifi_connection_callback);
 tm_event wifi_disconnect_event = TM_EVENT_INIT(wifi_disconnect_callback);
+tm_event wifi_hang_event = TM_EVENT_INIT(wifi_hang_callback);
 
 struct wifi_status_t wifi_status = {
   .callback_err = 0,
@@ -88,6 +90,19 @@ void wifi_disconnect_callback(void) {
 
 	lua_getglobal(L, "_colony_emit");
 	lua_pushstring(L, "wifi_disconnect_complete");
+	lua_pushnumber(L, 0);
+
+	tm_checked_call(L, 2);
+}
+
+void wifi_hang_callback(void){
+	lua_State* L = tm_lua_state;
+	if (!L) return;
+
+	tm_event_unref(&wifi_hang_event);
+
+	lua_getglobal(L, "_colony_emit");
+	lua_pushstring(L, "wifi_hang");
 	lua_pushnumber(L, 0);
 
 	tm_checked_call(L, 2);
@@ -230,6 +245,12 @@ void _cc3000_cb_tcp_close (int socket)
 	if (tm_lua_state != NULL) {
 		colony_ipc_emit(tm_lua_state, "tcp-close", &s, sizeof(uint32_t));
 	}
+}
+
+void _cc3000_cb_hang ()
+{
+	TM_DEBUG("_cc3000_cb_hang called");
+	tm_event_trigger(&wifi_disconnect_event);
 }
 
 int tessel_wifi_initialized(){
