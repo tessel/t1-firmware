@@ -76,4 +76,4 @@ The Tessel bootloader resides in the first 64k of the SPI flash chip and present
 
 To enter the bootloader, hold the Config button while resetting or powering on the board.
 
-To run your C program in RAM, link it for address 0x10000000 beginning with an ARM vector table ([linker script](otp/ldscript_ram_gnu.ld)), and <code>[cli](https://github.com/tessel/cli)/dfu/tessel-dfu-tool run_ram your_image.bin</code>
+To run your C program in RAM, link it for address 0x10000000 beginning with an ARM vector table ([example linker script](otp/ldscript_ram_gnu.ld)), and <code>tessel boot your_image.bin</code> using the [cli](https://github.com/tessel/cli).
