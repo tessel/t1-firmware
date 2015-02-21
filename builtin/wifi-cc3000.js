@@ -80,7 +80,7 @@ function Wifi(){
         self.emit('error', e);
       }
     } else {
-      self.emit('disconnect', data);
+      self.emit('disconnect', err);
     }
   };
 
