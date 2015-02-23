@@ -125,7 +125,7 @@ void CC_BLOCKS ();
 //*****************************************************************************
 
 unsigned long socket_active_status = SOCKET_STATUS_INIT_VAL; 
-
+uint8_t hci_evnt_kick_num = 0;
 
 //*****************************************************************************
 //            Prototypes for the static functions
@@ -481,6 +481,8 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 		
 			tSLInformation.usEventOrDataReceived = 0;
 			
+			// reset the number of hci event errors we have consecutively received.
+			hci_evnt_kick_num = 0;
 			SpiResumeSpi();
 			
 			// Since we are going to TX - we need to handle this event after the 
@@ -607,7 +609,13 @@ hci_event_handler(void *pRetParams, unsigned char *from, unsigned char *fromlen)
 				}
 				
 				TM_DEBUG("HCI Event error on command: %x", tSLInformation.usRxEventOpcode);
-
+				if (hci_evnt_kick_num >= MAX_CC_KICK) {
+					// do a callback with the error code so that the spi host handler can take care of it
+					tSLInformation.sWlanErrCB(tSLInformation.usRxEventOpcode);
+				} else {
+					hci_evnt_kick_num++;
+				}
+				
 				// past maximum wait, get out of here
 				return NULL;
 			}

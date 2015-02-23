@@ -105,6 +105,7 @@ extern "C" {
 //
 //*****************************************************************************
 extern void wlan_init(		tWlanCB	 	sWlanCB,
+                                tWlanErrCB      sWlanErrCB,
 	   			tFWPatches sFWPatches,
 	   			tDriverPatches sDriverPatches,
 	   			tBootLoaderPatches sBootLoaderPatches,

@@ -226,8 +226,8 @@ void hw_net_initialize (void)
 	SpiInit(4e6);
 	hw_wait_us(10);
 
-	wlan_init(CC3000_UsynchCallback, NULL, NULL, NULL, ReadWlanInterruptPin,
-	WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
+	wlan_init(CC3000_UsynchCallback, CC3000_TimeoutCallback, 
+		NULL, NULL, NULL, ReadWlanInterruptPin, WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
 
 	wlan_start(0);
 

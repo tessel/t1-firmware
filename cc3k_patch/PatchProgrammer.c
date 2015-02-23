@@ -269,6 +269,21 @@ void CC3000_Patch_UsynchCallback(long lEventType, char * data, unsigned char len
 	(void) length;
 }
 
+void CC3000_Patch_ErrorCallback(long lEventType){
+	(void) lEventType;
+	// flash all leds
+	uint8_t led_state = 0;
+
+	while (1){
+		hw_wait_ms(100);
+		hw_digital_write(LED1, led_state);
+		hw_digital_write(LED2, led_state);
+		hw_digital_write(CC3K_ERR_LED, led_state);
+		hw_digital_write(CC3K_CONN_LED, led_state);
+		led_state = !led_state;
+	}
+}
+
 //*****************************************************************************
 //
 //! initDriver
@@ -294,7 +309,7 @@ initDriver(unsigned short cRequestPatch)
 	}
 
 
-	wlan_init( CC3000_Patch_UsynchCallback, sendWLFWPatch, sendDriverPatch, sendBootLoaderPatch,
+	wlan_init( CC3000_Patch_UsynchCallback, CC3000_Patch_ErrorCallback, sendWLFWPatch, sendDriverPatch, sendBootLoaderPatch,
 		ReadWlanInterruptPin, WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
 	
 	hw_wait_ms(100);

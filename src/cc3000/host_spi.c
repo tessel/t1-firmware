@@ -93,8 +93,6 @@ void CC_BLOCKS () {
 	#define TM_DEBUG(...)
 #endif
 
-#define MAX_CC_KICK 5 // max number of times we can kick out of a spi write
-
 // TODO remove this line, fix these definitions
 //#define delayMicroseconds(x)			tm_sleep_us(x)
 
@@ -819,6 +817,14 @@ __attribute__((weak)) void _cc3000_cb_dhcp_failed () {
 	// noop
 }
 
+void CC3000_TimeoutCallback(long lEventType) {
+	TM_DEBUG("Got a CC3K_TIMEOUT_ERR on event %x", lEventType);
+
+	(void) lEventType;
+
+	_cc3000_cb_hang();
+}
+
 void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 {
 	(void) length;
@@ -859,7 +865,7 @@ void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length)
 		}
 		else
 		{
-			ulCC3000DHCP = 0;
+			ulCC3000DHCP = 0; 
 			_cc3000_cb_dhcp_failed();
 		}
 	}

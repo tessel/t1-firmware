@@ -78,6 +78,7 @@ extern void print_spi_state(void);
 extern long TXBufferIsEmpty(void);
 extern long RXBufferIsEmpty(void);
 
+extern void CC3000_TimeoutCallback(long lEventType);
 extern void CC3000_UsynchCallback(long lEventType, char * data, unsigned char length);
 extern long ReadWlanInterruptPin(void);
 extern void WlanInterruptEnable();
