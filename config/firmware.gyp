@@ -45,7 +45,7 @@
       '-fdata-sections',
       # '-fpermissive',
 
-      '-include <!(pwd)/<(runtime_path)/deps/axtls/config/embed/config.h',
+      '-include "<!(pwd)/<(runtime_path)/deps/axtls/config/embed/config.h"',
 
       '-Wall',
       '-Werror',
@@ -321,7 +321,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/<(firmware_path)/ldscript_rom_gnu.ld',
+        '-T \'<!(pwd)/<(firmware_path)/ldscript_rom_gnu.ld\'',
         '-lm',
         '-lc',
         '-lnosys',
@@ -424,7 +424,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/<(boot_path)/ldscript_rom_gnu.ld',
+        '-T \'<!(pwd)/<(boot_path)/ldscript_rom_gnu.ld\'',
         '-lm',
         '-lc',
         '-lnosys',
@@ -510,7 +510,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/<(otp_path)/ldscript_ram_gnu.ld',
+        '-T \'<!(pwd)/<(otp_path)/ldscript_ram_gnu.ld\'',
         '-lm',
         '-lc',
         '-lnosys',
@@ -583,7 +583,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/<(otp_path)/ldscript_ram_gnu.ld',
+        '-T \'<!(pwd)/<(otp_path)/ldscript_ram_gnu.ld\'',
         '-lm',
         '-lc',
         '-lnosys',
@@ -652,7 +652,7 @@
         '-lnosys',
       ],
       'ldflags': [
-        '-T<!(pwd)/<(cc3k_path)/ldscript_ram_gnu.ld',
+        '-T \'<!(pwd)/<(cc3k_path)/ldscript_ram_gnu.ld\'',
         '-lm',
         '-lc',
         '-lnosys',
