@@ -1573,6 +1573,9 @@ module.exports.syncClock = function (fn) {
   });
 }
 
+module.exports.writeScriptToFlash = function (buf) {
+  hw.write_buffer_to_flash(buf, buf.length);
+};
 
 module.exports.I2CMode = I2CMode;
 module.exports.SPIBitOrder = SPIBitOrder;

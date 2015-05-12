@@ -623,6 +623,20 @@ static int l_usb_send(lua_State* L)
 	return 1;
 }
 
+static int l_hw_setup_flash(lua_State* L)
+{
+	size_t buf_len;
+	uint8_t *script_buf = colony_tobuffer(L, ARG1, &buf_len);
+
+	update_from_flash_len = buf_len;
+	
+	update_from_flash = malloc(sizeof(uint8_t) * update_from_flash_len);
+	memcpy(update_from_flash, script_buf, update_from_flash_len);
+	tm_runtime_exit_longjmp(0);
+
+	return 1;
+}
+
 // Module Shims
 
 static int l_audio_play_buffer(lua_State* L) {
@@ -1062,6 +1076,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 
 		// usb
 		{ "usb_send", l_usb_send },
+
+		// update code in flash
+		{"write_buffer_to_flash", l_hw_setup_flash},
 
 		// module shims
 		// audio
