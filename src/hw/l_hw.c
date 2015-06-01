@@ -80,6 +80,12 @@ static int l_hw_sleep_ms(lua_State* L)
 	return 0;
 }
 
+static int l_hw_reset_board()
+{
+	tessel_reset_board();
+	return 0;
+}
+
 
 // spi
 
@@ -1101,6 +1107,9 @@ LUALIB_API int luaopen_hw(lua_State* L)
 		{ "wifi_disable", l_wifi_disable },
 		{ "wifi_enable", l_wifi_enable },
 		{ "wifi_mac_address", l_wifi_mac_address},
+
+		//reset
+		{ "reset_board", l_hw_reset_board},
 
 		// End of array (must be last)
 		{ NULL, NULL }

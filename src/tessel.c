@@ -16,7 +16,8 @@
 #include "hw.h"
 #include "variant.h"
 
-
+#include "hw/bootloader.h"
+#include "sys/spi_flash.h"
 /**
  * initialize GPIOs for new script
  */
@@ -99,4 +100,9 @@ void tessel_network_reset ()
 	// 	closesocket(2);
 	// 	closesocket(3);
 	// }
+}
+
+void tessel_reset_board ()
+{
+	jump_to_flash(FLASH_FW_ADDR, 0);
 }
