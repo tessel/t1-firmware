@@ -55,6 +55,8 @@ int populate_fs (const uint8_t *file, size_t len);
 
 int debugstack();
 
+void tessel_reset_board ();
+
 
 /**
  * SPI

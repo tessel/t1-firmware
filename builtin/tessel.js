@@ -1528,6 +1528,10 @@ function Tessel() {
     return hw.device_id();
   }; 
 
+  this.reset_board = function(){
+	return hw.reset_board();
+  }
+
 }
 
 util.inherits(Tessel, EventEmitter);
