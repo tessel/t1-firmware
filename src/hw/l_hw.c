@@ -732,7 +732,7 @@ static int l_gps_get_time(lua_State* L) {
 }
 
 static int l_gps_get_date(lua_State* L) {
-	double r = gps_get_time();
+	double r = gps_get_date();
 	lua_pushnumber(L, r);
 	return 1;
 }
