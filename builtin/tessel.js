@@ -333,7 +333,7 @@ var pinModes = {
 Pin.prototype.type = 'digital';
 Pin.prototype.resolution = 1;
 
-Pin.prototype.pull = function(mode){
+Pin.prototype.pull = function(mode, next){
   if (!mode) {
     mode = 'none';
   }
@@ -345,22 +345,41 @@ Pin.prototype.pull = function(mode){
   }
 
   hw.digital_set_mode(this.pin, pinModes[mode]);
+  
+  if (next) {
+    setImmediate(next);
+  }
+  
   return this;
 }
 
-Pin.prototype.mode = function(){
+Pin.prototype.mode = function(next){
   var mode = hw.digital_get_mode(this.pin);
-
+  var val;
   if (mode == pinModes.pullup) {
-    return 'pullup';
+    val = 'pullup';
   } else if (mode == pinModes.pulldown) {
-    return 'pulldown'
+    val = 'pulldown'
   } else if (mode == pinModes.none){
-    return 'none';
+    val = 'none';
   } 
 
-  console.warn('Pin mode is unsupported:', mode);
-  return null;
+  if (val) {
+    if (next) {
+      setImmediate(function() { next(null, val); });
+    }
+    return val;
+  }
+  else {
+    var errStr = "Pin mode is unsupported:" + mode;
+    if (next) {
+      setImmediate(function() { next(new Error(errStr)); });
+    }
+    else {
+      console.warn(errStr);
+      return null;
+    }
+  }
 }
 
 Pin.prototype.rawDirection = function (isOutput) {
@@ -372,19 +391,29 @@ Pin.prototype.rawDirection = function (isOutput) {
   return this;
 };
 
-Pin.prototype.rawRead = function rawRead() {
-  return hw.digital_read(this.pin);
+Pin.prototype.rawRead = function rawRead(next) {
+  var val = hw.digital_read(this.pin);
+  if (next) {
+    setImmediate(function() { next(null, val); });
+  }
+  return val;
 };
 
-Pin.prototype.rawWrite = function rawWrite(value) {
+Pin.prototype.rawWrite = function rawWrite(value, next) {
   hw.digital_write(this.pin, value ? hw.HIGH : hw.LOW);
+  if (next) {
+    setImmediate(function() { next(null, val); });
+  }
   return this;
 };
 
 
-Pin.prototype.output = function output(value) {
+Pin.prototype.output = function output(value, next) {
   this.rawWrite(value);
   this.rawDirection(true);
+  if (next) {
+    setImmediate(function() { next(null); });
+  }
   return this;
 };
 
@@ -421,13 +450,12 @@ Pin.prototype.setOutput = function (initial, next) {
 
 Pin.prototype.read = function (next) {
   this.rawDirection(false);
-  var value = this.rawRead();
+  var val = this.rawRead();
 
   if (next) {
-    console.warn('pin.read is now synchronous. Use of the callback is deprecated.');
-    setImmediate(function() { next(value); });
+    setImmediate(function() { next(null, val); });
   }
-  return value;
+  return val;
 };
 
 Pin.prototype.readSync = function(value) {
@@ -494,7 +522,6 @@ Pin.prototype.write = function (value, next) {
   this.rawDirection(true);
 
   if (next) {
-    console.warn('pin.write is now synchronous. Use of the callback is deprecated.');
     setImmediate(next);
   }
   return null;
@@ -505,13 +532,19 @@ Pin.prototype.writeSync = function(value) {
   return this.write(value);
 };
 
-Pin.prototype.high = function () {
+Pin.prototype.high = function (next) {
   this.output(true);
+  if (next) {
+    setImmediate(function() { next(null); });
+  }
   return this;
 };
 
-Pin.prototype.low = function () {
+Pin.prototype.low = function (next) {
   this.output(false);
+  if (next) {
+    setImmediate(function() { next(null); });
+  }
   return this;
 };
 
@@ -520,8 +553,11 @@ Pin.prototype.pulse = function () {
   this.low();
 };
 
-Pin.prototype.toggle = function () {
+Pin.prototype.toggle = function (next) {
   this.output(!this.rawRead());
+  if (next) {
+    setImmediate(function() { next(null); });
+  }
 };
 
 Pin.prototype.set = function (v) {
