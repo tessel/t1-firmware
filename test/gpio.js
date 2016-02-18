@@ -301,3 +301,70 @@ test('Pull resistors', function(t) {
   trigger.pull('buskeeper')
   t.equal(!!trigger.read(), false);
 });
+
+test('async read write', function(t) {
+  console.log('setting output to true')
+  pin.output(true, function(err) {
+    console.log('inside output')
+    t.equal(err, null);
+    trigger.read(function(err, value) {
+      t.equal(err, null);
+      t.equal(value, 1);
+      pin.write(0, function(err) {
+        t.equal(err, null);
+        trigger.read(function(err, value) {
+          t.equal(err, null);
+          t.equal(value, 0);
+          t.end();
+        });
+      })
+    });
+  })
+});
+
+test('async high low toggle', function(t) {
+  pin.high(function(err) {
+    t.equal(err, null);
+    trigger.read(function(err, val) {
+      t.equal(err, null);
+      t.equal(val, 1);
+      pin.low(function(err) {
+        t.equal(err, null);
+        trigger.read(function(err, val) {
+          t.equal(err, null);
+          t.equal(val, 0);
+          pin.toggle(function(err) {
+            t.equal(err, null);
+            trigger.read(function(err, val) {
+              t.equal(err, null);
+              t.equal(val, 1);
+              t.end();
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+test('async pull mode', function(t) {
+  pin.pull('pulldown', function(err) {
+    t.equal(err, null);
+    pin.mode(function(err, val) {
+      t.equal(err, null);
+      t.equal(val, 'pulldown');
+      t.end();
+    });
+  });
+});
+
+test('async rawWrite rawRead', function(t) {
+  pin.rawWrite(0, function(err) {
+    t.equal(err, null);
+    pin.rawRead(function(err, val) {
+      t.equal(err, null);
+      t.equal(val, 0);
+      t.end();
+    });
+  });
+});
