@@ -91,7 +91,6 @@ unsigned char profileArray[SMART_CONFIG_PROFILE_SIZE];
 #define WLAN_CONNECT_PARAM_LEN					(29)
 #define WLAN_SMART_CONFIG_START_PARAMS_LEN		(4)
 
-
 void set_cc3k_irq_flag (uint8_t val);
 
 
@@ -1118,8 +1117,12 @@ wlan_smart_config_set_prefix(char* cNewPrefix)
 	
 	if (cNewPrefix == NULL)
 		return ret;
-	if (cNewPrefix[0] != 'T' || cNewPrefix[1] != 'T' || cNewPrefix[2] != 'T')
-		return -1;
+	else	// with the new Smart Config, prefix must be TTT
+	{
+		*cNewPrefix = 'T';
+		*(cNewPrefix + 1) = 'T';
+		*(cNewPrefix + 2) = 'T';
+	}
 	
 	ARRAY_TO_STREAM(args, cNewPrefix, SL_SIMPLE_CONFIG_PREFIX_LENGTH);
 	

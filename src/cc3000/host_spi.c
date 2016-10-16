@@ -238,11 +238,6 @@ void SpiDeInit(){
 void SpiOpen(gcSpiHandleRx pfRxHandler)
 {
 
-	if (DEBUG_MODE)
-	{
-//		TM_DEBUG("SpiOpen");
-	}
-
 	sSpiInformation.ulSpiState = eSPI_STATE_POWERUP;
 
 	sSpiInformation.SPIRxHandler = pfRxHandler;
@@ -258,13 +253,6 @@ void SpiOpen(gcSpiHandleRx pfRxHandler)
 //	Enable interrupt on the GPIOA pin of WLAN IRQ
 	
 	tSLInformation.WlanInterruptEnable();
-
-
-	if (DEBUG_MODE)
-	{
-//		TM_DEBUG("Completed SpiOpen");
-
-	}
 }
 
 
@@ -417,26 +405,20 @@ long SpiWrite(unsigned char *pUserBuffer, unsigned short usLength)
 		tSLInformation.WlanInterruptEnable();
 		// assert CS
 		csn(HW_LOW);
-//		TM_DEBUG("dropped CS");
 
+		// Re-enable IRQ - if it was not disabled - this is not a problem...
+		tSLInformation.WlanInterruptEnable();
+
+		// check for a missing interrupt between the CS assertion and enabling back the interrupts
+		if (tSLInformation.ReadWlanInterruptPin() == 0)
+		{
+                	SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
+
+			sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
+
+			csn(HW_HIGH);
+		}
 	}
-
-//	if (tSLInformation.ReadWlanInterruptPin() == 0) {
-//
-//		// check for a missing interrupt between the CS assertion and enabling back the interrupts
-//		if (sSpiInformation.ulSpiState == eSPI_STATE_WRITE_IRQ)
-//		{
-//			haswritten = 0;
-//			// TM_DEBUG("writing synchronous data");
-//			SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
-//			sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
-//
-//			//deassert CS
-//			//hw_digital_write(HOST_nCS, 1);
-//			csn(HW_HIGH);
-//		}
-//	}
-	
 	//
 	// Due to the fact that we are currently implementing a blocking situation
 	// here we will wait till end of transaction
@@ -476,32 +458,24 @@ void renableIRQ(void) {
 void SpiWriteDataSynchronous(unsigned char *data, unsigned short size)
 {
 	tSLInformation.WlanInterruptDisable();
-//	if (DEBUG_MODE) {
-//		TM_DEBUG("writing data");
-//	}
-//	 if (DEBUG_MODE)
-//	 {
-//	 	TM_DEBUG("SpiWriteDataSynchronous");
-//	 	for(int i = 0; i<size; i++) {
-//	 		TM_DEBUG("data[%d]: %d", i, data[i]);
-//	 	}
-//	 	TM_DEBUG("");
-//	 }
 	
-	// csn(HW_LOW);
 	while (size--) {
 		hw_spi_send_sync(TESSEL_SPI_1, data, 1);
 		data+=1;
 	}
-	// csn(HW_HIGH);
-	
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("SpiWriteDataSynchronous done.");
-	// 	delayMicroseconds(50);
-	// }
+
 	tSLInformation.WlanInterruptEnable();
 	
+
+	// while (size)
+	// {
+	// 	while (!(TXBufferIsEmpty()));
+	// 	UCB0TXBUF = *data;
+	// 	while (!(RXBufferIsEmpty()));
+	// 	UCB0RXBUF;
+	// 	size --;
+	// 	data++;
+	// }
 }
 
 
@@ -511,24 +485,23 @@ void SpiReadDataSynchronous(unsigned char *data, unsigned short size)
 	for (i = 0; i < size; i ++) {
 		hw_spi_transfer_sync(TESSEL_SPI_1, &(tSpiReadHeader[0]), &(data[i]), 1, NULL);
 	}
+
+	// long i = 0;
+	// unsigned char *data_to_send = tSpiReadHeader;
+	
+	// for (i = 0; i < size; i ++)
+	// {
+	// 	while (!(TXBufferIsEmpty()));
+	// 	//Dummy write to trigger the clock
+	// 	UCB0TXBUF = data_to_send[0];
+	// 	while (!(RXBufferIsEmpty()));
+	// 	data[i] = UCB0RXBUF;
+	// }
 }
 
 void SpiReadHeader(void)
 {
-
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("SpiReadHeader");
-	// }
-
-	//SpiWriteDataSynchronous(tSpiReadHeader, 3);
-//	TM_DEBUG("reading header\n");
 	SpiReadDataSynchronous(sSpiInformation.pRxPacket, 10);
-
-//	TM_DEBUG("here is the header buff");
-//	for(int test = 0; test<10; test++){
-//		TM_DEBUG("header received %ul", ((unsigned char *)(sSpiInformation.pRxPacket))[test]);
-//	}
 }
 
 
@@ -536,63 +509,44 @@ void SpiReadHeader(void)
 long SpiReadDataCont(void)
 {
 
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("SpiReadDataCont");
-	// }
 	long data_to_recv;
 	unsigned char *evnt_buff, type;
-
 	
-	//
 	//determine what type of packet we have
-	//
 	evnt_buff =  sSpiInformation.pRxPacket;
 	data_to_recv = 0;
-	STREAM_TO_UINT8((char *)(evnt_buff + SPI_HEADER_SIZE), 
-		HCI_PACKET_TYPE_OFFSET, type);
+	STREAM_TO_UINT8((char *)(evnt_buff + SPI_HEADER_SIZE), HCI_PACKET_TYPE_OFFSET,
+									type);
 	
-  switch(type)
-  {
-    case HCI_TYPE_DATA:
-    {
-			//
+	switch(type)
+	{
+	case HCI_TYPE_DATA:
+		{
 			// We need to read the rest of data..
-			//
-//    		TM_DEBUG("data data_to_recv %ul", data_to_recv);
 			STREAM_TO_UINT16((char *)(evnt_buff + SPI_HEADER_SIZE), 
-				HCI_DATA_LENGTH_OFFSET, data_to_recv);
+											 HCI_DATA_LENGTH_OFFSET, data_to_recv);
 			if (!((HEADERS_SIZE_EVNT + data_to_recv) & 1))
-			{
+			{	
 				data_to_recv++;
 			}
-
+			
 			if (data_to_recv)
 			{
 				SpiReadDataSynchronous(evnt_buff + 10, data_to_recv);
 			}
-//			TM_DEBUG("here is data buff");
-//			for(int test = 0; test<data_to_recv; test++){
-//				TM_DEBUG("data received %ul", ((unsigned char *)(evnt_buff))[10+test]);
-//			}
 			break;
 		}
-		case HCI_TYPE_EVNT:
+	case HCI_TYPE_EVNT:
 		{
-		// 
-		// Calculate the rest length of the data
-		//
-
+			// Calculate the rest length of the data
 			STREAM_TO_UINT8((char *)(evnt_buff + SPI_HEADER_SIZE), 
-				HCI_EVENT_LENGTH_OFFSET, data_to_recv);
+											HCI_EVENT_LENGTH_OFFSET, data_to_recv);
 			data_to_recv -= 1;
 			
-//			TM_DEBUG("event data_to_recv %ul", data_to_recv);
-			// 
 			// Add padding byte if needed
-			//
 			if ((HEADERS_SIZE_EVNT + data_to_recv) & 1)
 			{
+				
 				data_to_recv++;
 			}
 			
@@ -600,42 +554,22 @@ long SpiReadDataCont(void)
 			{
 				SpiReadDataSynchronous(evnt_buff + 10, data_to_recv);
 			}
-//			TM_DEBUG("received %ul", data_to_recv);
-			// read through event buff
-//			TM_DEBUG("here is event buff");
-//			for(int test = 0; test<data_to_recv; test++){
-//				TM_DEBUG("event received %ul", ((unsigned char *)(evnt_buff))[10+test]);
-//			}
+			
 			sSpiInformation.ulSpiState = eSPI_STATE_READ_EOT;
 			break;
 		}
 	}
-	
+
 	return (0);
 }
 
 void SpiPauseSpi(void)
 {
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("SpiPauseSpi");
-	// }
-
 	set_cc3k_irq_flag(0);
 }
 
 void SpiResumeSpi(void)
 {
-	// if (DEBUG_MODE)
-	// {
-	// 	TM_DEBUG("SpiResumeSpi");
-	// }
-
-	// renableIRQ();
-	
-	// if (get_cc3k_irq_flag()) {
-	// 	SPI_IRQ();
-	// }
 }
 
 void SpiTriggerRxProcessing(void)

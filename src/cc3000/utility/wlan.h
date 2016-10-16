@@ -51,6 +51,11 @@ extern "C" {
 #define      WLAN_SEC_WEP	(1)
 #define      WLAN_SEC_WPA	(2)
 #define      WLAN_SEC_WPA2	(3)
+
+#define    WLAN_STATUS_DISCONNECTED    (0)
+#define    WLAN_STATUS_SCANNING        (1)
+#define    WLAN_STATUS_CONNECTING      (2)
+#define    WLAN_STATUS_CONNECTED       (3)
 //*****************************************************************************
 //
 //! \addtogroup wlan_api

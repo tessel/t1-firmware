@@ -652,6 +652,20 @@ extern int mdnsAdvertiser(unsigned short mdnsEnabled, char * deviceServiceName, 
 
 //*****************************************************************************
 //
+//!  getmssvalue
+//!
+//!  @param[in] sd         socket descriptor
+//!
+//!  @return   On success, returns the MSS value of a TCP connection
+//!
+//!  @brief    Returns the MSS value of a TCP connection according to the socket descriptor
+//
+//*****************************************************************************
+extern unsigned short getmssvalue (long sd);
+
+
+//*****************************************************************************
+//
 // Close the Doxygen group.
 //! @}
 //
