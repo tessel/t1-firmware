@@ -44,10 +44,12 @@ struct wifi_status_t {
 
 void wifi_connection_callback();
 void wifi_disconnect_callback();
+void wifi_hang_callback();
 
 /// The event triggered by the cc callback
 tm_event wifi_connect_event = TM_EVENT_INIT(wifi_connection_callback);
 tm_event wifi_disconnect_event = TM_EVENT_INIT(wifi_disconnect_callback);
+tm_event wifi_hang_event = TM_EVENT_INIT(wifi_hang_callback);
 
 struct wifi_status_t wifi_status = {
   .callback_err = 0,
@@ -85,9 +87,21 @@ void wifi_disconnect_callback(void) {
 	if (!L) return;
 
 	tm_event_unref(&wifi_disconnect_event);
-
 	lua_getglobal(L, "_colony_emit");
 	lua_pushstring(L, "wifi_disconnect_complete");
+	lua_pushnumber(L, 0);
+
+	tm_checked_call(L, 2);
+}
+
+void wifi_hang_callback(void){
+	lua_State* L = tm_lua_state;
+	if (!L) return;
+
+	tm_event_unref(&wifi_hang_event);
+
+	lua_getglobal(L, "_colony_emit");
+	lua_pushstring(L, "wifi_hang");
 	lua_pushnumber(L, 0);
 
 	tm_checked_call(L, 2);
@@ -203,18 +217,22 @@ void _cc3000_cb_wifi_disconnect ()
 void _cc3000_cb_dhcp_failed ()
 {
 	TM_DEBUG("DHCP failed. Try reconnecting.");
+	hw_digital_write(CC3K_ERR_LED, 1);
+	hw_digital_write(CC3K_CONN_LED, 0);
 	TM_COMMAND('W', "{\"event\": \"dhcp-failed\"}");
 	wifi_is_connecting = 0;
 	cc_blink = 0;
 	cc_bootup = -1;
 	tessel_wifi_check(1);
-	hw_digital_write(CC3K_ERR_LED, 1);
-	hw_digital_write(CC3K_CONN_LED, 0);
+	if (!wifi_status.post_connect) {
+		// if we're not waiting for a cli event, trigger the disconnect
+		TM_DEBUG("disconnect event triggering");
+		tm_event_trigger(&wifi_disconnect_event);
+	}
 }
 
 void _cc3000_cb_dhcp_success ()
 {
-	hw_digital_write(CC3K_CONN_LED, 1);
 	TM_COMMAND('W', "{\"event\": \"dhcp-success\"}");
 	wifi_is_connecting = 0;
 	tessel_wifi_check(1);
@@ -230,6 +248,12 @@ void _cc3000_cb_tcp_close (int socket)
 	if (tm_lua_state != NULL) {
 		colony_ipc_emit(tm_lua_state, "tcp-close", &s, sizeof(uint32_t));
 	}
+}
+
+void _cc3000_cb_hang ()
+{
+	TM_DEBUG("_cc3000_cb_hang called");
+	tm_event_trigger(&wifi_hang_event);
 }
 
 int tessel_wifi_initialized(){
@@ -332,7 +356,6 @@ void tessel_wifi_check (uint8_t asevent)
 	(void) asevent;
 
 	if (hw_net_online_status()){
-		
 		char * payload = tessel_wifi_json();
 		TM_COMMAND('W', payload);
 
